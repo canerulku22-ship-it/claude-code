@@ -1,0 +1,10 @@
+{
+  "name": "heathrow-24h",
+  "private": true,
+  "description": "24 hours at London Heathrow in 60 seconds: 3D render with colour-coded routes, live counters, weather and sound",
+  "dependencies": {
+    "three": "0.160.0",
+    "topojson-client": "3.1.0",
+    "world-atlas": "2.0.2"
+  }
+}

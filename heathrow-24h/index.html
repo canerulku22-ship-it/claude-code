@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --c0: #FFD21F; --c1: #FF8A1F; --c2: #FF3B3B; --c3: #B65CFF;
+    --ink: #eef2ff; --mute: #93a3c8; --panel: rgba(10, 16, 36, 0.74); --edge: rgba(130, 150, 255, 0.22);
+  }
+  html, body { margin: 0; padding: 0; width: 1080px; height: 1920px; overflow: hidden; background: #050914; }
+  body { font-family: 'Inter', sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  #gl { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+  #hud { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: none; }
+  .abs { position: absolute; }
+  .num { font-variant-numeric: tabular-nums; }
+  .grad { background: linear-gradient(90deg, #5AA9FF 0%, #A06BFF 52%, #FF6FB5 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .panel { background: var(--panel); border: 1.5px solid var(--edge); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
+
+  #title { left: 48px; top: 46px; font-size: 58px; font-weight: 800; letter-spacing: 1px; white-space: nowrap; transform-origin: 0 0; }
+  #subtitle { left: 50px; top: 124px; font-size: 25px; font-weight: 600; letter-spacing: 3.5px; color: var(--mute); white-space: nowrap; }
+  #clockbox { right: 48px; top: 30px; text-align: right; }
+  #clock { font-size: 92px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+  #clocksub { font-size: 20px; font-weight: 600; letter-spacing: 3px; color: var(--mute); margin-top: 6px; }
+
+  #daybar { left: 48px; top: 166px; width: 984px; height: 86px; }
+  #hours { position: absolute; left: 0; top: 0; width: 984px; height: 40px; }
+  #hours .b { position: absolute; bottom: 0; width: 34px; border-radius: 4px 4px 0 0; background: linear-gradient(180deg, #A06BFF, #5AA9FF); }
+  #track { position: absolute; left: 0; top: 44px; width: 984px; height: 10px; border-radius: 6px;
+    background: linear-gradient(90deg, #0d1838 0%, #18265a 25%, #f2955c 28.8%, #64aef7 33%, #6fb6ff 50%, #64aef7 66%, #f0784a 69.2%, #2b2f6c 72.5%, #0d1838 100%); opacity: 0.55; }
+  #fill { position: absolute; left: 0; top: 0; height: 10px; border-radius: 6px; width: 0;
+    background: linear-gradient(90deg, #0d1838 0%, #18265a 25%, #f2955c 28.8%, #64aef7 33%, #6fb6ff 50%, #64aef7 66%, #f0784a 69.2%, #2b2f6c 72.5%, #0d1838 100%); background-size: 984px 10px; }
+  #marker { position: absolute; top: -9px; width: 28px; height: 28px; margin-left: -14px; border-radius: 50%; }
+  #ticks { position: absolute; left: 0; top: 60px; width: 984px; height: 22px; font-size: 18px; font-weight: 600; color: var(--mute); }
+  #ticks span { position: absolute; transform: translateX(-50%); }
+
+  #legend { left: 40px; top: 1036px; width: 1000px; display: flex; gap: 10px; justify-content: center; }
+  .pill { display: flex; align-items: center; gap: 9px; padding: 8px 14px 8px 12px; border-radius: 30px; background: rgba(8, 13, 30, 0.78); border: 1.5px solid rgba(255,255,255,0.10); font-size: 21px; font-weight: 700; }
+  .pill .dot { width: 16px; height: 16px; border-radius: 50%; }
+  .pill .n { color: var(--mute); font-weight: 600; font-size: 19px; }
+  #legendTitle { left: 0; width: 1080px; text-align: center; top: 1004px; font-size: 18px; font-weight: 700; letter-spacing: 3px; color: var(--mute); }
+  #inair { right: 44px; top: 270px; text-align: right; }
+  #inair .l { font-size: 18px; font-weight: 700; letter-spacing: 3px; color: var(--mute); }
+  #inair .v { font-size: 46px; font-weight: 800; line-height: 1.05; }
+
+  #labels { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+  .clab { position: absolute; font-size: 19px; font-weight: 700; letter-spacing: 1.5px; white-space: nowrap; text-shadow: 0 0 6px #000, 0 0 12px #000; transform: translate(-50%, -150%); }
+
+  #toast { left: 540px; top: 300px; transform: translateX(-50%); text-align: center; padding: 14px 30px 16px; border-radius: 22px;
+    background: rgba(10, 14, 34, 0.84); border: 1.5px solid rgba(160,120,255,0.45); white-space: nowrap; opacity: 0; }
+  #toast .t1 { font-size: 30px; font-weight: 800; letter-spacing: 1px; }
+  #toast .t2 { font-size: 21px; font-weight: 600; color: #c5cfee; margin-top: 5px; letter-spacing: 1px; }
+  #toast .tm { font-variant-numeric: tabular-nums; margin-right: 14px; }
+
+  #counters { left: 40px; top: 1098px; width: 1000px; height: 140px; display: flex; gap: 16px; }
+  .card { flex: 1; padding: 18px 22px 0; position: relative; }
+  .card.wide { flex: 1.32; }
+  .card .k { font-size: 19px; font-weight: 700; letter-spacing: 3px; color: var(--mute); display: flex; align-items: center; gap: 10px; }
+  .card .v { font-size: 58px; font-weight: 800; margin-top: 4px; letter-spacing: -0.5px; }
+  .card .s { position: absolute; right: 18px; top: 18px; font-size: 17px; color: var(--mute); font-weight: 600; }
+  .arrow { width: 26px; height: 26px; }
+
+  #airframe { left: 0; top: 0; width: 1080px; height: 1920px; position: absolute; }
+  #airlabel { left: 60px; top: 1276px; font-size: 20px; font-weight: 800; letter-spacing: 2.5px; display: flex; align-items: center; gap: 12px; text-shadow: 0 1px 8px rgba(0,0,0,0.8); }
+  #airlabel .live { background: #ff3355; color: #fff; padding: 3px 10px; border-radius: 6px; font-size: 18px; letter-spacing: 2px; }
+  #rwy { left: 60px; top: 1310px; font-size: 19px; font-weight: 700; letter-spacing: 1.5px; color: #dfe6ff; text-shadow: 0 1px 8px rgba(0,0,0,0.9); }
+  #latest { left: 60px; top: 1550px; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; text-shadow: 0 1px 6px rgba(0,0,0,0.95); }
+  #latest .row { display: flex; align-items: center; gap: 10px; height: 31px; }
+  #latest .d { width: 13px; height: 13px; border-radius: 50%; }
+  #latest .tm { color: #ffffff; width: 64px; }
+  #latest .fn { color: #c9d3f5; width: 96px; }
+
+  #toproutes { left: 40px; top: 1654px; width: 540px; height: 232px; }
+  #toproutes .h { position: absolute; left: 22px; top: 16px; font-size: 19px; font-weight: 700; letter-spacing: 3px; color: var(--mute); }
+  .rrow { position: absolute; left: 22px; width: 496px; height: 36px; display: flex; align-items: center; font-size: 22px; font-weight: 700; }
+  .rrow .rk { width: 30px; color: var(--mute); }
+  .rrow .nm { width: 210px; white-space: nowrap; overflow: hidden; }
+  .rrow .bar { height: 14px; border-radius: 7px; }
+  .rrow .ct { margin-left: 10px; font-size: 21px; }
+
+  #weather { left: 596px; top: 1654px; width: 444px; height: 232px; }
+  #weather .h { position: absolute; left: 22px; top: 16px; font-size: 19px; font-weight: 700; letter-spacing: 3px; color: var(--mute); }
+  #compass { position: absolute; left: 12px; top: 50px; width: 168px; height: 168px; }
+  #wx { position: absolute; left: 192px; top: 52px; width: 244px; white-space: nowrap; }
+  #wx .w1 { font-size: 21px; font-weight: 700; color: var(--mute); letter-spacing: 2px; }
+  #wx .w2 { font-size: 40px; font-weight: 800; line-height: 1.08; }
+  #wx .w3 { font-size: 19px; font-weight: 600; color: #c5cfee; margin-top: 0px; }
+  #wx .cond { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 22px; font-weight: 800; }
+  #wxicon { width: 46px; height: 46px; flex: none; }
+
+  #summary { left: 90px; top: 380px; width: 900px; padding: 34px 40px 36px; opacity: 0; text-align: center;
+    background: rgba(8, 12, 30, 0.90); border: 2px solid rgba(160,120,255,0.5); border-radius: 30px; box-shadow: 0 20px 80px rgba(0,0,0,0.6); }
+  #summary .s0 { font-size: 24px; font-weight: 700; letter-spacing: 5px; color: var(--mute); }
+  #summary .s1 { font-size: 64px; font-weight: 800; margin-top: 8px; }
+  #summary .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; margin-top: 26px; text-align: left; }
+  #summary .g { background: rgba(255,255,255,0.04); border-radius: 18px; padding: 16px 20px; border: 1px solid rgba(255,255,255,0.08); }
+  #summary .g .a { font-size: 18px; font-weight: 700; letter-spacing: 2.5px; color: var(--mute); }
+  #summary .g .b { font-size: 44px; font-weight: 800; margin-top: 2px; }
+  #summary .g .c { font-size: 20px; font-weight: 600; color: #c5cfee; }
+  #summary .foot { font-size: 18px; color: #7d8bb0; margin-top: 22px; letter-spacing: 1px; }
+  #introsub { left: 0; width: 1080px; top: 580px; text-align: center; font-size: 34px; font-weight: 700; letter-spacing: 6px; color: #dfe6ff; text-shadow: 0 2px 20px rgba(0,0,0,0.9); opacity: 0; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<canvas id="gl" width="1080" height="1920"></canvas>
+<div id="hud">
+  <div id="labels"></div>
+  <svg id="airframe" viewBox="0 0 1080 1920"><path id="framePath" fill="#050914" fill-rule="evenodd" d=""/><rect id="frameEdge" fill="none" stroke="rgba(130,150,255,0.30)" stroke-width="2"/></svg>
+
+  <div id="title" class="abs grad">LONDON HEATHROW</div>
+  <div id="subtitle" class="abs">24 HOURS · ARRIVALS &amp; DEPARTURES</div>
+  <div id="introsub" class="abs">24 HOURS IN 60 SECONDS</div>
+  <div id="clockbox" class="abs"><div id="clock" class="num">00:00</div><div id="clocksub">LOCAL TIME · GMT</div></div>
+  <div id="daybar" class="abs"><div id="hours"></div><div id="track"></div><div id="track2" style="position:absolute;left:0;top:44px;width:984px;height:10px"><div id="fill"></div><div id="marker"></div></div>
+    <div id="ticks"><span style="left:0">00:00</span><span style="left:246px">06:00</span><span style="left:492px">12:00</span><span style="left:738px">18:00</span><span style="left:984px">24:00</span></div></div>
+
+  <div id="inair" class="abs"><div class="l">IN THE AIR NOW</div><div class="v num" id="inairN">0</div></div>
+  <div id="legendTitle" class="abs">ROUTE COLOUR = FLIGHT TIME</div>
+  <div id="legend" class="abs">
+    <div class="pill"><span class="dot" style="background:var(--c0);box-shadow:0 0 10px var(--c0)"></span>0–2 h <span class="n num" id="lg0">0</span></div>
+    <div class="pill"><span class="dot" style="background:var(--c1);box-shadow:0 0 10px var(--c1)"></span>2–4 h <span class="n num" id="lg1">0</span></div>
+    <div class="pill"><span class="dot" style="background:var(--c2);box-shadow:0 0 10px var(--c2)"></span>4–8 h <span class="n num" id="lg2">0</span></div>
+    <div class="pill"><span class="dot" style="background:var(--c3);box-shadow:0 0 10px var(--c3)"></span>8 h + <span class="n num" id="lg3">0</span></div>
+  </div>
+  <div id="toast" class="abs"><div class="t1"><span class="tm"></span><span class="tx"></span></div><div class="t2"></div></div>
+
+  <div id="counters" class="abs">
+    <div class="card panel"><div class="k"><svg class="arrow" viewBox="0 0 24 24"><path d="M5 19 L19 5 M9 5 H19 V15" stroke="#5AA9FF" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>DEPARTURES</div><div class="v num" id="nDep">0</div></div>
+    <div class="card panel"><div class="k"><svg class="arrow" viewBox="0 0 24 24"><path d="M5 5 L19 19 M19 9 V19 H9" stroke="#FF6FB5" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>ARRIVALS</div><div class="v num" id="nArr">0</div></div>
+    <div class="card panel wide"><div class="k"><svg class="arrow" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" stroke="#A06BFF" stroke-width="2.6" fill="none"/><path d="M4 21 C4 15 8 13 12 13 C16 13 20 15 20 21" stroke="#A06BFF" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>PASSENGERS</div><div class="v num grad" id="nPax">0</div></div>
+  </div>
+
+  <div id="airlabel" class="abs"><span class="live">● LIVE</span><span>HEATHROW · LHR</span></div>
+  <div id="rwy" class="abs">RWY 27R ARRIVALS · 27L DEPARTURES</div>
+  <div id="latest" class="abs"></div>
+
+  <div id="toproutes" class="abs panel"><div class="h">MOST COMMON FLIGHTS TODAY</div><div id="rrows"></div></div>
+  <div id="weather" class="abs panel"><div class="h">WEATHER · HEATHROW</div>
+    <svg id="compass" viewBox="-100 -100 200 200">
+      <defs>
+        <linearGradient id="ag" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#5AA9FF"/><stop offset="0.55" stop-color="#A06BFF"/><stop offset="1" stop-color="#FF6FB5"/></linearGradient>
+        <radialGradient id="cg"><stop offset="0" stop-color="rgba(90,169,255,0.10)"/><stop offset="1" stop-color="rgba(90,169,255,0.02)"/></radialGradient>
+      </defs>
+      <circle r="86" fill="url(#cg)" stroke="rgba(150,170,255,0.35)" stroke-width="2"/>
+      <g id="cticks"></g>
+      <text x="0" y="-60" text-anchor="middle" dominant-baseline="middle" font-size="22" font-weight="800" fill="#ff6f8f">N</text>
+      <text x="62" y="1" text-anchor="middle" dominant-baseline="middle" font-size="19" font-weight="700" fill="#93a3c8">E</text>
+      <text x="0" y="62" text-anchor="middle" dominant-baseline="middle" font-size="19" font-weight="700" fill="#93a3c8">S</text>
+      <text x="-62" y="1" text-anchor="middle" dominant-baseline="middle" font-size="19" font-weight="700" fill="#93a3c8">W</text>
+      <g id="needle"><path d="M0 -52 L13 -22 L4 -24 L4 50 L-4 50 L-4 -24 L-13 -22 Z" fill="url(#ag)" stroke="rgba(255,255,255,0.6)" stroke-width="1"/><circle r="6" fill="#fff"/></g>
+    </svg>
+    <div id="wx"><div class="w1" id="wxFrom">WIND FROM SW</div><div class="w2 num" id="wxSpd">8 kt</div><div class="w3 num" id="wxGust">240° · gusts –</div>
+      <div class="cond"><svg id="wxicon" viewBox="0 0 48 48"></svg><div><div id="wxTemp" class="num" style="font-size:28px;line-height:1.05">8°C</div><div id="wxCond" style="font-size:17px;color:#c5cfee;letter-spacing:1px">CLEAR</div></div></div></div>
+  </div>
+
+  <div id="summary" class="abs">
+    <div class="s0">END OF THE DAY · 24:00</div>
+    <div class="s1 grad" id="sumTot">0 FLIGHTS</div>
+    <div class="grid">
+      <div class="g"><div class="a">DEPARTURES</div><div class="b num" id="sumDep">0</div></div>
+      <div class="g"><div class="a">ARRIVALS</div><div class="b num" id="sumArr">0</div></div>
+      <div class="g"><div class="a">PASSENGERS</div><div class="b num grad" id="sumPax">0</div></div>
+      <div class="g"><div class="a">BUSIEST HOUR</div><div class="b num" id="sumBusy">10:00</div><div class="c" id="sumBusyN"></div></div>
+      <div class="g" style="grid-column: span 2"><div class="a">MOST COMMON FLIGHT</div><div class="b" id="sumTop" style="font-size:40px"></div><div class="c" id="sumTopN"></div></div>
+    </div>
+    <div class="foot">Representative day modelled on Heathrow's route network · times GMT</div>
+  </div>
+</div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
