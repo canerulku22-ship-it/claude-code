@@ -1,2 +1,3 @@
 # generate.py itself uses only the Python standard library (3.9+) and the ffmpeg CLI.
-# Add the SDK of the video provider you wire up here.
+# The fal provider needs fal's official client:
+fal-client>=1.0,<2

@@ -19,6 +19,7 @@ chef-whiskers/
 ├── providers/               # swappable AI providers
 │   ├── base.py              # Provider interface, errors, retry logic
 │   ├── __init__.py          # provider registry
+│   ├── fal.py               # fal.ai: the real image and video provider
 │   └── placeholder.py       # offline test provider (test patterns, no API)
 ├── prompts/
 │   ├── character.txt        # Chef Whiskers description, prepended to every shot
@@ -37,7 +38,12 @@ chef-whiskers/
 1. Python 3.9 or newer.
 2. ffmpeg 5 or newer on your PATH: `brew install ffmpeg` (macOS),
    `sudo apt install ffmpeg` (Ubuntu/Debian) or `winget install ffmpeg` (Windows).
-3. Copy the environment file and add the key for your provider:
+3. Install the fal client (the only third-party package):
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Create a fal.ai API key at https://fal.ai/dashboard/keys, then copy the
+   environment file and paste the key in as `FAL_KEY`:
    ```bash
    cp .env.example .env
    ```
@@ -52,8 +58,8 @@ python generate.py smash_burger --dry-run
 # 2. Free offline test of the whole edit (test-pattern clips, written to output/test/).
 python generate.py smash_burger --provider placeholder
 
-# 3. The real thing, once a provider is wired up.
-python generate.py smash_burger --provider <name> --music path/to/licensed_track.mp3
+# 3. The real thing through fal.ai (VIDEO_PROVIDER=fal in .env).
+python generate.py smash_burger --music path/to/licensed_track.mp3
 ```
 
 The recipe argument is a name in `recipes/` or a path to any recipe JSON.
@@ -140,6 +146,35 @@ Arial Bold). For a more TikTok-like look, download a free bold font such as
 Montserrat ExtraBold or Poppins Bold and set `FONT_FILE`. Emoji do not render in
 burned-in text with these fonts; keep emoji in the caption.
 
+## fal.ai provider
+
+`providers/fal.py` sends everything through [fal.ai](https://fal.ai), so one
+`FAL_KEY` covers both calls:
+
+| Call | Default model | What is sent |
+| --- | --- | --- |
+| Character reference | `fal-ai/flux-pro/v1.1-ultra` | the reference prompt, 9:16, PNG |
+| Each shot | `fal-ai/vidu/q2/reference-to-video` | the full shot prompt, `character_ref.png` as a reference image, 9:16, the shot length rounded up |
+
+The reference image is uploaded to fal's storage once per run. Vidu Q2 uses it as a
+*reference* for the character, not as the first frame, so each shot can open on its
+own composition. The script shows each job's progress (queued, then generating) and
+polls the same job through network drops, so a flaky connection doesn't make you pay
+for a clip twice. If a model rejects a clip length, the script retries once with the
+model's default length and the edit trims or extends the clip.
+
+**Cost.** fal bills per image and per second of video; check current prices on each
+model's page on fal.ai. A run makes the reference image (first run only) plus one
+clip per shot. Cached clips are not generated or paid for again. Run `--dry-run`
+first to check prompts for free, and `--provider placeholder` to check the edit.
+
+**Other models.** Set `FAL_IMAGE_MODEL` or `FAL_VIDEO_MODEL` in `.env`. A model
+works without code changes if it takes the same fields: `prompt` and `aspect_ratio`,
+plus `reference_image_urls` and `duration` for video. Add any extra fields a model
+needs as JSON, for example `FAL_VIDEO_ARGS={"resolution": "1080p"}` for sharper
+clips at a higher price. A model with a different input schema needs a few lines in
+`providers/fal.py`. Each model's API page on fal.ai lists its fields.
+
 ## Plugging in a provider
 
 The pipeline talks to AI services only through `providers/base.py`:
@@ -191,9 +226,11 @@ reference support.
 | Message | Fix |
 | --- | --- |
 | `ffmpeg and ffprobe not found` | Install ffmpeg (see Setup) and reopen the terminal. |
+| `needs a package that is not installed` | Run `pip install -r requirements.txt`. |
 | `No provider selected` | Set `VIDEO_PROVIDER` in `.env` or pass `--provider`. |
 | `... is not set` / `still has the placeholder value` | Put your real key in `.env`. |
-| `HTTP 401` / `HTTP 403` | The key is wrong, or the account lacks access or credits. |
+| `HTTP 401` / `HTTP 403` | The key is wrong, or the fal account is out of credits. |
+| `HTTP 422` | fal rejected the request. The message names the field, or says the prompt was flagged; reword the shot's `visual_prompt` or fix the field in `FAL_VIDEO_ARGS`. |
 | `failed after 4 attempts` | The service is busy or rate-limiting you. Wait and rerun; finished clips are kept. |
 | `No bold font found` | Pass `--font path/to/Bold.ttf` or set `FONT_FILE`. |
 | `shot N is landscape` | The provider returned 16:9. Request 9:16 in the provider code. |

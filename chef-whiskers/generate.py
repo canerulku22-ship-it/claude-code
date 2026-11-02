@@ -546,6 +546,8 @@ def dry_run(recipe: Recipe, character: str, ref_prompt: str, provider_name: str,
     print(f"Recipe    {rel(recipe.path)}  \"{recipe.title}\"")
     print(f"Length    {len(recipe.shots)} shots, {recipe.duration:g} s at {WIDTH}x{HEIGHT}, {FPS} fps")
     print(f"Provider  {provider_name or '-'} {provider_note}")
+    if provider_cls and provider_cls.describe():
+        print(f"          {provider_cls.describe()}")
     print(f"Font      {font or 'NOT FOUND: pass --font or set FONT_FILE'}")
     print(f"Music     {args.music or 'none (add one with --music, or pick a sound in the TikTok app)'}")
     print(f"Output    {rel(paths.final_video)} and {rel(paths.caption)}")

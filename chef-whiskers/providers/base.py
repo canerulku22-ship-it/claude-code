@@ -6,6 +6,7 @@ import os
 import random
 import time
 import urllib.error
+import urllib.request
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Callable, Optional, TypeVar
@@ -69,6 +70,11 @@ class Provider(ABC):
         model supports that is at least this long, in 9:16. The pipeline trims longer
         clips and holds the last frame of shorter ones.
         """
+
+    @classmethod
+    def describe(cls) -> str:
+        """One line for --dry-run: models and config status. Must not call any API."""
+        return ""
 
     @staticmethod
     def require_env(var: str) -> str:
@@ -145,3 +151,14 @@ def with_retries(
             log(f"  ! {what}: {describe(exc)}. Retrying in {delay:.1f}s (attempt {attempt + 1}/{attempts})")
             sleep(delay)
     raise AssertionError("unreachable")
+
+
+def download(url: str, *, timeout: float = 300, attempts: int = 3) -> bytes:
+    """Fetch a generated file, retrying network errors without regenerating (and re-paying for) it."""
+
+    def fetch() -> bytes:
+        request = urllib.request.Request(url, headers={"User-Agent": "chef-whiskers"})
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return response.read()
+
+    return with_retries(fetch, what=f"downloading {url}", attempts=attempts)
