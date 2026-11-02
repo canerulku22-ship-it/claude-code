@@ -1,0 +1,190 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --dep: #38C8FF; --arr: #3DF5A0; --pax1: #FFB84D; --pax2: #FF6FB5;
+    --c0: #FFD21F; --c1: #FF8A1F; --c2: #FF3B3B; --c3: #B65CFF;
+    --ink: #eef2ff; --mute: #9aa8cc; --panel: rgba(9, 14, 32, 0.78); --edge: rgba(140, 160, 255, 0.20);
+  }
+  html, body { margin: 0; padding: 0; width: 1080px; height: 1920px; overflow: hidden; background: #040811; }
+  body { font-family: 'Inter', sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  canvas { position: absolute; display: block; }
+  #glG { left: 0; top: 0; width: 1080px; height: 1920px; }
+  #glA { left: 0; top: 0; width: 1080px; height: 1920px; }
+  #vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 60% at 50% 42%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%); }
+  #hud { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+  .abs { position: absolute; }
+  .num { font-variant-numeric: tabular-nums; }
+  .grad { background: linear-gradient(90deg, #5AA9FF 0%, #A06BFF 50%, #FF6FB5 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .gradPax { background: linear-gradient(90deg, #FFD27A 0%, #FF9E5E 45%, #FF6FB5 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .panel { background: var(--panel); border: 1.5px solid var(--edge); border-radius: 24px; box-shadow: 0 12px 44px rgba(0,0,0,0.45); }
+
+  /* ---------- intro ---------- */
+  #intro { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; text-align: center; }
+  #introShade { position: absolute; left: 0; top: 0; width: 1080px; height: 1100px; background: linear-gradient(180deg, rgba(2,5,14,0.55) 0%, rgba(2,5,14,0.25) 60%, rgba(2,5,14,0) 100%); }
+  #tHeathrow { position: absolute; left: 0; width: 1080px; top: 330px; font-size: 148px; font-weight: 800; line-height: 1; white-space: nowrap; filter: drop-shadow(0 0 28px rgba(140,120,255,0.55)); }
+  #tSky { position: absolute; left: 0; width: 1080px; top: 500px; font-size: 54px; font-weight: 700; letter-spacing: 10px; color: #ffffff; white-space: nowrap; text-shadow: 0 2px 24px rgba(0,0,0,0.9); }
+  #tRule { position: absolute; left: 340px; width: 400px; top: 594px; height: 2px; background: linear-gradient(90deg, rgba(90,169,255,0), #A06BFF, rgba(255,111,181,0)); }
+  #tSub { position: absolute; left: 0; width: 1080px; top: 628px; font-size: 34px; font-weight: 600; color: #dfe6ff; white-space: nowrap; text-shadow: 0 2px 18px rgba(0,0,0,0.95); letter-spacing: 1px; }
+  #tSub span { display: inline-block; margin: 0 10px; }
+
+  /* ---------- header ---------- */
+  #hdr { position: absolute; left: 0; top: 0; width: 1080px; height: 240px; }
+  #hTitle { left: 48px; top: 44px; font-size: 50px; font-weight: 800; white-space: nowrap; }
+  #hSub { left: 50px; top: 106px; font-size: 22px; font-weight: 700; letter-spacing: 5px; color: var(--mute); white-space: nowrap; }
+  #clockbox { right: 48px; top: 30px; text-align: right; }
+  #clock { font-size: 96px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+  #clocksub { font-size: 19px; font-weight: 700; letter-spacing: 3px; color: var(--mute); margin-top: 6px; }
+  #daybar { left: 48px; top: 150px; width: 984px; height: 90px; }
+  #hours { position: absolute; left: 0; top: 0; width: 984px; height: 36px; }
+  #hours .b { position: absolute; bottom: 0; width: 33px; border-radius: 4px 4px 0 0; }
+  #track { position: absolute; left: 0; top: 40px; width: 984px; height: 10px; border-radius: 6px;
+    background: linear-gradient(90deg, #0d1838 0%, #18265a 25%, #f2955c 28.8%, #64aef7 33%, #6fb6ff 50%, #64aef7 66%, #f0784a 69.2%, #2b2f6c 72.5%, #0d1838 100%); opacity: 0.45; }
+  #track2 { position: absolute; left: 0; top: 40px; width: 984px; height: 10px; }
+  #fill { position: absolute; left: 0; top: 0; height: 10px; border-radius: 6px; width: 0;
+    background: linear-gradient(90deg, #0d1838 0%, #18265a 25%, #f2955c 28.8%, #64aef7 33%, #6fb6ff 50%, #64aef7 66%, #f0784a 69.2%, #2b2f6c 72.5%, #0d1838 100%); background-size: 984px 10px; }
+  #marker { position: absolute; top: -9px; width: 28px; height: 28px; margin-left: -14px; border-radius: 50%; }
+  #ticks { position: absolute; left: 0; top: 58px; width: 984px; height: 22px; font-size: 18px; font-weight: 600; color: var(--mute); }
+  #ticks span { position: absolute; transform: translateX(-50%); }
+
+  /* ---------- globe overlays ---------- */
+  #labels { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+  .clab { position: absolute; font-size: 19px; font-weight: 700; letter-spacing: 1.5px; white-space: nowrap; text-shadow: 0 0 6px #000, 0 0 14px #000; transform: translate(-50%, -160%); color: #dfe6ff; }
+  .busy { position: absolute; transform: translate(-50%, -135%); white-space: nowrap; padding: 6px 12px 6px 10px; border-radius: 14px; background: rgba(6,10,26,0.82); border: 1.5px solid rgba(255,255,255,0.25); font-size: 20px; font-weight: 800; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; box-shadow: 0 0 18px rgba(0,0,0,0.6); }
+  .busy .d { width: 12px; height: 12px; border-radius: 50%; }
+  .busy .n { font-weight: 700; color: #c9d3f5; font-variant-numeric: tabular-nums; }
+  #inair { left: 48px; top: 262px; }
+  #inair .l { font-size: 18px; font-weight: 700; letter-spacing: 3px; color: var(--mute); }
+  #inair .v { font-size: 50px; font-weight: 800; line-height: 1.05; }
+  #view { right: 48px; top: 270px; font-size: 18px; font-weight: 700; letter-spacing: 3px; color: var(--mute); text-align: right; }
+  #legend { left: 0; width: 1080px; top: 1046px; display: flex; justify-content: center; gap: 12px; }
+  .lg { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 30px; background: rgba(6, 10, 26, 0.80); border: 1.5px solid rgba(255,255,255,0.10); font-size: 20px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
+  .lg .dot { width: 14px; height: 14px; border-radius: 50%; }
+  .lg .sep { width: 1.5px; height: 20px; background: rgba(255,255,255,0.18); }
+  .lg .mut { color: var(--mute); font-size: 17px; letter-spacing: 2px; }
+  #toast { left: 540px; top: 330px; transform: translateX(-50%); text-align: center; padding: 14px 30px 16px; border-radius: 22px;
+    background: rgba(8, 12, 30, 0.86); border: 1.5px solid rgba(160,120,255,0.45); white-space: nowrap; opacity: 0; }
+  #toast .t1 { font-size: 30px; font-weight: 800; letter-spacing: 1px; }
+  #toast .t2 { font-size: 21px; font-weight: 600; color: #c5cfee; margin-top: 5px; letter-spacing: 1px; }
+  #toast .tm { font-variant-numeric: tabular-nums; margin-right: 14px; color: #FFD27A; }
+
+  /* ---------- stats ---------- */
+  #stats { left: 40px; top: 1112px; width: 1000px; height: 360px; }
+  .card { position: absolute; overflow: hidden; }
+  .card .acc { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; }
+  .card .k { position: absolute; left: 34px; top: 22px; font-size: 22px; font-weight: 800; letter-spacing: 4px; display: flex; align-items: center; gap: 12px; }
+  .card .s { position: absolute; right: 26px; top: 24px; font-size: 19px; font-weight: 700; letter-spacing: 1px; text-align: right; }
+  .card .glow { position: absolute; right: -60px; bottom: -80px; width: 260px; height: 260px; border-radius: 50%; filter: blur(30px); opacity: 0.22; }
+  #cPax { left: 0; top: 0; width: 1000px; height: 162px; }
+  #cDep { left: 0; top: 178px; width: 492px; height: 176px; }
+  #cArr { left: 508px; top: 178px; width: 492px; height: 176px; }
+  .odo { position: absolute; left: 30px; display: flex; align-items: flex-start; font-weight: 800; letter-spacing: -1px; }
+  .odo .col { position: relative; overflow: hidden; }
+  .odo .strip { position: absolute; left: 0; top: 0; width: 100%; text-align: center; }
+  .odo .strip div { text-align: center; }
+  .odo .sepc { text-align: center; }
+  .ico { width: 30px; height: 30px; }
+
+  /* ---------- airport cam ---------- */
+  #camLabel { left: 64px; top: 1508px; font-size: 19px; font-weight: 800; letter-spacing: 2.5px; display: flex; align-items: center; gap: 12px; text-shadow: 0 1px 10px rgba(0,0,0,0.9); white-space: nowrap; }
+  #camLabel .live { background: #ff3355; color: #fff; padding: 4px 10px; border-radius: 7px; font-size: 17px; letter-spacing: 2px; }
+  #rwy { left: 64px; top: 1842px; font-size: 19px; font-weight: 700; letter-spacing: 1.5px; color: #e4eaff; text-shadow: 0 1px 10px rgba(0,0,0,0.95); white-space: nowrap; }
+  #wchip { right: 60px; top: 1504px; display: flex; align-items: center; gap: 12px; padding: 8px 16px 8px 8px; border-radius: 40px; background: rgba(6,10,26,0.72); border: 1.5px solid rgba(255,255,255,0.14); }
+  #wchip svg { width: 62px; height: 62px; }
+  #wchip .a { font-size: 26px; font-weight: 800; line-height: 1.05; white-space: nowrap; }
+  #wchip .b { font-size: 16px; font-weight: 700; color: #c5cfee; letter-spacing: 1.5px; white-space: nowrap; }
+  #wicon { width: 40px; height: 40px; }
+  #camDip { left: 40px; top: 1494px; width: 1000px; height: 390px; border-radius: 24px; background: #000; opacity: 0; }
+  #camEdge { left: 40px; top: 1494px; width: 997px; height: 387px; border-radius: 24px; border: 1.5px solid rgba(140,160,255,0.28); }
+
+  /* ---------- finale ---------- */
+  #finale { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; text-align: center; }
+  #fShade { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; background: linear-gradient(180deg, rgba(3,6,16,0.75) 0%, rgba(3,6,16,0.15) 38%, rgba(3,6,16,0.25) 58%, rgba(3,6,16,0.85) 100%); }
+  .fl { position: absolute; left: 0; width: 1080px; font-size: 80px; font-weight: 800; letter-spacing: 3px; white-space: nowrap; line-height: 1; text-shadow: 0 4px 30px rgba(0,0,0,0.8); }
+  #fTot { position: absolute; left: 80px; top: 1130px; width: 920px; height: 640px; }
+  .frow { position: absolute; left: 0; width: 920px; height: 132px; border-radius: 24px; background: rgba(8,12,30,0.82); border: 1.5px solid rgba(255,255,255,0.12); overflow: hidden; }
+  .frow .acc { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; }
+  .frow .k { position: absolute; left: 36px; top: 0; height: 132px; display: flex; align-items: center; font-size: 26px; font-weight: 800; letter-spacing: 4px; text-align: left; line-height: 1.25; }
+  .frow .odo { left: auto; right: 34px; top: 22px; }
+  #fFoot { position: absolute; left: 0; width: 1080px; top: 1800px; font-size: 18px; color: #7d8bb0; letter-spacing: 1px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<canvas id="glG" width="1080" height="1920"></canvas>
+<div id="vignette"></div>
+<div id="hud">
+  <div id="labels"></div>
+  <div id="hdr">
+    <div id="hTitle" class="abs grad">HEATHROW</div>
+    <div id="hSub" class="abs">24 HOURS IN THE SKY</div>
+    <div id="clockbox" class="abs"><div id="clock" class="num">00:00</div><div id="clocksub">LOCAL TIME · GMT</div></div>
+    <div id="daybar" class="abs"><div id="hours"></div><div id="track"></div><div id="track2"><div id="fill"></div><div id="marker"></div></div>
+      <div id="ticks"><span style="left:0">00:00</span><span style="left:246px">06:00</span><span style="left:492px">12:00</span><span style="left:738px">18:00</span><span style="left:984px">24:00</span></div></div>
+  </div>
+  <div id="inair" class="abs"><div class="l">IN THE AIR NOW</div><div class="v num" id="inairN">0</div></div>
+  <div id="view" class="abs"></div>
+  <div id="legend" class="abs">
+    <div class="lg"><span class="dot" style="background:var(--dep);box-shadow:0 0 12px var(--dep)"></span>DEPARTING<span class="dot" style="background:var(--arr);box-shadow:0 0 12px var(--arr);margin-left:10px"></span>ARRIVING</div>
+    <div class="lg"><span class="mut">ROUTE TIME</span><span class="dot" style="background:var(--c0)"></span>0–2h<span class="dot" style="background:var(--c1)"></span>2–4h<span class="dot" style="background:var(--c2)"></span>4–8h<span class="dot" style="background:var(--c3)"></span>8h+</div>
+  </div>
+  <div id="toast" class="abs"><div class="t1"><span class="tm"></span><span class="tx"></span></div><div class="t2"></div></div>
+
+  <div id="stats" class="abs">
+    <div id="cPax" class="card panel"><div class="acc" style="background:linear-gradient(180deg,#FFD27A,#FF6FB5)"></div><div class="glow" style="background:#FF9E5E"></div>
+      <div class="k" style="color:#FFC27A"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" stroke="#FFC27A" stroke-width="2.6" fill="none"/><path d="M4 21 C4 15 8 13 12 13 C16 13 20 15 20 21" stroke="#FFC27A" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>PASSENGERS</div>
+      <div class="s" id="sPax" style="color:#FFC27A"></div>
+      <div class="odo gradPax" id="oPax" style="top:56px"></div></div>
+    <div id="cDep" class="card panel"><div class="acc" style="background:var(--dep)"></div><div class="glow" style="background:var(--dep)"></div>
+      <div class="k" style="color:var(--dep)"><svg class="ico" viewBox="0 0 24 24"><path d="M5 19 L19 5 M9 5 H19 V15" stroke="#38C8FF" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>DEPARTURES</div>
+      <div class="s" id="sDep" style="color:var(--dep)"></div>
+      <div class="odo" id="oDep" style="top:62px"></div></div>
+    <div id="cArr" class="card panel"><div class="acc" style="background:var(--arr)"></div><div class="glow" style="background:var(--arr)"></div>
+      <div class="k" style="color:var(--arr)"><svg class="ico" viewBox="0 0 24 24"><path d="M5 5 L19 19 M19 9 V19 H9" stroke="#3DF5A0" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>ARRIVALS</div>
+      <div class="s" id="sArr" style="color:var(--arr)"></div>
+      <div class="odo" id="oArr" style="top:62px"></div></div>
+  </div>
+
+  <div id="camDip" class="abs"></div>
+  <div id="camEdge" class="abs"></div>
+  <div id="camLabel" class="abs"><span class="live">● LIVE</span><span id="camName">HEATHROW</span></div>
+  <div id="wchip" class="abs">
+    <svg viewBox="-100 -100 200 200"><circle r="90" fill="rgba(90,169,255,0.10)" stroke="rgba(170,190,255,0.45)" stroke-width="5"/>
+      <text x="0" y="-58" text-anchor="middle" dominant-baseline="middle" font-size="38" font-weight="800" fill="#ff7f9a">N</text>
+      <g id="needle"><path d="M0 -50 L18 -10 L6 -14 L6 52 L-6 52 L-6 -14 L-18 -10 Z" fill="#ffffff"/></g></svg>
+    <div><div class="a num" id="wA">8 kt SW</div><div class="b num" id="wB">GUSTS –</div></div>
+    <svg id="wicon" viewBox="0 0 48 48"></svg>
+    <div><div class="a num" id="wT">8°C</div><div class="b" id="wC">CLEAR</div></div>
+  </div>
+  <div id="rwy" class="abs"></div>
+</div>
+<canvas id="glA" width="1080" height="1920"></canvas>
+<div id="introLayer" style="position:absolute;inset:0">
+  <div id="intro">
+    <div id="introShade"></div>
+    <div id="tHeathrow" class="grad">HEATHROW:</div>
+    <div id="tSky">24 HOURS IN THE SKY</div>
+    <div id="tRule"></div>
+    <div id="tSub"><span id="s1">Every flight.</span><span id="s2">Every arrival.</span><span id="s3">Every departure.</span></div>
+  </div>
+</div>
+<div id="finale">
+  <div id="fShade"></div>
+  <div class="fl" id="f1" style="top:250px">24 HOURS.</div>
+  <div class="fl" id="f2" style="top:356px">ONE AIRPORT.</div>
+  <div class="fl grad" id="f3" style="top:466px;font-size:62px">THOUSANDS OF JOURNEYS.</div>
+  <div id="fTot">
+    <div class="frow" id="r1" style="top:0"><div class="acc" style="background:var(--arr)"></div><div class="k" style="color:var(--arr)">TOTAL<br>ARRIVALS</div><div class="odo" id="oT1"></div></div>
+    <div class="frow" id="r2" style="top:150px"><div class="acc" style="background:var(--dep)"></div><div class="k" style="color:var(--dep)">TOTAL<br>DEPARTURES</div><div class="odo" id="oT2"></div></div>
+    <div class="frow" id="r3" style="top:300px"><div class="acc" style="background:linear-gradient(180deg,#FFD27A,#FF6FB5)"></div><div class="k" style="color:#FFC27A">TOTAL<br>PASSENGERS</div><div class="odo gradPax" id="oT3"></div></div>
+    <div class="frow" id="r4" style="top:450px"><div class="acc" style="background:linear-gradient(180deg,#5AA9FF,#FF6FB5)"></div><div class="k" style="color:#c9b6ff">TOTAL<br>FLIGHTS</div><div class="odo grad" id="oT4"></div></div>
+  </div>
+  <div id="fFoot">Representative day modelled on Heathrow's route network · times GMT</div>
+</div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
