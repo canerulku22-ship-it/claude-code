@@ -809,7 +809,7 @@ const onionClip = new THREE.Plane(V(1, 0, 0), 0);
   const geo = new THREE.SphereGeometry(0.047, 56, 28, 0, Math.PI * 2, 0, Math.PI / 2);
   const pp = geo.attributes.position, uvs = geo.attributes.uv;
   for (let i = 0; i < pp.count; i++) uvs.setXY(i, Math.atan2(pp.getZ(i), Math.max(pp.getY(i), 1e-6)) / Math.PI + 0.5, pp.getX(i) / 0.094 + 0.5);
-  const outer = new THREE.Mesh(geo, phys('#ffffff', { map: onionSkinTex, roughness: 0.22, clearcoat: 0.7, clippingPlanes: [onionClip], side: THREE.DoubleSide }));
+  const outer = new THREE.Mesh(geo, phys('#ffffff', { map: onionSkinTex, roughness: 0.22, clearcoat: 0.7, clippingPlanes: [onionClip], clipShadows: true, side: THREE.DoubleSide }));
   outer.scale.set(1, 0.92, 1); outer.castShadow = true; onion.add(outer);
   const cap = new THREE.Mesh(new THREE.CircleGeometry(1, 48, 0, Math.PI), std('#ffffff', { map: onionCutTex, roughness: 0.3, side: THREE.DoubleSide }));
   onion.add(cap);
