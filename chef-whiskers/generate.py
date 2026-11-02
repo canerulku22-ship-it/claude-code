@@ -83,6 +83,7 @@ class Shot:
     seconds: float
     visual_prompt: str
     on_screen_text: str
+    scene: str = ""  # pre-built animation for the local "render" provider; AI providers ignore it
 
 
 @dataclass
@@ -160,11 +161,16 @@ def load_recipe(arg: str) -> tuple[Recipe, list[str]]:
         if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or not 0 < seconds <= 15:
             problems.append(f'{where}"seconds" must be a number above 0 and at most 15 (got {seconds!r})')
             seconds = 0
+        scene = raw.get("scene", "")
+        if not isinstance(scene, str):
+            problems.append(f'{where}"scene" must be a string if present')
+            scene = ""
         shots.append(
             Shot(
                 seconds=float(seconds),
                 visual_prompt=text(raw, "visual_prompt", where),
                 on_screen_text=text(raw, "on_screen_text", where, required=False),
+                scene=scene.strip(),
             )
         )
 
@@ -511,9 +517,10 @@ def file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def raw_clip_path(paths: OutputPaths, index: int, provider: str, prompt: str, seconds: float, ref_hash: str) -> Path:
-    """Cache key: changing the prompt, length, provider or reference image regenerates the clip."""
-    key = hashlib.sha256(json.dumps([provider, prompt, seconds, ref_hash]).encode()).hexdigest()[:10]
+def raw_clip_path(paths: OutputPaths, index: int, provider: Provider, prompt: str, shot: Shot, ref_hash: str) -> Path:
+    """Cache key: changing the prompt, scene, length, provider or reference image regenerates the clip."""
+    parts = [provider.name, prompt, shot.seconds, shot.scene, ref_hash, provider.cache_key_extra()]
+    key = hashlib.sha256(json.dumps(parts).encode()).hexdigest()[:10]
     return paths.clips / f"shot{index:02d}_raw_{key}.mp4"
 
 
@@ -549,7 +556,8 @@ def dry_run(recipe: Recipe, character: str, ref_prompt: str, provider_name: str,
     if provider_cls and provider_cls.describe():
         print(f"          {provider_cls.describe()}")
     print(f"Font      {font or 'NOT FOUND: pass --font or set FONT_FILE'}")
-    print(f"Music     {args.music or 'none (add one with --music, or pick a sound in the TikTok app)'}")
+    own_music = bool(provider_cls and provider_cls.soundtrack is not Provider.soundtrack) and not args.no_music
+    print(f"Music     {args.music or ('made by the provider (skip with --no-music)' if own_music else 'none (add one with --music, or pick a sound in the TikTok app)')}")
     print(f"Output    {rel(paths.final_video)} and {rel(paths.caption)}")
 
     ref = paths.character_ref
@@ -560,7 +568,7 @@ def dry_run(recipe: Recipe, character: str, ref_prompt: str, provider_name: str,
 
     for i, shot in enumerate(recipe.shots, 1):
         prompt = shot_prompt(character, shot)
-        print_header(f"Shot {i}/{len(recipe.shots)}  {shot.seconds:g} s")
+        print_header(f"Shot {i}/{len(recipe.shots)}  {shot.seconds:g} s" + (f"  scene: {shot.scene}" if shot.scene else ""))
         print(f"generate_video(prompt, ref_image={rel(ref)}, duration={shot.seconds:g})  [{prompt_stats(prompt)}]\n")
         print(prompt)
         lines = layout_text(text_blocks(recipe, i, shot), args.text_position)
@@ -619,12 +627,12 @@ def run(recipe: Recipe, character: str, ref_prompt: str, provider_name: str,
     for i, shot in enumerate(recipe.shots, 1):
         prompt = shot_prompt(character, shot)
         check_prompt(prompt, f"shot {i}")
-        dest = raw_clip_path(paths, i, provider.name, prompt, shot.seconds, ref_hash)
+        dest = raw_clip_path(paths, i, provider, prompt, shot, ref_hash)
         if dest.is_file() and not args.force:
             print(f"[{i}/{total}] cached {rel(dest)}")
         else:
             print(f"[{i}/{total}] generating {shot.seconds:g} s clip ...")
-            data = call(lambda: provider.generate_video(prompt, ref, duration=shot.seconds), f"shot {i} video")
+            data = call(lambda: provider.generate_video(prompt, ref, duration=shot.seconds, scene=shot.scene or None), f"shot {i} video")
             save_clip(data, dest, f"shot {i}")
             print(f"[{i}/{total}] saved {rel(dest)}")
         info = probe(dest)
@@ -635,7 +643,16 @@ def run(recipe: Recipe, character: str, ref_prompt: str, provider_name: str,
         raw_clips.append(dest)
 
     keep_audio = not args.mute_clips and any(probe(c).has_audio for c in raw_clips)
-    music_volume = args.music_volume if args.music_volume is not None else (0.35 if keep_audio else 1.0)
+    music, music_volume = args.music, args.music_volume
+    if music is None and not args.no_music:
+        track = provider.soundtrack(recipe.duration)
+        if track:
+            music = paths.clips / "soundtrack.wav"
+            music.write_bytes(track)
+            print(f"[music] {rel(music)} (made by the {provider.name} provider)")
+            music_volume = 1.0 if music_volume is None else music_volume
+    if music_volume is None:
+        music_volume = 0.35 if keep_audio else 1.0
 
     # 3-4. Edit: crop/scale, text, concat, soundtrack
     with tempfile.TemporaryDirectory(prefix="chef_whiskers_") as tmp:
@@ -649,7 +666,7 @@ def run(recipe: Recipe, character: str, ref_prompt: str, provider_name: str,
             render_shot(raw, dst, shot.seconds, lines, font_name, workdir, f"s{i:02d}", keep_audio)
             print(f"[edit] {rel(dst)}")
             rendered.append(dst)
-        assemble(rendered, paths.final_video, recipe.duration, args.music, music_volume)
+        assemble(rendered, paths.final_video, recipe.duration, music, music_volume)
 
     # 5. Caption
     paths.caption.write_text(recipe.caption_file_text(), encoding="utf-8")
@@ -657,7 +674,10 @@ def run(recipe: Recipe, character: str, ref_prompt: str, provider_name: str,
     final = probe(paths.final_video)
     print(f"\nDone: {rel(paths.final_video)} ({final.width}x{final.height}, {final.duration:.1f} s)")
     print(f"      {rel(paths.caption)} (caption and hashtags)")
-    print("Before posting: watch every clip, and turn on TikTok's 'AI-generated content' label when you post.")
+    if provider.ai_generated:
+        print("Before posting: watch every clip, and turn on TikTok's 'AI-generated content' label when you post.")
+    else:
+        print(f"Before posting: watch it through. The {provider.name} provider does not use generative AI, so TikTok's AI label does not apply.")
 
 
 def parse_args(argv: Optional[list[str]]) -> argparse.Namespace:
@@ -678,6 +698,7 @@ def parse_args(argv: Optional[list[str]]) -> argparse.Namespace:
     parser.add_argument("--music-volume", type=float, default=None,
                         help="soundtrack volume, 0-1 (default: 0.35 under clip audio, 1.0 if the clips are silent)")
     parser.add_argument("--mute-clips", action="store_true", help="drop any audio the provider generated with the clips")
+    parser.add_argument("--no-music", action="store_true", help="skip the music bed a provider would otherwise add (render provider)")
     parser.add_argument("--text-position", choices=["top", "center", "bottom"], default="top",
                         help="where on-screen text sits inside the safe zone (default: top)")
     parser.add_argument("--font", type=Path, help="bold .ttf/.otf for on-screen text (default: FONT_FILE or a system bold font)")

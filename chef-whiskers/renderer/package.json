@@ -1,0 +1,12 @@
+{
+  "name": "chef-whiskers-renderer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Three.js scenes for Chef Whiskers, rendered frame by frame in headless Chromium",
+  "dependencies": {
+    "three": "0.160.0"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.48.0"
+  }
+}

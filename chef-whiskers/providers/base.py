@@ -49,6 +49,8 @@ class Provider(ABC):
     #: True for offline test providers: their output goes to output/test/ so it
     #: never mixes with, or gets reused as, real generations.
     is_test_provider: bool = False
+    #: True when the clips come from a generative AI model, so TikTok's AI-generated label applies.
+    ai_generated: bool = True
 
     @abstractmethod
     def generate_image(self, prompt: str) -> bytes:
@@ -58,7 +60,7 @@ class Provider(ABC):
         """
 
     @abstractmethod
-    def generate_video(self, prompt: str, ref_image: Path, *, duration: float = 5.0) -> bytes:
+    def generate_video(self, prompt: str, ref_image: Path, *, duration: float = 5.0, scene: Optional[str] = None) -> bytes:
         """Generate a short clip for ``prompt`` and return the MP4 bytes.
 
         ``ref_image`` is the character reference (output/character_ref.png). Send it
@@ -69,7 +71,18 @@ class Provider(ABC):
         ``duration`` is the shot length in seconds. Request the shortest length the
         model supports that is at least this long, in 9:16. The pipeline trims longer
         clips and holds the last frame of shorter ones.
+
+        ``scene`` is the shot's optional "scene" name from the recipe. Local renderers use it
+        to pick a pre-built animation; AI providers ignore it.
         """
+
+    def soundtrack(self, duration: float) -> Optional[bytes]:
+        """Optional music bed (WAV/MP3 bytes) for the whole video; used when no --music is given."""
+        return None
+
+    def cache_key_extra(self) -> str:
+        """Extra text for the clip cache key, e.g. a hash of a local renderer's source."""
+        return ""
 
     @classmethod
     def describe(cls) -> str:

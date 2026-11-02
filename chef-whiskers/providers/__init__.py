@@ -22,6 +22,7 @@ from .base import (
 PROVIDERS: dict[str, str] = {
     "fal": "fal:FalProvider",
     "placeholder": "placeholder:PlaceholderProvider",
+    "render": "render:RenderProvider",
 }
 
 __all__ = [

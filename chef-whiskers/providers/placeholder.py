@@ -11,6 +11,7 @@ import hashlib
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 from .base import Provider, ProviderError
 
@@ -18,11 +19,12 @@ from .base import Provider, ProviderError
 class PlaceholderProvider(Provider):
     name = "placeholder"
     is_test_provider = True
+    ai_generated = False
 
     def generate_image(self, prompt: str) -> bytes:
         return _render(["-f", "lavfi", "-i", "color=c=0xE8955A:s=1080x1920", "-frames:v", "1"], ".png")
 
-    def generate_video(self, prompt: str, ref_image: Path, *, duration: float = 5.0) -> bytes:
+    def generate_video(self, prompt: str, ref_image: Path, *, duration: float = 5.0, scene: Optional[str] = None) -> bytes:
         # Mimic a typical video API: fixed 5 s or 10 s clips, at a size that is close to
         # but not exactly 9:16, so the trim, crop and scale steps all get exercised.
         seconds = 5 if duration <= 5 else 10

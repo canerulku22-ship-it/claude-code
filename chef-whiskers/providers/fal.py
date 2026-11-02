@@ -20,7 +20,7 @@ import math
 import os
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import fal_client
 import httpx
@@ -75,7 +75,7 @@ class FalProvider(Provider):
         result = self._run(self.image_model, args)
         return download(_file_url(result, "images", self.image_model))
 
-    def generate_video(self, prompt: str, ref_image: Path, *, duration: float = 5.0) -> bytes:
+    def generate_video(self, prompt: str, ref_image: Path, *, duration: float = 5.0, scene: Optional[str] = None) -> bytes:
         args: dict[str, Any] = {
             "prompt": prompt,
             "reference_image_urls": [self._upload(ref_image)],

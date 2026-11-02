@@ -1,3 +1,5 @@
 # generate.py itself uses only the Python standard library (3.9+) and the ffmpeg CLI.
+# The render provider synthesizes its sound with numpy:
+numpy>=1.24
 # The fal provider needs fal's official client:
 fal-client>=1.0,<2
