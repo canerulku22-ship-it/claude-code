@@ -1,0 +1,5 @@
+# Prompt for the one-time character reference image (output/character_ref.png).
+# {character} is replaced with the contents of prompts/character.txt.
+{character}
+
+Character reference image: Chef Whiskers standing upright on the kitchen counter, full body in frame, three-quarter view facing the camera, friendly closed-mouth smile, paws relaxed at its sides, chef hat, apron and white-tipped tail clearly visible. Uncluttered, softly blurred kitchen background, even soft lighting, sharp focus on the character.

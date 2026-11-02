@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+
+# Generated media. Keep the folders, not their contents.
+output/*
+!output/clips/
+!output/final/
+output/clips/*
+output/final/*
+!output/clips/.gitkeep
+!output/final/.gitkeep

@@ -1,0 +1,42 @@
+{
+  "title": "Crispy Double Smash Burger",
+  "hook": "The smash burger that beats takeout",
+  "shots": [
+    {
+      "seconds": 3.5,
+      "visual_prompt": "Hero close-up of a finished double smash burger on a wooden board: two thin beef patties with lacy, deeply browned crispy edges, melted American cheese dripping down the sides, diced white onion, pickle chips, glossy burger sauce, toasted potato bun, a wisp of steam. Chef Whiskers leans in from the side of the frame, eyes wide and sparkling, licking its lips. Slow push-in.",
+      "on_screen_text": "Ready in 10 minutes"
+    },
+    {
+      "seconds": 4,
+      "visual_prompt": "Medium close-up: Chef Whiskers stands on a small wooden step stool at the counter, finely dicing half a white onion with a chef's knife on a wooden cutting board in quick, careful chops. Its eyes squint and water comically from the onion. The onion pieces are glistening and hyper-realistic.",
+      "on_screen_text": "Dice half an onion super fine"
+    },
+    {
+      "seconds": 4.5,
+      "visual_prompt": "Close-up on a ripping-hot black cast-iron skillet with light smoke. Chef Whiskers sets a loose ball of ground beef in the pan and immediately presses it flat with a sturdy metal spatula, pushing down with both paws. Fat sizzles and spits, the edges spread thin and lacy and start to brown.",
+      "on_screen_text": "Smash it flat right away"
+    },
+    {
+      "seconds": 4,
+      "visual_prompt": "Macro close-up in the skillet: a slice of American cheese drapes over the flipped, deeply browned crispy patty and slowly melts, cascading over the edges, steam rising. Chef Whiskers watches in awe in the soft-focus background, the warm glow reflected in its eyes.",
+      "on_screen_text": "Flip, add cheese, 1 more minute"
+    },
+    {
+      "seconds": 4,
+      "visual_prompt": "Chef Whiskers stacks two cheesy patties onto a sauced, toasted potato bun with onion and pickles, presses the top bun down, then lifts the burger with both paws and takes a big happy bite, eyes closing in delight, cheese stretching, a crumb on its whiskers. Warm golden light, gentle slow motion.",
+      "on_screen_text": "Full recipe in the caption"
+    }
+  ],
+  "caption": "10-minute double smash burgers with crispy, lacy edges 🍔🐾\n\nMakes 2 burgers\n• 1 lb (450 g) 80/20 ground beef, rolled into 4 loose balls\n• Kosher salt and black pepper\n• 4 slices American cheese\n• ½ small white onion, finely diced\n• Pickle chips\n• 2 potato buns, buttered and toasted\n• Sauce: 3 tbsp mayo, 1 tbsp ketchup, 1 tsp yellow mustard, 1 tbsp chopped pickles\n\n1. Heat a cast-iron skillet over high heat until it just starts to smoke.\n2. Add 2 beef balls and smash them flat with a sturdy spatula right away. Hold 10 seconds, then season with salt and pepper.\n3. Cook about 2 minutes, until the edges are deep brown. Scrape under the crust and flip.\n4. Add a slice of cheese to each and cook 1 more minute, until melted and cooked through (160°F / 71°C). Repeat with the rest of the beef.\n5. Spread sauce on the buns, then stack 2 patties, onion and pickles. Eat right away.\n\nChef Whiskers is AI-animated. The recipe is real, so go make it!",
+  "hashtags": [
+    "#smashburger",
+    "#burgerrecipe",
+    "#easyrecipe",
+    "#cookingtiktok",
+    "#foodtok",
+    "#catsoftiktok",
+    "#chefwhiskers",
+    "#aigenerated"
+  ]
+}
