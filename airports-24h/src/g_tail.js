@@ -29,10 +29,10 @@ const CUTS = SHOTS.slice(1).map(s => s.t0);
 const V3 = a => new THREE.Vector3(a[0], a[1], a[2]);
 function airportCam(t) {
   const IC = AP.introCam;
-  if (t < 8.6) {
+  if (t < T_RISE + 1.7) {
     const P0 = V3(IC.P0), P1 = V3(IC.P1), Q0 = V3(IC.Q0), Q1 = V3(IC.Q1);
     if (t <= T_RISE) { const u = smooth(0, 1, t / T_RISE) * 0.6 + (t / T_RISE) * 0.4; return { p: P0.lerp(P1, u), q: Q0.lerp(Q1, u), fov: 44, sc: 2.0, sf: 0.5 }; }
-    const k = ease((t - T_RISE) / 2.0);
+    const k = ease((t - T_RISE) / 1.5);
     return { p: new THREE.Vector3(lerp(P1.x, 400, k), P1.y * Math.pow(13, k), lerp(P1.z, 0, k)), q: new THREE.Vector3(lerp(Q1.x, -300, k), 0, lerp(Q1.z, 0, k)), fov: 44, sc: 2.0, sf: 0.5 };
   }
   let s = SHOTS[SHOTS.length - 1]; for (const x of SHOTS) if (t < x.t1) { s = x; break; }

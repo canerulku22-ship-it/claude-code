@@ -30,7 +30,7 @@ const WIDE = new Set(['A330', '787', '777', 'A350', 'A380']);
 
 // ------------------------------------------------------------------ timeline
 // 0-6.6 intro aerial + titles | 6.6-9 rise into the globe | 9-52 the day (00:00-24:00) | 52-60 finale
-const T_RISE = 6.6, T0 = 9.0, TN = 13.0, TE = 52.0;
+const T_RISE = 2.9, T0 = 5.0, TN = 9.0, TE = 52.0;
 function dayMin(t) {
   if (t <= T0) return 0;
   if (t <= TN) return (t - T0) / (TN - T0) * 300;
@@ -52,7 +52,10 @@ const LV = llv(LHR.lat, LHR.lon);
 function sunECEF(min) { const u = min - AP.utcOff * 60; return llv(AP.decl, -((u + AP.eot) / 60 - 12) * 15); }
 const _east = new THREE.Vector3(-Math.sin(LHR.lon * D2R), 0, -Math.cos(LHR.lon * D2R));
 const _north = new THREE.Vector3(-Math.sin(LHR.lat * D2R) * Math.cos(LHR.lon * D2R), Math.cos(LHR.lat * D2R), Math.sin(LHR.lat * D2R) * Math.sin(LHR.lon * D2R));
-function sunLocal(min) { const s = sunECEF(min); return new THREE.Vector3(s.dot(_east), s.dot(LV), -s.dot(_north)).normalize(); }
+// the airport model is built with the active landing direction along -x; rotate true-north vectors into that frame
+const ROT = (270 - AP.radar.rwyTrue) * D2R;
+function trueToLocal(E, N) { const x = E * Math.cos(ROT) + N * Math.sin(ROT), yn = -E * Math.sin(ROT) + N * Math.cos(ROT); return [x, -yn]; }
+function sunLocal(min) { const s = sunECEF(min); const [x, z] = trueToLocal(s.dot(_east), s.dot(_north)); return new THREE.Vector3(x, s.dot(LV), z).normalize(); }
 const mod1440 = m => ((m % 1440) + 1440) % 1440;
 
 // ------------------------------------------------------------------ weather

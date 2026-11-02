@@ -185,6 +185,12 @@ for t0, up in ((ev["sunrise"], True), (ev["sunset"], False)):
     n = int(2.0 * SR); t = tt(n); f0 = np.interp(t, [0, 2], [600, 1500] if up else [1500, 600])
     add(sum(np.sin(2 * np.pi * np.cumsum(f0 * r) / SR) for r in (1, 1.5, 2.0)) * np.sin(np.pi * t / 2) ** 2, t0 - 0.2, 0.012, 0)
 
+# ------------------------------------------------------------------ kinetic-type word pops (subtle)
+for i, wt in enumerate(ev.get("words", [])):
+    m = int(0.06 * SR); tb = tt(m); f = 1900 + 260 * (i % 5)
+    p = np.sin(2 * np.pi * f * tb * (1 + 0.6 * np.exp(-tb * 60))) * np.exp(-tb * 70) + filt(noise(m), "high", 4000) * np.exp(-tb * 150) * 0.3
+    add(p, wt, 0.022, (-0.25, 0.25)[i % 2])
+
 # ------------------------------------------------------------------ small airport sound layer
 def radio_voice(dur):
     n = int(dur * SR); t = tt(n); out = np.zeros(n); pos = 0

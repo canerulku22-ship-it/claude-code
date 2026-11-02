@@ -8,7 +8,7 @@ import json, math, random, sys
 from collections import Counter
 
 H = lambda h, m=0: h * 60 + m
-SEATS = {"E175": 76, "AT7": 70, "A319": 140, "A320": 178, "A321": 196, "737": 172, "A220": 135, "757": 176,
+SEATS = {"E175": 76, "E145": 49, "E190": 100, "CRJ": 90, "AT7": 70, "A319": 140, "A320": 178, "A321": 196, "737": 172, "A220": 135, "757": 176,
          "767": 211, "A330": 280, "787": 260, "777": 320, "A350": 310, "A380": 490, "747": 364}
 LF = 0.84
 ICAO = {"AA": "AAL", "UA": "UAL", "DL": "DAL", "WN": "SWA", "AS": "ASA", "B6": "JBU", "NK": "NKS", "F9": "FFT", "HA": "HAL",
@@ -18,7 +18,8 @@ ICAO = {"AA": "AAL", "UA": "UAL", "DL": "DAL", "WN": "SWA", "AS": "ASA", "B6": "
         "CZ": "CSN", "PR": "PAL", "SQ": "SIA", "QF": "QFA", "NZ": "ANZ", "FJ": "FJI", "TN": "THT", "EI": "EIN", "SK": "SAS",
         "IB": "IBE", "U2": "EZY", "W6": "WZZ", "VY": "VLG", "BY": "TOM", "DY": "NOZ", "N0": "NBT", "FI": "ICE", "AT": "RAM",
         "TP": "TAP", "GR": "AUR", "FR": "RYR", "ZG": "TZP", "AI": "AIC", "TS": "TSC", "D8": "NSZ", "LO": "LOT", "A3": "AEE",
-        "OS": "AUA", "TU": "TAR", "J2": "AHY", "MS": "MSR", "RO": "ROT", "AY": "FIN", "ZB": "MON"}
+        "OS": "AUA", "TU": "TAR", "J2": "AHY", "MS": "MSR", "RO": "ROT", "AY": "FIN", "ZB": "MON",
+        "PC": "PGT", "VF": "TKJ", "XQ": "SXS", "LM": "LOG", "SI": "BCI", "LS": "EXS", "FZ": "FDB", "EW": "EWG"}
 
 def R(code, city, lat, lon, dur, freq, prof, al, ac):
     return dict(code=code, city=city, lat=lat, lon=lon, dur=dur, freq=freq, prof=prof, al=al.split(), ac=ac.split())
@@ -219,9 +220,115 @@ LGW = dict(code="LGW", lat=51.1537, lon=-0.1821, target_moves=770, target_pax=11
   rwy=lambda typ, t, i: "26L",
 )
 
-AP = {"LAX": LAX, "LGW": LGW}[sys.argv[1] if len(sys.argv) > 1 else "LAX"]
+# --------------------------------------------------------------------------- BHX (local = GMT)
+BHX = dict(code="BHX", lat=52.4539, lon=-1.748, target_moves=224, target_pax=27_500,
+  routes=[
+    R("DUB", "DUBLIN", 53.4213, -6.2701, H(1, 5), 6, "EUL", "FR EI FR", "737 AT7 737"),
+    R("BHD", "BELFAST", 54.6181, -5.8725, H(1, 5), 4, "EUL", "EI", "AT7"),
+    R("EDI", "EDINBURGH", 55.95, -3.3725, H(1, 10), 4, "EUL", "LM", "E145"),
+    R("GLA", "GLASGOW", 55.8719, -4.4331, H(1, 10), 3, "EUL", "LM", "E145"),
+    R("ABZ", "ABERDEEN", 57.2019, -2.1978, H(1, 20), 2, "EUL", "LM", "E145"),
+    R("JER", "JERSEY", 49.2079, -2.1955, H(1, 5), 2, "EUL", "SI", "AT7"),
+    R("AMS", "AMSTERDAM", 52.3086, 4.7639, H(1, 10), 5, "EUL", "KL", "E190"),
+    R("CDG", "PARIS", 49.0097, 2.5479, H(1, 10), 3, "EUL", "AF", "E190"),
+    R("FRA", "FRANKFURT", 50.0333, 8.5706, H(1, 30), 3, "EUL", "LH", "CRJ A320"),
+    R("MUC", "MUNICH", 48.3538, 11.7861, H(1, 45), 2, "EUL", "LH", "A320"),
+    R("ZRH", "ZURICH", 47.4647, 8.5492, H(1, 40), 2, "EUL", "LX", "A220"),
+    R("GVA", "GENEVA", 46.2381, 6.109, H(1, 40), 1, "EUL", "LS", "737"),
+    R("BCN", "BARCELONA", 41.2971, 2.0785, H(2, 5), 2, "EUL", "VY FR", "A320 737"),
+    R("MAD", "MADRID", 40.4719, -3.5626, H(2, 15), 1, "EUL", "FR", "737"),
+    R("AGP", "MALAGA", 36.6749, -4.4991, H(2, 40), 4, "EUL", "LS FR BY", "737 737 737"),
+    R("ALC", "ALICANTE", 38.2822, -0.5582, H(2, 25), 4, "EUL", "LS FR BY", "737 737 737"),
+    R("FAO", "FARO", 37.0144, -7.9659, H(2, 35), 3, "EUL", "LS FR", "737"),
+    R("PMI", "PALMA", 39.5517, 2.7388, H(2, 15), 1, "EUL", "LS", "737"),
+    R("TFS", "TENERIFE", 28.0445, -16.5725, H(4, 20), 4, "EUL", "LS BY FR", "737 737 737"),
+    R("LPA", "GRAN CANARIA", 27.9319, -15.3866, H(4, 15), 3, "EUL", "LS BY", "737"),
+    R("ACE", "LANZAROTE", 28.9455, -13.6052, H(4, 0), 3, "EUL", "LS FR BY", "737"),
+    R("FUE", "FUERTEVENTURA", 28.4527, -13.8638, H(4, 5), 2, "EUL", "LS BY", "737"),
+    R("FNC", "MADEIRA", 32.6979, -16.7745, H(3, 45), 1, "EUL", "LS", "737"),
+    R("RAK", "MARRAKECH", 31.6069, -8.0363, H(3, 25), 1, "EUL", "FR", "737"),
+    R("HRG", "HURGHADA", 27.1783, 33.7994, H(5, 15), 1, "EUL", "BY", "737"),
+    R("KRK", "KRAKOW", 50.0777, 19.7848, H(2, 20), 2, "EUL", "FR W6", "737 A321"),
+    R("KTW", "KATOWICE", 50.4743, 19.08, H(2, 15), 1, "EUL", "W6", "A321"),
+    R("WAW", "WARSAW", 52.1657, 20.9671, H(2, 25), 1, "EUL", "W6", "A321"),
+    R("OTP", "BUCHAREST", 44.5711, 26.085, H(3, 10), 2, "EUL", "W6", "A321"),
+    R("SOF", "SOFIA", 42.6967, 23.4114, H(3, 0), 1, "EUL", "W6", "A321"),
+    R("BUD", "BUDAPEST", 47.4369, 19.2556, H(2, 25), 1, "EUL", "FR", "737"),
+    R("PRG", "PRAGUE", 50.1008, 14.26, H(1, 55), 1, "EUL", "LS", "737"),
+    R("FCO", "ROME", 41.8003, 12.2389, H(2, 40), 1, "EUL", "FR", "737"),
+    R("BGY", "MILAN", 45.6739, 9.7042, H(2, 5), 1, "EUL", "FR", "737"),
+    R("IST", "ISTANBUL", 41.2753, 28.7519, H(3, 55), 2, "EUL", "TK", "A321"),
+    R("SAW", "ISTANBUL SAW", 40.8986, 29.3092, H(3, 55), 1, "EUL", "PC", "A320"),
+    R("AYT", "ANTALYA", 36.8987, 30.8005, H(4, 15), 1, "EUL", "LS", "737"),
+    R("LCA", "LARNACA", 34.8751, 33.6249, H(4, 35), 1, "EUL", "LS", "737"),
+    R("PFO", "PAPHOS", 34.718, 32.4857, H(4, 35), 1, "EUL", "LS", "737"),
+    R("DXB", "DUBAI", 25.2532, 55.3657, H(6, 45), 2, "ME", "EK", "777 A380"),
+    R("DOH", "DOHA", 25.2731, 51.6081, H(6, 30), 1, "ME", "QR", "787"),
+    R("CUN", "CANCUN", 21.0365, -86.8771, H(10, 30), 1, "LH", "BY", "787"),
+  ],
+  prof={
+    "EUL": ({6: 3.0, 7: 1.6, 8: 1.0, 9: 0.9, 10: 0.9, 11: 0.9, 12: 0.9, 13: 1.0, 14: 1.0, 15: 1.0, 16: 1.0, 17: 1.0, 18: 1.0, 19: 0.8, 20: 0.6, 21: 0.3},
+            {8: 0.5, 9: 0.9, 10: 1.0, 11: 1.0, 12: 1.0, 13: 1.0, 14: 1.0, 15: 1.0, 16: 1.0, 17: 1.0, 18: 1.0, 19: 1.0, 20: 1.0, 21: 1.0, 22: 1.0, 23: 0.8, 0: 0.3}),
+    "ME": ({13: 0.8, 14: 0.6, 21: 0.8}, {6: 0.8, 7: 0.6, 12: 0.8, 13: 0.4}),
+    "LH": ({11: 1.0}, {9: 1.0}),
+  },
+  cap=lambda typ, h: (0 if typ == "D" and h < 6 else (2 if 1 <= h <= 4 else 18)),
+  rwy=lambda typ, t, i: "33",
+)
+# --------------------------------------------------------------------------- ADB (local = TRT, UTC+3)
+ADB = dict(code="ADB", lat=38.2924, lon=27.157, target_moves=232, target_pax=30_500,
+  routes=[
+    R("IST", "ISTANBUL", 41.2753, 28.7519, H(1, 5), 10, "DOMT", "TK TK VF", "A321 737 A320"),
+    R("SAW", "ISTANBUL SAW", 40.8986, 29.3092, H(1, 5), 9, "DOMT", "PC PC VF", "A320 A321 737"),
+    R("ESB", "ANKARA", 40.1281, 32.9951, H(1, 10), 6, "DOMT", "VF VF PC", "737 A320 A320"),
+    R("AYT", "ANTALYA", 36.8987, 30.8005, H(1, 0), 2, "DOMT", "PC VF", "A320 737"),
+    R("ADA", "ADANA", 36.9822, 35.2804, H(1, 30), 2, "DOMT", "PC VF", "A320 737"),
+    R("TZX", "TRABZON", 40.9951, 39.7897, H(1, 55), 2, "DOMT", "PC VF", "A320 737"),
+    R("DIY", "DIYARBAKIR", 37.8939, 40.2010, H(1, 55), 2, "DOMT", "PC VF", "A320 737"),
+    R("GZT", "GAZIANTEP", 36.9472, 37.4787, H(1, 45), 2, "DOMT", "PC VF", "A320 737"),
+    R("ASR", "KAYSERI", 38.7704, 35.4954, H(1, 30), 1, "DOMT", "VF", "737"),
+    R("ERZ", "ERZURUM", 39.9565, 41.1702, H(2, 0), 1, "DOMT", "VF", "737"),
+    R("VAN", "VAN", 38.4682, 43.3323, H(2, 15), 1, "DOMT", "PC", "A320"),
+    R("SZF", "SAMSUN", 41.2545, 36.5671, H(1, 40), 1, "DOMT", "VF", "737"),
+    R("MLX", "MALATYA", 38.4353, 38.0910, H(1, 45), 1, "DOMT", "VF", "737"),
+    R("MQM", "MARDIN", 37.2233, 40.6317, H(2, 5), 1, "DOMT", "VF", "737"),
+    R("GNY", "SANLIURFA", 37.4457, 38.8956, H(1, 55), 1, "DOMT", "PC", "A320"),
+    R("HTY", "HATAY", 36.3628, 36.2822, H(1, 35), 1, "DOMT", "PC", "A320"),
+    R("KYA", "KONYA", 37.979, 32.5619, H(1, 15), 1, "DOMT", "VF", "737"),
+    R("ECN", "ERCAN", 35.1547, 33.4961, H(1, 35), 2, "DOMT", "PC VF", "A320 737"),
+    R("FRA", "FRANKFURT", 50.0333, 8.5706, H(3, 10), 2, "EURT", "XQ LH", "737 A321"),
+    R("DUS", "DUSSELDORF", 51.2895, 6.7668, H(3, 20), 2, "EURT", "XQ EW", "737 A320"),
+    R("CGN", "COLOGNE", 50.8659, 7.1427, H(3, 15), 1, "EURT", "XQ", "737"),
+    R("STR", "STUTTGART", 48.6899, 9.222, H(2, 55), 1, "EURT", "XQ", "737"),
+    R("MUC", "MUNICH", 48.3538, 11.7861, H(2, 45), 1, "EURT", "XQ", "737"),
+    R("BER", "BERLIN", 52.3667, 13.5033, H(2, 50), 1, "EURT", "XQ", "737"),
+    R("HAM", "HAMBURG", 53.6304, 9.9882, H(3, 20), 1, "EURT", "XQ", "737"),
+    R("HAJ", "HANOVER", 52.4611, 9.6850, H(3, 10), 1, "EURT", "XQ", "737"),
+    R("NUE", "NUREMBERG", 49.4987, 11.0781, H(2, 55), 1, "EURT", "XQ", "737"),
+    R("AMS", "AMSTERDAM", 52.3086, 4.7639, H(3, 40), 1, "EURT", "PC", "A320"),
+    R("BRU", "BRUSSELS", 50.9014, 4.4844, H(3, 35), 1, "EURT", "PC", "A320"),
+    R("VIE", "VIENNA", 48.1103, 16.5697, H(2, 25), 1, "EURT", "PC", "A320"),
+    R("ZRH", "ZURICH", 47.4647, 8.5492, H(2, 55), 1, "EURT", "XQ", "737"),
+    R("CDG", "PARIS", 49.0097, 2.5479, H(3, 40), 1, "EURT", "PC", "A321"),
+    R("STN", "LONDON", 51.885, 0.235, H(4, 0), 1, "EURT", "PC", "A321"),
+    R("GYD", "BAKU", 40.4675, 50.0467, H(2, 50), 1, "MET", "J2", "A320"),
+    R("DOH", "DOHA", 25.2731, 51.6081, H(3, 50), 1, "MET", "QR", "A320"),
+    R("DXB", "DUBAI", 25.2532, 55.3657, H(4, 20), 1, "MET", "FZ", "737"),
+  ],
+  prof={
+    "DOMT": ({6: 1.3, 7: 1.4, 8: 1.2, 9: 1.0, 10: 1.0, 11: 0.9, 12: 0.9, 13: 0.9, 14: 0.9, 15: 1.0, 16: 1.0, 17: 1.1, 18: 1.1, 19: 1.0, 20: 1.0, 21: 0.9, 22: 0.7, 23: 0.5, 0: 0.2},
+             {7: 0.5, 8: 1.0, 9: 1.0, 10: 1.0, 11: 0.9, 12: 0.9, 13: 0.9, 14: 1.0, 15: 1.0, 16: 1.0, 17: 1.0, 18: 1.0, 19: 1.0, 20: 1.0, 21: 1.0, 22: 1.0, 23: 1.0, 0: 0.7, 1: 0.3}),
+    "EURT": ({5: 0.7, 6: 1.2, 7: 1.2, 8: 0.9, 9: 0.7, 10: 0.6, 11: 0.5, 12: 0.5, 13: 0.5, 14: 0.5, 15: 0.5, 16: 0.5, 17: 0.4, 18: 0.4, 19: 0.3},
+             {11: 0.6, 12: 0.9, 13: 1.0, 14: 1.0, 15: 0.9, 16: 0.9, 17: 0.8, 18: 0.7, 19: 0.7, 20: 0.7, 21: 0.6, 22: 0.5, 23: 0.4, 0: 0.4, 1: 0.3}),
+    "MET": ({4: 0.5, 14: 0.5, 15: 0.5}, {3: 0.5, 13: 0.5, 14: 0.5}),
+  },
+  cap=lambda typ, h: (2 if 2 <= h <= 4 else 16),
+  rwy=lambda typ, t, i: "34R" if typ == "A" else "34L",
+)
+
+AP = {"LAX": LAX, "LGW": LGW, "BHX": BHX, "ADB": ADB}[sys.argv[1] if len(sys.argv) > 1 else "LAX"]
 random.seed(hash(AP["code"]) % 100000 + 20261102)
-random.seed(20261102 if AP["code"] == "LAX" else 20261103)
+random.seed({"LAX": 20261102, "LGW": 20261103, "BHX": 20261104, "ADB": 20261105}[AP["code"]])
 
 def cat_of(m): return 0 if m < 120 else 1 if m < 240 else 2 if m < 480 else 3
 routes = AP["routes"]
@@ -272,8 +379,8 @@ flights.sort(key=lambda m: m["t"])
 
 used = set()
 def fnum(al, prof):
-    lo = {"DOM": 100, "DOME": 1, "HI": 1, "LAT": 1, "EUR": 1, "ME": 1, "ASIA": 1, "OCE": 1, "EUL": 1, "NAM": 1}.get(prof, 1)
-    span = 2400 if prof in ("DOM", "DOME", "EUL") else 200
+    lo = {"DOM": 100, "DOMT": 2000, "EURT": 1, "MET": 1}.get(prof, 1)
+    span = 2400 if prof in ("DOM", "DOME", "EUL") else 3000 if prof == "DOMT" else 400 if prof == "EURT" else 200
     for _ in range(5000):
         n = lo + random.randint(0, span)
         if (al, n) not in used: used.add((al, n)); return n

@@ -33,7 +33,7 @@ function lightAirport(t, vm, cam, rcw, rch) {
   bodyMatShared.emissiveIntensity = 0.30 * night; sceneA.userData.parkedTail.material.emissiveIntensity = 0.25 * night;
   ltMat.uniforms.uScale.value = us * (rch > 1000 ? 1.25 : 1); ltMat.uniforms.uFog.value = sceneA.fog.far * 0.55; ltMat.uniforms.uMin.value = rch > 1000 ? 2.2 : 1.6;
   acLt.material.uniforms.uScale.value = us; acLt.material.uniforms.uFog.value = sceneA.fog.far * 0.6; acLt.material.uniforms.uMin.value = 1.8;
-  const wdir = (wx.dir + 180) * D2R; const wvx = Math.sin(wdir), wvz = -Math.cos(wdir);
+  const wdir = (wx.dir + 180) * D2R; const [wvx, wvz] = trueToLocal(Math.sin(wdir), Math.cos(wdir));
   const cc = new THREE.Color('#ffffff').lerp(new THREE.Color('#6d7682'), rn).lerp(new THREE.Color('#1a2138'), night);
   CLOUDS.forEach(s => { const u = s.userData; const span = 26000; let x = u.x + wvx * vm * 9, z = u.z + wvz * vm * 9; x = ((x + span / 2) % span + span) % span - span / 2; z = ((z + span / 2) % span + span) % span - span / 2; s.position.set(x, u.y, z); s.material.opacity = clamp(cl * 1.3 - u.ph * 0.6, 0, 1) * 0.9; s.material.color.copy(cc).lerp(warm, twi * 0.5); });
   const rp = rainGeo.attributes.position; const fwd = new THREE.Vector3().subVectors(cam.q, cam.p).setY(0).normalize(); const rc0 = cam.p.clone().addScaledVector(fwd, 1200);
