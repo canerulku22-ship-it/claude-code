@@ -1,0 +1,189 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* TikTok-safe content box: x 70..930, y 190..1510 */
+  :root {
+    --dep: #38C8FF; --arr: #3DF5A0; --ga: #FFB547;
+    --c0: #FFD21F; --c1: #FF8A1F; --c2: #FF3B3B; --c3: #B65CFF;
+    --ink: #eef2ff; --mute: #9aa8cc; --panel: rgba(9, 14, 32, 0.80); --edge: rgba(140, 160, 255, 0.20);
+  }
+  html, body { margin: 0; padding: 0; width: 1080px; height: 1920px; overflow: hidden; background: #040811; }
+  body { font-family: 'Inter', sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  canvas { position: absolute; display: block; }
+  #glG { left: 0; top: 0; width: 1080px; height: 1920px; }
+  #glA { left: 0; top: 0; width: 1080px; height: 1920px; }
+  #vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 60% at 46% 42%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%); }
+  #hud { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+  .abs { position: absolute; }
+  .num { font-variant-numeric: tabular-nums; }
+  .grad { background: linear-gradient(90deg, #5AA9FF 0%, #A06BFF 50%, #FF6FB5 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .panel { background: var(--panel); border: 1.5px solid var(--edge); border-radius: 18px; box-shadow: 0 10px 36px rgba(0,0,0,0.45); }
+
+  /* intro */
+  #intro { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; text-align: center; }
+  #introShade { position: absolute; left: 0; top: 0; width: 1080px; height: 1100px; background: linear-gradient(180deg, rgba(2,5,14,0.55) 0%, rgba(2,5,14,0.25) 60%, rgba(2,5,14,0) 100%); }
+  #tBig { position: absolute; left: 70px; width: 860px; top: 450px; font-size: 132px; font-weight: 800; line-height: 1; white-space: nowrap; filter: drop-shadow(0 0 26px rgba(140,120,255,0.55)); }
+  #tSky { position: absolute; left: 70px; width: 860px; top: 600px; font-size: 42px; font-weight: 700; letter-spacing: 8px; color: #fff; white-space: nowrap; text-shadow: 0 2px 24px rgba(0,0,0,0.9); }
+  #tRule { position: absolute; left: 340px; width: 320px; top: 672px; height: 2px; background: linear-gradient(90deg, rgba(90,169,255,0), #A06BFF, rgba(255,111,181,0)); }
+  #tSub { position: absolute; left: 70px; width: 860px; top: 700px; font-size: 27px; font-weight: 600; color: #dfe6ff; white-space: nowrap; text-shadow: 0 2px 18px rgba(0,0,0,0.95); }
+  #tSub span { display: inline-block; margin: 0 7px; }
+
+  /* header */
+  #hdr { position: absolute; left: 0; top: 0; width: 1080px; height: 340px; }
+  #hTitle { left: 70px; top: 196px; font-size: 36px; font-weight: 800; white-space: nowrap; }
+  #hSub { left: 72px; top: 242px; font-size: 15px; font-weight: 700; letter-spacing: 4px; color: var(--mute); white-space: nowrap; }
+  #clockbox { left: 630px; width: 300px; top: 186px; text-align: right; }
+  #clock { font-size: 64px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+  #clocksub { font-size: 13px; font-weight: 700; letter-spacing: 2.5px; color: var(--mute); margin-top: 4px; }
+  #daybar { left: 70px; top: 270px; width: 860px; height: 64px; }
+  #hours { position: absolute; left: 0; top: 0; width: 860px; height: 24px; }
+  #hours .b { position: absolute; bottom: 0; width: 29px; border-radius: 3px 3px 0 0; }
+  #track { position: absolute; left: 0; top: 28px; width: 860px; height: 8px; border-radius: 5px; opacity: 0.45; }
+  #track2 { position: absolute; left: 0; top: 28px; width: 860px; height: 8px; }
+  #fill { position: absolute; left: 0; top: 0; height: 8px; border-radius: 5px; width: 0; background-size: 860px 8px; }
+  #marker { position: absolute; top: -7px; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; }
+  #ticks { position: absolute; left: 0; top: 42px; width: 860px; height: 18px; font-size: 13px; font-weight: 600; color: var(--mute); }
+  #ticks span { position: absolute; transform: translateX(-50%); }
+
+  /* globe overlays */
+  #labels { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+  .clab { position: absolute; font-size: 14px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; text-shadow: 0 0 5px #000, 0 0 12px #000; transform: translate(-50%, -160%); color: #dfe6ff; }
+  .busy { position: absolute; transform: translate(-50%, -135%); white-space: nowrap; padding: 4px 9px 4px 7px; border-radius: 11px; background: rgba(6,10,26,0.84); border: 1.5px solid rgba(255,255,255,0.25); font-size: 14px; font-weight: 800; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+  .busy .d { width: 9px; height: 9px; border-radius: 50%; }
+  .busy .n { font-weight: 700; color: #c9d3f5; font-variant-numeric: tabular-nums; }
+  #inair { left: 74px; top: 348px; }
+  #inair .l { font-size: 13px; font-weight: 700; letter-spacing: 2.5px; color: var(--mute); }
+  #inair .v { font-size: 36px; font-weight: 800; line-height: 1.05; }
+  #view { left: 630px; width: 296px; top: 352px; font-size: 13px; font-weight: 700; letter-spacing: 2.5px; color: var(--mute); text-align: right; }
+  #legend { left: 70px; width: 860px; top: 904px; display: flex; justify-content: center; gap: 8px; }
+  .lg { display: flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 24px; background: rgba(6, 10, 26, 0.82); border: 1.5px solid rgba(255,255,255,0.10); font-size: 14px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; }
+  .lg .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .lg .mut { color: var(--mute); font-size: 12px; letter-spacing: 1.5px; }
+  #toast { left: 500px; top: 392px; transform: translateX(-50%); text-align: center; padding: 10px 22px 12px; border-radius: 16px;
+    background: rgba(8, 12, 30, 0.88); border: 1.5px solid rgba(160,120,255,0.45); white-space: nowrap; opacity: 0; }
+  #toast .t1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
+  #toast .t2 { font-size: 15px; font-weight: 600; color: #c5cfee; margin-top: 4px; }
+  #toast .tm { font-variant-numeric: tabular-nums; margin-right: 10px; color: #FFD27A; }
+
+  /* stats */
+  #stats { left: 70px; top: 946px; width: 860px; height: 204px; }
+  .card { position: absolute; overflow: hidden; }
+  .card .acc { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+  .card .k { position: absolute; left: 24px; top: 13px; font-size: 15px; font-weight: 800; letter-spacing: 3px; display: flex; align-items: center; gap: 8px; }
+  .card .s { position: absolute; right: 18px; top: 15px; font-size: 13px; font-weight: 700; text-align: right; }
+  .card .glow { position: absolute; right: -50px; bottom: -70px; width: 200px; height: 200px; border-radius: 50%; filter: blur(26px); opacity: 0.22; }
+  #cPax { left: 0; top: 0; width: 860px; height: 94px; }
+  #cDep { left: 0; top: 104px; width: 424px; height: 98px; }
+  #cArr { left: 436px; top: 104px; width: 424px; height: 98px; }
+  .odo { position: absolute; left: 22px; display: flex; align-items: flex-start; font-weight: 800; letter-spacing: -1px; }
+  .odo .col { position: relative; overflow: hidden; }
+  .odo .strip { position: absolute; left: 0; top: 0; width: 100%; text-align: center; }
+  .odo .sepc { text-align: center; }
+  .ico { width: 20px; height: 20px; }
+
+  /* live cam + radar row */
+  #camDip { left: 70px; top: 1160px; width: 426px; height: 350px; border-radius: 18px; background: #000; opacity: 0; }
+  #camEdge { left: 70px; top: 1160px; width: 423px; height: 347px; border-radius: 18px; border: 1.5px solid rgba(140,160,255,0.28); }
+  #camLabel { left: 82px; top: 1170px; font-size: 13px; font-weight: 800; letter-spacing: 1.5px; display: flex; align-items: center; gap: 8px; text-shadow: 0 1px 8px rgba(0,0,0,0.9); white-space: nowrap; }
+  #camLabel .live { background: #ff3355; color: #fff; padding: 2px 7px; border-radius: 5px; font-size: 12px; letter-spacing: 1.5px; }
+  #wchip { left: 80px; top: 1458px; display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 30px; background: rgba(6,10,26,0.74); border: 1.5px solid rgba(255,255,255,0.14); }
+  #wchip svg { width: 36px; height: 36px; }
+  #wchip .a { font-size: 15px; font-weight: 800; line-height: 1.1; white-space: nowrap; }
+  #wchip .b { font-size: 11px; font-weight: 700; color: #c5cfee; letter-spacing: 1px; white-space: nowrap; }
+  #wicon { width: 28px; height: 28px; }
+  #radar { left: 504px; top: 1160px; width: 426px; height: 350px; border-radius: 18px; }
+  #radarEdge { left: 504px; top: 1160px; width: 423px; height: 347px; border-radius: 18px; border: 1.5px solid rgba(80,220,170,0.30); }
+
+  /* finale */
+  #finale { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; text-align: center; }
+  #fShade { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; background: linear-gradient(180deg, rgba(3,6,16,0.75) 0%, rgba(3,6,16,0.15) 32%, rgba(3,6,16,0.30) 50%, rgba(3,6,16,0.85) 80%); }
+  .fl { position: absolute; left: 70px; width: 860px; font-size: 60px; font-weight: 800; letter-spacing: 2px; white-space: nowrap; line-height: 1; text-shadow: 0 4px 30px rgba(0,0,0,0.8); }
+  #fTot { position: absolute; left: 110px; top: 920px; width: 780px; height: 520px; }
+  .frow { position: absolute; left: 0; width: 780px; height: 108px; border-radius: 20px; background: rgba(8,12,30,0.84); border: 1.5px solid rgba(255,255,255,0.12); overflow: hidden; }
+  .frow .acc { position: absolute; left: 0; top: 0; bottom: 0; width: 7px; }
+  .frow .k { position: absolute; left: 30px; top: 0; height: 108px; display: flex; align-items: center; font-size: 20px; font-weight: 800; letter-spacing: 3px; text-align: left; line-height: 1.25; }
+  .frow .odo { left: auto; right: 28px; top: 20px; }
+  #fFoot { position: absolute; left: 70px; width: 860px; top: 1460px; font-size: 14px; color: #7d8bb0; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<canvas id="glG" width="1080" height="1920"></canvas>
+<div id="vignette"></div>
+<div id="hud">
+  <div id="labels"></div>
+  <div id="hdrShade" style="position:absolute;left:0;top:0;width:1080px;height:380px;background:linear-gradient(180deg,rgba(4,8,17,0.96) 0px,rgba(4,8,17,0.90) 300px,rgba(4,8,17,0) 375px)"></div>
+  <div id="hdr">
+    <div id="hTitle" class="abs grad"></div>
+    <div id="hSub" class="abs">24 HOURS IN THE SKY</div>
+    <div id="clockbox" class="abs"><div id="clock" class="num">00:00</div><div id="clocksub"></div></div>
+    <div id="daybar" class="abs"><div id="hours"></div><div id="track"></div><div id="track2"><div id="fill"></div><div id="marker"></div></div>
+      <div id="ticks"><span style="left:0">00:00</span><span style="left:215px">06:00</span><span style="left:430px">12:00</span><span style="left:645px">18:00</span><span style="left:860px">24:00</span></div></div>
+  </div>
+  <div id="inair" class="abs"><div class="l">IN THE AIR NOW</div><div class="v num" id="inairN">0</div></div>
+  <div id="view" class="abs"></div>
+  <div id="legend" class="abs">
+    <div class="lg"><span class="dot" style="background:var(--dep);box-shadow:0 0 10px var(--dep)"></span>DEPARTING<span class="dot" style="background:var(--arr);box-shadow:0 0 10px var(--arr);margin-left:8px"></span>ARRIVING</div>
+    <div class="lg"><span class="mut">ROUTE TIME</span><span class="dot" style="background:var(--c0)"></span>0–2h<span class="dot" style="background:var(--c1)"></span>2–4h<span class="dot" style="background:var(--c2)"></span>4–8h<span class="dot" style="background:var(--c3)"></span>8h+</div>
+  </div>
+  <div id="toast" class="abs"><div class="t1"><span class="tm"></span><span class="tx"></span></div><div class="t2"></div></div>
+
+  <div id="stats" class="abs">
+    <div id="cPax" class="card panel"><div class="acc" style="background:linear-gradient(180deg,#FFD27A,#FF6FB5)"></div><div class="glow" style="background:#FF9E5E"></div>
+      <div class="k" style="color:#FFC27A"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" stroke="#FFC27A" stroke-width="2.6" fill="none"/><path d="M4 21 C4 15 8 13 12 13 C16 13 20 15 20 21" stroke="#FFC27A" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>PASSENGERS</div>
+      <div class="s" id="sPax" style="color:#FFC27A"></div>
+      <div class="odo" id="oPax" style="top:34px"></div></div>
+    <div id="cDep" class="card panel"><div class="acc" style="background:var(--dep)"></div><div class="glow" style="background:var(--dep)"></div>
+      <div class="k" style="color:var(--dep)"><svg class="ico" viewBox="0 0 24 24"><path d="M5 19 L19 5 M9 5 H19 V15" stroke="#38C8FF" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>DEPARTURES</div>
+      <div class="s" id="sDep" style="color:var(--dep)"></div>
+      <div class="odo" id="oDep" style="top:38px"></div></div>
+    <div id="cArr" class="card panel"><div class="acc" style="background:var(--arr)"></div><div class="glow" style="background:var(--arr)"></div>
+      <div class="k" style="color:var(--arr)"><svg class="ico" viewBox="0 0 24 24"><path d="M5 5 L19 19 M19 9 V19 H9" stroke="#3DF5A0" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>ARRIVALS</div>
+      <div class="s" id="sArr" style="color:var(--arr)"></div>
+      <div class="odo" id="oArr" style="top:38px"></div></div>
+  </div>
+
+  <div id="camDip" class="abs"></div>
+  <div id="camEdge" class="abs"></div>
+  <div id="camLabel" class="abs"><span class="live">● LIVE</span><span id="camName"></span></div>
+  <div id="wchip" class="abs">
+    <svg viewBox="-100 -100 200 200"><circle r="90" fill="rgba(90,169,255,0.12)" stroke="rgba(170,190,255,0.5)" stroke-width="6"/>
+      <text x="0" y="-56" text-anchor="middle" dominant-baseline="middle" font-size="40" font-weight="800" fill="#ff7f9a">N</text>
+      <g id="needle"><path d="M0 -50 L20 -8 L7 -12 L7 54 L-7 54 L-7 -12 L-20 -8 Z" fill="#ffffff"/></g></svg>
+    <div><div class="a num" id="wA"></div><div class="b num" id="wB"></div></div>
+    <svg id="wicon" viewBox="0 0 48 48"></svg>
+    <div><div class="a num" id="wT"></div><div class="b" id="wC"></div></div>
+  </div>
+  <canvas id="radar" class="abs" width="426" height="350"></canvas>
+  <div id="radarEdge" class="abs"></div>
+</div>
+<canvas id="glA" width="1080" height="1920"></canvas>
+<div id="introLayer" style="position:absolute;inset:0">
+  <div id="intro">
+    <div id="introShade"></div>
+    <div id="tBig" class="grad"></div>
+    <div id="tSky">24 HOURS IN THE SKY</div>
+    <div id="tRule"></div>
+    <div id="tSub"><span id="s1">Every flight.</span><span id="s2">Every arrival.</span><span id="s3">Every departure.</span></div>
+  </div>
+</div>
+<div id="finale">
+  <div id="fShade"></div>
+  <div class="fl" id="f1" style="top:330px">24 HOURS.</div>
+  <div class="fl" id="f2" style="top:410px">ONE AIRPORT.</div>
+  <div class="fl grad" id="f3" style="top:492px;font-size:47px">THOUSANDS OF JOURNEYS.</div>
+  <div id="fTot">
+    <div class="frow" id="r1" style="top:0"><div class="acc" style="background:var(--arr)"></div><div class="k" style="color:var(--arr)">TOTAL<br>ARRIVALS</div><div class="odo" id="oT1"></div></div>
+    <div class="frow" id="r2" style="top:122px"><div class="acc" style="background:var(--dep)"></div><div class="k" style="color:var(--dep)">TOTAL<br>DEPARTURES</div><div class="odo" id="oT2"></div></div>
+    <div class="frow" id="r3" style="top:244px"><div class="acc" style="background:linear-gradient(180deg,#FFD27A,#FF6FB5)"></div><div class="k" style="color:#FFC27A">TOTAL<br>PASSENGERS</div><div class="odo" id="oT3"></div></div>
+    <div class="frow" id="r4" style="top:366px"><div class="acc" style="background:linear-gradient(180deg,#5AA9FF,#FF6FB5)"></div><div class="k" style="color:#c9b6ff">TOTAL<br>FLIGHTS</div><div class="odo" id="oT4"></div></div>
+  </div>
+  <div id="fFoot">Representative day modelled on the airport's route network · local time</div>
+</div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
