@@ -5,12 +5,16 @@ Turns a recipe JSON file into a ~20-second vertical (1080x1920) TikTok starring
 chef hat and red apron, cooking in a cozy modern kitchen. It suits a faceless
 channel: no human appears on camera.
 
-There are two ways to make the clips, behind the same interface:
+There are three ways to make the clips, behind the same interface:
 
 - **`render` (default): a local 3D animation.** The cat, the kitchen and the food are
   modeled in Three.js and rendered frame by frame in headless Chromium, with
   synthesized sound and music. Free, no API key, and the cat is the same 3D model in
   every shot.
+- **`blender`: a Blender/Cycles 3D film.** Food-only shots built procedurally in
+  Blender with Python: modeled food, geometry-node particles, 3D labels and titles,
+  path-traced lighting. It looks much more realistic and renders much more slowly. See
+  [Blender provider](#blender-provider).
 - **`fal`: generative AI video** through fal.ai, from text prompts and a character
   reference image. Needs an API key and costs money per clip.
 
@@ -29,6 +33,7 @@ chef-whiskers/
 │   ├── base.py              # Provider interface, errors, retry logic
 │   ├── __init__.py          # provider registry
 │   ├── render.py            # local 3D render (default)
+│   ├── blender.py           # Blender/Cycles 3D film
 │   ├── fal.py               # fal.ai generative video
 │   └── placeholder.py       # offline test provider (test patterns)
 ├── renderer/                # the 3D animation
@@ -39,12 +44,17 @@ chef-whiskers/
 │   ├── audio.py             # synthesized sound effects and music bed (numpy)
 │   ├── index.html
 │   └── package.json
+├── blender/                 # the Blender 3D film (chicken_burger_3d)
+│   ├── lib.py               # materials, studio, cameras, food models, labels, particles
+│   ├── shots.py             # the ten shots, their animation and sound cues
+│   └── render_shot.py       # renders one shot to a resumable PNG sequence
 ├── prompts/
 │   ├── character.txt        # Chef Whiskers description, prepended to every AI prompt
 │   └── character_reference.txt  # prompt for the AI reference image
 ├── recipes/
 │   ├── smash_burger.json    # sample recipe
-│   └── chicken_burger.json  # sample recipe with 8 quick shots
+│   ├── chicken_burger.json  # sample recipe with 8 quick shots
+│   └── chicken_burger_3d.json  # the Blender film: 10 shots, 26 s
 ├── output/
 │   ├── clips/               # raw clips and edited 1080x1920 shots
 │   └── final/               # finished videos and caption files
@@ -86,7 +96,7 @@ The recipe argument is a name in `recipes/` or a path to any recipe JSON.
 | Option | What it does |
 | --- | --- |
 | `--dry-run` | Print prompts, scenes, text layout and caption without calling anything or writing files. |
-| `--provider NAME` | `render`, `fal` or `placeholder`. Defaults to `VIDEO_PROVIDER` in `.env`. |
+| `--provider NAME` | `render`, `blender`, `fal` or `placeholder`. Defaults to `VIDEO_PROVIDER` in `.env`. |
 | `--music FILE` | Your own soundtrack, looped if shorter than the video and faded out at the end. |
 | `--no-music` | Skip the music bed the render provider adds when no `--music` is given. |
 | `--music-volume 0-1` | Soundtrack level. Defaults to 1.0 for the render music bed and your own track over silent clips, 0.35 under clip audio. |
@@ -187,6 +197,62 @@ depending on the scene, so a 20-second video at 30 fps takes roughly 40–80 min
 cached until the renderer's code changes. `RENDER_WORKERS=2` in `.env` splits each
 clip across parallel browser processes, which helps only on machines with many cores.
 
+## Blender provider
+
+`providers/blender.py` renders `recipes/chicken_burger_3d.json` as a food-only 3D film in
+Blender 4.2 or newer (tested with 5.2), with Cycles:
+
+```bash
+python generate.py chicken_burger_3d --provider blender
+```
+
+The ten shots in `blender/shots.py`, in recipe order:
+
+| Scene | What happens |
+| --- | --- |
+| `b_intro` | The finished burger floats and spins while the camera pushes in. |
+| `b_ingredients` | Chicken, flour, seasoning, sauce, lettuce, cheese and buns fly in, each with a 3D label. |
+| `b_season` | Spices rain onto the raw chicken and stick. |
+| `b_dip` | Buttermilk dip with a splash and drips. |
+| `b_coat` | Flour puffs up, flakes stick and the crust forms. |
+| `b_fry` | Macro shot in the oil: bubbles, spits, steam, the crust turning golden. |
+| `b_crisp` | Out of the oil, probe thermometer, a 165°F / 74°C tag. |
+| `b_assemble` | Bun, sauce swirl, lettuce, chicken, melting cheese and the top bun land in turn. |
+| `b_exploded` | The layers float apart with labels while the camera orbits, then snap back. |
+| `b_reveal` | Hero spin with the 3D title THE ULTIMATE CRISPY CHICKEN BURGER. |
+
+How it is built:
+- `lib.py` models everything from code: lathed buns with a glossy gradient crust, a
+  chicken thigh whose "crust" shape key grows a ridged, craggy coating, cupped and
+  ruffled lettuce, cheese with a "melt" shape key, a sauce swirl that draws itself
+  along a curve, bowls, a pot, and oil and buttermilk that ripple with a Wave modifier.
+  The chicken's material blends from raw to wet, floured and fried.
+- Particles (flour flakes, spices, oil bubbles, crumbs, drops, dust) are geometry-node
+  instances on points, moved by a small ballistic simulation in Python. Steam and flour
+  clouds are camera-facing sprites. Labels are extruded 3D text on rounded plates with
+  leader lines.
+- Each frame is a pure function of the time, so any frame can be rendered alone, and
+  finished frames in `output/blender_frames/` are skipped when you run again: an
+  interrupted render picks up where it stopped. Sound comes from the same `audio.py`
+  as the render provider.
+
+**Setup.** Either install the Blender app and put `blender` on your PATH, or
+`pip install bpy` (the Blender Python module; it has wheels only for the Python version
+that Blender bundles, such as 3.13 for Blender 5.x) and set `BLENDER_PYTHON` in `.env`
+to that Python. Without a GPU it renders on the CPU.
+
+**Render time.** At the defaults (`BLENDER_SCALE=75`, i.e. 810x1440 upscaled to 1080x1920,
+and `BLENDER_SAMPLES=12` with denoising) a frame takes about 20–40 s on 4 CPU cores, so
+the 26-second film (780 frames) takes 5–8 hours. A GPU is much faster. For a quick look,
+render single frames:
+
+```bash
+cd blender
+python render_shot.py b_fry 3.0 /tmp/fry --only 45 --preview   # one rough frame
+python render_shot.py b_fry 3.0 /tmp/fry --only 45              # full quality
+python render_shot.py b_fry 3.0 /tmp/fry --save-blend fry.blend # open the shot in Blender
+```
+
 ## fal.ai provider
 
 `providers/fal.py` sends everything through [fal.ai](https://fal.ai), so one
@@ -279,8 +345,8 @@ or subject reference if it has one, so clips don't all open on the reference pos
   turn on TikTok's **AI-generated content** setting when posting (on the post screen,
   under *More options*; the exact wording can vary by app version). TikTok requires
   this label for realistic AI-generated content. Videos from the local `render`
-  provider are scripted 3D animation, not generative AI, so the label does not apply
-  to them.
+  and `blender` providers are scripted 3D animation, not generative AI, so the label does
+  not apply to them.
 - **Use only real, working recipes.** Cook the recipe yourself before you post it. The
   quantities, times and temperatures in the caption and on-screen text must be ones
   that actually work, and must match what the video shows. Animation and AI video can
@@ -300,6 +366,7 @@ or subject reference if it has one, so clips don't all open on the reference pos
 | --- | --- |
 | `ffmpeg and ffprobe not found` | Install ffmpeg (see Setup) and reopen the terminal. |
 | `Node.js was not found` / `renderer is not installed` | Install Node.js 18+, then run `cd renderer && npm install && npx playwright install chromium`. |
+| `Blender was not found` | Install Blender and put `blender` on your PATH, or `pip install bpy` and set `BLENDER_PYTHON` (see [Blender provider](#blender-provider)). |
 | `needs a package that is not installed` | Run `pip install -r requirements.txt`. |
 | `needs a "scene" on every shot` | Add a `scene` to each shot (see the render provider section), or use an AI provider. |
 | `No provider selected` | Set `VIDEO_PROVIDER` in `.env` or pass `--provider`. |

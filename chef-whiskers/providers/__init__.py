@@ -20,6 +20,7 @@ from .base import (
 
 # name -> "module:ClassName" inside this package
 PROVIDERS: dict[str, str] = {
+    "blender": "blender:BlenderProvider",
     "fal": "fal:FalProvider",
     "placeholder": "placeholder:PlaceholderProvider",
     "render": "render:RenderProvider",

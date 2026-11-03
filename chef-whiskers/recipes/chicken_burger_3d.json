@@ -1,0 +1,68 @@
+{
+  "title": "The Ultimate Crispy Chicken Burger (3D)",
+  "hook": "Wait for the *CRUNCH*",
+  "shots": [
+    {
+      "seconds": 2.6,
+      "scene": "b_intro",
+      "visual_prompt": "The finished crispy chicken burger floats and spins slowly in a warm studio, crumbs and steam drifting, as the camera pushes in.",
+      "on_screen_text": ""
+    },
+    {
+      "seconds": 3.4,
+      "scene": "b_ingredients",
+      "visual_prompt": "Top-down: chicken thigh, flour, seasoning, sauce, lettuce, cheese and brioche buns fly in one by one and land in a grid, each with a 3D label on a leader line.",
+      "on_screen_text": ""
+    },
+    {
+      "seconds": 2.0,
+      "scene": "b_season",
+      "visual_prompt": "Paprika, garlic powder, salt and pepper rain onto a raw chicken thigh on a wooden board and stick to it.",
+      "on_screen_text": "Season the *chicken*"
+    },
+    {
+      "seconds": 2.0,
+      "scene": "b_dip",
+      "visual_prompt": "The seasoned chicken plunges into a bowl of buttermilk with a splash, then lifts out glossy and dripping.",
+      "on_screen_text": "Dip in *buttermilk*"
+    },
+    {
+      "seconds": 2.6,
+      "scene": "b_coat",
+      "visual_prompt": "The chicken drops into seasoned flour in a puff; flakes of flour fly in and stick until a shaggy crust forms, then it flips and lifts out.",
+      "on_screen_text": "Press into *flour*"
+    },
+    {
+      "seconds": 3.0,
+      "scene": "b_fry",
+      "visual_prompt": "Macro shot: the coated chicken fries in a pot of bubbling oil with spits, steam and floating crumbs, the crust turning from pale to golden.",
+      "on_screen_text": "Fry at *350°F / 175°C*"
+    },
+    {
+      "seconds": 1.8,
+      "scene": "b_crisp",
+      "visual_prompt": "The golden chicken lifts out of the oil dripping; a probe thermometer goes in and a 3D tag pops up: 165°F / 74°C.",
+      "on_screen_text": "Cooked *through*"
+    },
+    {
+      "seconds": 2.8,
+      "scene": "b_assemble",
+      "visual_prompt": "The camera orbits a plate as the burger stacks itself: bottom bun, a swirl of sauce, lettuce, the crispy chicken, melting cheese and the top bun, each landing with a squash.",
+      "on_screen_text": "Stack it *up*"
+    },
+    {
+      "seconds": 3.0,
+      "scene": "b_exploded",
+      "visual_prompt": "Exploded view: the burger layers float apart with a label on each while the camera orbits, then they snap back together.",
+      "on_screen_text": ""
+    },
+    {
+      "seconds": 2.8,
+      "scene": "b_reveal",
+      "visual_prompt": "Hero shot: the finished burger spins on a slate counter under warm light while the 3D title THE ULTIMATE CRISPY CHICKEN BURGER drops in word by word.",
+      "on_screen_text": ""
+    }
+  ],
+  "caption": "The ultimate crispy chicken burger, start to finish in 3D. Season boneless chicken thighs with salt, pepper, paprika and garlic powder, dip in buttermilk, press into flour, and fry at 350°F / 175°C until deep golden and 165°F / 74°C inside. Toasted brioche bun, sauce, lettuce, the chicken and a slice of cheese. Save it for burger night!",
+  "hashtags": ["#chickenburger", "#friedchicken", "#crispychicken", "#3danimation", "#blender3d", "#burger", "#foodtok", "#recipe"]
+}
