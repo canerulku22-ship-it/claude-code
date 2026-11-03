@@ -1,0 +1,66 @@
+{
+  "title": "Crispy Buttermilk Chicken Burger",
+  "hook": "The *crunchiest* chicken burger",
+  "shots": [
+    {
+      "seconds": 2.6,
+      "scene": "chick_hero",
+      "visual_prompt": "Hero close-up of a finished crispy chicken burger on a wooden board: a thick, craggy, deep-golden fried chicken thigh, shredded lettuce, pickle chips, spicy mayo dripping, glossy toasted brioche bun, steam rising. Chef Whiskers pops up from behind it with sparkling eyes. Fast push-in.",
+      "on_screen_text": "Better than *drive-thru*"
+    },
+    {
+      "seconds": 2.2,
+      "scene": "chick_brine",
+      "visual_prompt": "Chef Whiskers drops a raw boneless chicken thigh into a bowl of buttermilk with a big splash, droplets flying, and jumps back with wide eyes.",
+      "on_screen_text": "Buttermilk soak *1 hour+*"
+    },
+    {
+      "seconds": 2.6,
+      "scene": "chick_dredge",
+      "visual_prompt": "Chef Whiskers tosses the chicken in a bowl of seasoned flour; flour puffs up in clouds and dusts its nose as the chicken becomes shaggy and craggy.",
+      "on_screen_text": "Press into *seasoned flour*"
+    },
+    {
+      "seconds": 2.8,
+      "scene": "chick_fry",
+      "visual_prompt": "Chef Whiskers lowers the floured chicken with tongs into a heavy pot of hot oil; it bubbles and sizzles hard, and a thermometer clipped to the pot reads 350F.",
+      "on_screen_text": "Fry at *350°F*"
+    },
+    {
+      "seconds": 2.4,
+      "scene": "chick_golden",
+      "visual_prompt": "The chicken turns deep golden in the bubbling oil; Chef Whiskers flips it with tongs, lifts it out dripping and checks it with a probe thermometer.",
+      "on_screen_text": "Golden and *165°F* inside"
+    },
+    {
+      "seconds": 2.2,
+      "scene": "chick_sauce",
+      "visual_prompt": "Chef Whiskers squeezes a zigzag of spicy mayo across a toasted brioche bun.",
+      "on_screen_text": "*Spicy mayo* on the bun"
+    },
+    {
+      "seconds": 2.6,
+      "scene": "chick_stack",
+      "visual_prompt": "Fast stacking: shredded lettuce rains onto the bun, the fried chicken slams down, pickles pop on and the top bun lands with a squish; Chef Whiskers pats it proudly.",
+      "on_screen_text": "Lettuce, chicken, *pickles*"
+    },
+    {
+      "seconds": 2.6,
+      "scene": "chick_bite",
+      "visual_prompt": "Chef Whiskers lifts the burger and takes a huge crunchy bite; crumbs explode outward, its eyes close in delight and hearts float up.",
+      "on_screen_text": "Full recipe in the *caption*"
+    }
+  ],
+  "caption": "Crispy buttermilk chicken burgers that crunch louder than the drive-thru 🐔🍔\n\nMakes 2 burgers\n• 2 boneless, skinless chicken thighs\n• Brine: 1 cup (240 ml) buttermilk, 1 tsp salt, 1 tsp hot sauce\n• Dredge: 1 cup (125 g) flour, 2 tbsp cornstarch, 1 tsp each salt, paprika and garlic powder, ½ tsp black pepper, ¼ tsp cayenne\n• Neutral oil for frying (about 1 qt / 1 L)\n• 2 brioche buns, toasted\n• Spicy mayo: 3 tbsp mayo + 1–2 tsp sriracha\n• Shredded iceberg lettuce and pickle chips\n\n1. Stir the brine together and soak the chicken for at least 1 hour, or overnight in the fridge.\n2. Whisk the dredge ingredients, then drizzle in 2 tbsp of the brine and rub it in with your fingers for extra craggy bits.\n3. Let the chicken drip, then press it firmly into the flour on both sides.\n4. Heat the oil to 350°F (175°C) in a heavy pot, filled no more than one-third full. Fry 6–8 minutes, turning once, until deep golden and 165°F (74°C) inside.\n5. Drain on a rack for 2 minutes. Spread spicy mayo on the buns and stack lettuce, chicken and pickles.\n\nChef Whiskers is an animated character. The recipe is real, so go make it!",
+  "hashtags": [
+    "#chickenburger",
+    "#friedchicken",
+    "#chickensandwich",
+    "#easyrecipe",
+    "#cookingtiktok",
+    "#foodtok",
+    "#catsoftiktok",
+    "#chefwhiskers",
+    "#animation"
+  ]
+}

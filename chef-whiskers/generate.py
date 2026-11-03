@@ -20,6 +20,7 @@ import hashlib
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -58,7 +59,9 @@ HOOK_COLOR, TEXT_COLOR = "0xFFD84D", "white"
 MAX_LINES_PER_BLOCK = 3
 CHAR_WIDTH_EM = 0.62  # conservative average glyph width of a bold sans font, for wrapping
 LINE_SPACING = 1.2
-TEXT_FADE_IN = 0.25  # seconds
+TEXT_FADE_IN = 0.25  # seconds (static text style)
+EMPHASIS_COLOR = "0xFFD84D"  # *words* in on-screen text are highlighted in this colour
+TRANSITIONS = ["smoothleft", "zoomin", "smoothup", "circleopen", "smoothright", "fadewhite", "slideleft", "radial"]
 
 FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Debian/Ubuntu
@@ -234,19 +237,52 @@ class TextLine:
     size: int
     color: str
     y: int = 0
+    words: list = None  # [(word, emphasized)] for animated text; *word* marks emphasis
+
+    def __post_init__(self):
+        if self.words is None:
+            self.words = [(w, False) for w in self.text.split()]
+
+
+def parse_emphasis(text: str) -> list[tuple[str, bool]]:
+    """Split text into words, tracking *emphasized* runs (the asterisks are removed)."""
+    words, on = [], False
+    for token in text.split():
+        starts, ends = token.startswith("*"), token.endswith("*") and len(token) > 1
+        word = token.strip("*")
+        if starts:
+            on = True
+        if word:
+            words.append((word, on))
+        if ends or (starts and token.endswith("*") and len(token) > 1):
+            on = False
+    return words
 
 
 def wrap_block(text: str, size: int, color: str) -> list[TextLine]:
     """Wrap text to the safe-zone width, shrinking the font until it fits in a few lines."""
-    text = " ".join(text.split())
-    if not text:
+    words = parse_emphasis(text)
+    if not words:
         return []
+    # Emphasized phrases are joined with no-break spaces so they stay on one line.
+    tokens: list[str] = []
+    for j, (w, emph) in enumerate(words):
+        if emph and j and words[j - 1][1]:
+            tokens[-1] += "\u00a0" + w
+        else:
+            tokens.append(w)
+    plain = " ".join(tokens)
     while True:
         max_chars = max(6, int(SAFE_W / (size * CHAR_WIDTH_EM)))
-        lines = textwrap.wrap(text, max_chars, break_long_words=False, break_on_hyphens=False)
+        lines = textwrap.wrap(plain, max_chars, break_long_words=False, break_on_hyphens=False)
         fits = len(lines) <= MAX_LINES_PER_BLOCK and all(len(line) <= max_chars for line in lines)
         if fits or size <= MIN_TEXT_SIZE:
-            return [TextLine(line, size, color) for line in lines]
+            out, k = [], 0
+            for line in lines:
+                n = sum(len(t.split("\u00a0")) for t in line.split(" ") if t)
+                out.append(TextLine(line.replace("\u00a0", " "), size, color, words=words[k:k + n]))
+                k += n
+            return out
         size -= 4
 
 
@@ -308,6 +344,77 @@ def drawtext_filters(lines: list[TextLine], font_name: str, workdir: Path, prefi
             f"alpha='min(1,t/{TEXT_FADE_IN})'"
         )
     return filters
+
+
+def font_family(path: Path) -> str:
+    """Family name (name ID 1) from a TrueType/OpenType font, so libass can find the font."""
+    try:
+        data = path.read_bytes()
+        base = struct.unpack(">I", data[12:16])[0] if data[:4] == b"ttcf" else 0
+        for i in range(struct.unpack(">H", data[base + 4:base + 6])[0]):
+            rec = base + 12 + i * 16
+            if data[rec:rec + 4] != b"name":
+                continue
+            table = struct.unpack(">I", data[rec + 8:rec + 12])[0]
+            count, strings = struct.unpack(">HH", data[table + 2:table + 6])
+            found = {}
+            for k in range(count):
+                pid, _eid, _lid, nid, length, off = struct.unpack(">6H", data[table + 6 + k * 12:table + 18 + k * 12])
+                if nid != 1:
+                    continue
+                raw = data[table + strings + off:table + strings + off + length]
+                found[pid] = raw.decode("utf-16-be" if pid in (0, 3) else "latin-1", "replace")
+            return found.get(3) or found.get(0) or found.get(1) or "Sans"
+    except (OSError, struct.error, IndexError):
+        pass
+    return "Sans"
+
+
+def ass_color(color: str) -> str:
+    hexrgb = "FFFFFF" if color == "white" else color.replace("0x", "").replace("#", "")
+    return f"&H00{hexrgb[4:6]}{hexrgb[2:4]}{hexrgb[0:2]}&"
+
+
+def ass_time(t: float) -> str:
+    cs = int(round(max(0.0, t) * 100))
+    return f"{cs // 360000}:{cs // 6000 % 60:02d}:{cs // 100 % 60:02d}.{cs % 100:02d}"
+
+
+def build_ass(lines: list[TextLine], family: str, clip_seconds: float, delay: float) -> str:
+    """Kinetic captions: each line pops in with an overshoot and slides up, its words appear
+    one after another, and *emphasized* words are highlighted."""
+    cx = SAFE_LEFT + SAFE_W // 2
+    out = ["[Script Info]", "ScriptType: v4.00+", f"PlayResX: {WIDTH}", f"PlayResY: {HEIGHT}", "WrapStyle: 2",
+           "ScaledBorderAndShadow: yes", "", "[V4+ Styles]",
+           "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, "
+           "StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+           f"Style: Cap,{family},80,&H00FFFFFF&,&H000000FF&,&H00000000&,&H70000000&,-1,0,0,0,100,100,0,0,1,7,4,8,0,0,0,1",
+           "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"]
+    t = delay
+    for k, line in enumerate(lines):
+        is_hook = line.color == HOOK_COLOR
+        if k and lines[k - 1].color != line.color:
+            t += 0.18  # small beat between the hook and the shot text
+        base = ass_color("white")
+        size = round(line.size * 1.16)
+        outline = max(5, line.size // 10)
+        spin = r"\frz-6\t(0,240,\frz0)" if is_hook else ""
+        head = (rf"{{\an8\fs{size}\bord{outline}\shad4\move({cx},{line.y + 36},{cx},{line.y},0,200){spin}"
+                rf"\fscx20\fscy20\t(0,140,\fscx118\fscy118)\t(140,250,\fscx100\fscy100)}}")
+        parts = []
+        for j, (word, emph) in enumerate(line.words):
+            d = 40 + j * 70
+            word = word.replace("\\", "/").replace("{", "(").replace("}", ")")
+            color = ass_color(EMPHASIS_COLOR) if emph else base
+            parts.append(rf"{{\alpha&HFF&\c{color}\t({d},{d + 90},\alpha&H00&)}}{word}")
+        out.append(f"Dialogue: 0,{ass_time(t)},{ass_time(clip_seconds)},Cap,,0,0,0,,{head}{' '.join(parts)}")
+        t += 0.12
+    return "\n".join(out) + "\n"
+
+
+def libass_available() -> bool:
+    proc = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True)
+    return any(len(f := l.split()) > 1 and f[1] == "subtitles" for l in proc.stdout.splitlines())
 
 
 # --------------------------------------------------------------------------- ffmpeg
@@ -396,16 +503,19 @@ def save_clip(data: bytes, dest: Path, what: str) -> MediaInfo:
 
 
 def render_shot(src: Path, dst: Path, seconds: float, lines: list[TextLine], font_name: str,
-                workdir: Path, prefix: str, keep_audio: bool) -> None:
-    """Crop and scale to 1080x1920, set the exact shot length, burn in text, normalize audio."""
+                workdir: Path, prefix: str, keep_audio: bool, pad: float = 0.0, ass_file: Optional[str] = None) -> None:
+    """Crop and scale to 1080x1920, set the exact length (+ `pad` for the transition into the next
+    shot), burn in the captions, normalize audio."""
     info = probe(src)
+    length = seconds + pad
+    text = [f"subtitles=filename={ass_file}:fontsdir=fonts"] if ass_file else drawtext_filters(lines, font_name, workdir, prefix)
     vf = [
         f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=increase:flags=lanczos",
         f"crop={WIDTH}:{HEIGHT}",
         "setsar=1",
         f"fps={FPS}",
-        f"tpad=stop_mode=clone:stop_duration={seconds}",  # hold the last frame if the clip is short
-        *drawtext_filters(lines, font_name, workdir, prefix),
+        f"tpad=stop_mode=clone:stop_duration={length}",  # hold the last frame if the clip is short
+        *text,
         "format=yuv420p",
     ]
     args = ["-i", str(src.resolve())]
@@ -417,7 +527,7 @@ def render_shot(src: Path, dst: Path, seconds: float, lines: list[TextLine], fon
     args += [
         "-map", "0:v:0", *audio,
         "-vf", ",".join(vf),
-        "-t", f"{seconds:.3f}",
+        "-t", f"{length:.3f}",
         "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-r", str(FPS),
         "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
         str(dst.resolve()),
@@ -425,13 +535,25 @@ def render_shot(src: Path, dst: Path, seconds: float, lines: list[TextLine], fon
     run_ffmpeg(args, what=f"rendering {rel(dst)}", cwd=workdir)
 
 
-def assemble(clips: list[Path], dest: Path, total: float, music: Optional[Path], music_volume: float) -> None:
-    """Concatenate the rendered shots and optionally mix a soundtrack under them."""
+def assemble(clips: list[Path], dest: Path, total: float, music: Optional[Path], music_volume: float,
+             durations: Optional[list[float]] = None, transitions: Optional[list[str]] = None, overlap: float = 0.0) -> None:
+    """Join the rendered shots (hard cuts, or xfade transitions of `overlap` seconds, for which every
+    clip but the last was rendered `overlap` seconds long) and mix a soundtrack under them."""
     args: list[str] = []
     for clip in clips:
         args += ["-i", str(clip.resolve())]
     n = len(clips)
-    graph = "".join(f"[{i}:v:0][{i}:a:0]" for i in range(n)) + f"concat=n={n}:v=1:a=1[v][a]"
+    if overlap > 0 and n > 1 and durations and transitions:
+        graph = ";".join(f"[{i}:v:0]settb=AVTB,fps={FPS},format=yuv420p[v{i}]" for i in range(n))
+        vprev, aprev, offset = "v0", "0:a:0", 0.0
+        for i in range(1, n):
+            offset += durations[i - 1]
+            graph += f";[{vprev}][v{i}]xfade=transition={transitions[i - 1]}:duration={overlap}:offset={offset:.3f}[x{i}]"
+            graph += f";[{aprev}][{i}:a:0]acrossfade=d={overlap}:c1=tri:c2=tri[y{i}]"
+            vprev, aprev = f"x{i}", f"y{i}"
+        graph += f";[{vprev}]null[v];[{aprev}]anull[a]"
+    else:
+        graph = "".join(f"[{i}:v:0][{i}:a:0]" for i in range(n)) + f"concat=n={n}:v=1:a=1[v][a]"
     audio_out = "[a]"
     if music:
         args += ["-stream_loop", "-1", "-i", str(music.resolve())]  # loop a short track
@@ -654,19 +776,36 @@ def run(recipe: Recipe, character: str, ref_prompt: str, provider_name: str,
     if music_volume is None:
         music_volume = 0.35 if keep_audio else 1.0
 
-    # 3-4. Edit: crop/scale, text, concat, soundtrack
+    # 3-4. Edit: crop/scale, captions, transitions, soundtrack
+    animated = args.text_style == "animated"
+    if animated and not libass_available():
+        print("  ! this ffmpeg has no libass, so captions will be static (install an ffmpeg built with libass for animated text)")
+        animated = False
+    n = len(recipe.shots)
+    overlap = 0.0 if args.transition == "cut" or n < 2 else max(0.05, min(args.transition_seconds, min(s.seconds for s in recipe.shots) / 3))
+    transitions = [args.transition if args.transition not in ("auto", "cut") else TRANSITIONS[i % len(TRANSITIONS)] for i in range(n - 1)]
     with tempfile.TemporaryDirectory(prefix="chef_whiskers_") as tmp:
         workdir = Path(tmp)
         font_name = "font" + font.suffix.lower()
         shutil.copyfile(font, workdir / font_name)
+        (workdir / "fonts").mkdir()
+        shutil.copyfile(font, workdir / "fonts" / font.name)
+        family = font_family(font)
         rendered = []
         for i, (shot, raw) in enumerate(zip(recipe.shots, raw_clips), 1):
             dst = paths.clips / f"shot{i:02d}_{WIDTH}x{HEIGHT}.mp4"
             lines = layout_text(text_blocks(recipe, i, shot), args.text_position)
-            render_shot(raw, dst, shot.seconds, lines, font_name, workdir, f"s{i:02d}", keep_audio)
+            pad = overlap if i < n else 0.0
+            ass_file = None
+            if animated and lines:
+                ass_file = f"s{i:02d}.ass"
+                delay = (overlap if i > 1 else 0.0) + 0.05
+                (workdir / ass_file).write_text(build_ass(lines, family, shot.seconds + pad, delay), encoding="utf-8")
+            render_shot(raw, dst, shot.seconds, lines, font_name, workdir, f"s{i:02d}", keep_audio, pad=pad, ass_file=ass_file)
             print(f"[edit] {rel(dst)}")
             rendered.append(dst)
-        assemble(rendered, paths.final_video, recipe.duration, music, music_volume)
+        assemble(rendered, paths.final_video, recipe.duration, music, music_volume,
+                 durations=[s.seconds for s in recipe.shots], transitions=transitions, overlap=overlap)
 
     # 5. Caption
     paths.caption.write_text(recipe.caption_file_text(), encoding="utf-8")
@@ -701,6 +840,11 @@ def parse_args(argv: Optional[list[str]]) -> argparse.Namespace:
     parser.add_argument("--no-music", action="store_true", help="skip the music bed a provider would otherwise add (render provider)")
     parser.add_argument("--text-position", choices=["top", "center", "bottom"], default="top",
                         help="where on-screen text sits inside the safe zone (default: top)")
+    parser.add_argument("--text-style", choices=["animated", "static"], default="animated",
+                        help="animated: captions pop in word by word with *emphasis* highlighted (needs libass); static: plain text")
+    parser.add_argument("--transition", default="auto",
+                        help="transition between shots: auto (varied), cut, or an ffmpeg xfade name such as smoothleft or zoomin")
+    parser.add_argument("--transition-seconds", type=float, default=0.25, help="length of each transition (default: 0.25)")
     parser.add_argument("--font", type=Path, help="bold .ttf/.otf for on-screen text (default: FONT_FILE or a system bold font)")
     parser.add_argument("--regen-ref", action="store_true", help="regenerate output/character_ref.png even if it exists")
     parser.add_argument("--force", action="store_true", help="regenerate clips even when a cached clip matches")

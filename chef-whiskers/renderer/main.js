@@ -8,6 +8,7 @@ import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { chickenScenes } from './chicken.js';
 
 const W = 1080, H = 1920;
 
@@ -40,6 +41,12 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.localClippingEnabled = true;
 document.body.appendChild(renderer.domElement);
+renderer.domElement.style.cssText = 'position:absolute;left:0;top:0';
+const fxCanvas = document.createElement('canvas');
+fxCanvas.width = W; fxCanvas.height = H;
+fxCanvas.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none';
+document.body.appendChild(fxCanvas);
+const fx = fxCanvas.getContext('2d');
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x2a1d14);
@@ -324,14 +331,14 @@ function makeCat() {
   const arms = {};
   for (const s of [-1, 1]) {
     const shoulder = new THREE.Group(); shoulder.position.set(s * 0.086, 0.065, 0.012); body.add(shoulder);
-    const upper = fur(new THREE.CapsuleGeometry(0.03, 0.05, 6, 20).translate(0, -0.035, 0), { stripeDir: V(0, 1, 0), freq: 110 }, { shells: 9, len: 0.008, comb: V(0, -0.6, 0) });
+    const upper = fur(new THREE.CapsuleGeometry(0.03, 0.068, 6, 20).translate(0, -0.044, 0), { stripeDir: V(0, 1, 0), freq: 110 }, { shells: 9, len: 0.008, comb: V(0, -0.6, 0) });
     shoulder.add(upper);
-    const elbow = new THREE.Group(); elbow.position.y = -0.07; shoulder.add(elbow);
-    const fore = fur(new THREE.CapsuleGeometry(0.027, 0.045, 6, 20).translate(0, -0.03, 0), { stripeDir: V(0, 1, 0), freq: 110, creamPlane: new THREE.Vector4(0, -1, 0, 0.045) }, { shells: 9, len: 0.007, comb: V(0, -0.6, 0) });
+    const elbow = new THREE.Group(); elbow.position.y = -0.088; shoulder.add(elbow);
+    const fore = fur(new THREE.CapsuleGeometry(0.027, 0.062, 6, 20).translate(0, -0.04, 0), { stripeDir: V(0, 1, 0), freq: 110, creamPlane: new THREE.Vector4(0, -1, 0, 0.06) }, { shells: 9, len: 0.007, comb: V(0, -0.6, 0) });
     elbow.add(fore);
-    const paw = fur(ell(0.031, 0.028, 0.034).translate(0, -0.068, 0.004), { creamPlane: new THREE.Vector4(0, 0, 0, -1) }, { shells: 7, len: 0.006 });
+    const paw = fur(ell(0.031, 0.028, 0.034).translate(0, -0.086, 0.004), { creamPlane: new THREE.Vector4(0, 0, 0, -1) }, { shells: 7, len: 0.006 });
     elbow.add(paw);
-    arms[s < 0 ? 'R' : 'L'] = { shoulder, elbow, side: s, a: 0.07, b: 0.07 };
+    arms[s < 0 ? 'R' : 'L'] = { shoulder, elbow, side: s, a: 0.088, b: 0.088 };
   }
 
   // tail: a tapered tube rebuilt each frame from a few control points
@@ -428,6 +435,11 @@ function makeCat() {
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.0009, 0.0006, 0.11, 6).translate(0, 0.055, 0), whiskerMat);
     w.position.set(s * 0.03, -0.047 + k * 0.006, 0.1); w.rotation.set(0.3 - k * 0.05, s * 0.15, -s * (1.25 + k * 0.17)); head.add(w);
   }
+  // flour dusting on the nose (after the dredge puff)
+  const flourDot = new THREE.Group(); flourDot.position.set(0, -0.022, 0.118); head.add(flourDot);
+  for (const [x, y, r] of [[0, 0.004, 0.011], [-0.012, -0.002, 0.008], [0.011, -0.003, 0.0085], [0.004, 0.013, 0.007]]) {
+    const d = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), std('#ffffff', { roughness: 1 })); d.position.set(x, y, 0); d.scale.z = 0.5; flourDot.add(d);
+  }
   // tear, crumb
   const tear = new THREE.Mesh(ell(0.0065, 0.0095, 0.005), phys('#dff3ff', { roughness: 0.02, clearcoat: 1, transparent: true, opacity: 0.9 }));
   head.add(tear);
@@ -447,11 +459,14 @@ function makeCat() {
 
   // ---------- posing
   const base = { lean: 0, side: 0, turn: 0, headX: 0, headY: 0, headZ: 0, look: [0, 0], open: 1, squint: 0, happy: 0,
-    sparkle: 0, mouth: 0, tongue: 0, tail: 0, tailLift: 0, ears: 0, chew: 0, tearT: -1, crumb: 0, glow: 0, bob: 0 };
+    sparkle: 0, mouth: 0, tongue: 0, tail: 0, tailLift: 0, ears: 0, chew: 0, tearT: -1, crumb: 0, glow: 0, bob: 0,
+    squash: 0, earsBack: 0, flour: 0 };
   function pose(o) {
     const p = { ...base, ...o };
     body.position.y = 0.17 + p.bob;
     body.rotation.set(p.lean, p.turn, p.side);
+    body.scale.set(1 - p.squash * 0.5, 1 + p.squash, 1 - p.squash * 0.5); // squash (<0) and stretch (>0)
+    flourDot.visible = p.flour > 0.01; flourDot.scale.setScalar(Math.max(0.01, p.flour));
     neckPivot.rotation.set(p.headX, p.headY, p.headZ);
     for (const [i, e] of eyes.entries()) {
       const open = p.happy > 0.5 ? 0 : clamp(p.open * (1 - p.squint * 0.78));
@@ -471,7 +486,7 @@ function makeCat() {
     mouth.visible = p.mouth > 0.02 || p.chew > 0.02;
     tongue.visible = p.tongue > 0.02;
     tongue.position.set(0.004 * Math.sin(p.tongue * 9), -0.07 - p.tongue * 0.006, 0.112 + p.tongue * 0.01);
-    for (const [i, eg] of earGroups.entries()) eg.rotation.z = (i ? -1 : 1) * 0.42 + (i ? 1 : -1) * p.ears * 0.15;
+    for (const [i, eg] of earGroups.entries()) { eg.rotation.z = (i ? -1 : 1) * 0.42 + (i ? 1 : -1) * p.ears * 0.15; eg.rotation.x = -0.12 - p.earsBack * 0.75; }
     tear.visible = p.tearT >= 0;
     if (p.tearT >= 0) tear.position.set(-0.062, -0.025 - p.tearT * 0.05, 0.1 - p.tearT * 0.01);
     crumb.visible = p.crumb > 0.5;
@@ -1094,6 +1109,19 @@ const SCENES = {
   },
 };
 
+// ------------------------------------------------------------------ other dishes
+function toScreen(v) {
+  camera.updateMatrixWorld(true);
+  const p = v.clone().project(camera);
+  return { x: (p.x + 1) / 2 * W, y: (1 - p.y) / 2 * H, z: p.z };
+}
+const kit = {
+  THREE, W, H, clamp, lerp, seg, smooth, easeOut, easeIn, easeInOut, backOut, V, vlerp, mulberry32, noise1, std, phys, ell, canvasTex, lathe,
+  crumbTex, pickleTex, softDot, starTex, heartTex, makePickles, makeDice, biteWarp, warpGeo, prop, shadowy, emitter, rise, burst, twinkle, noDepth,
+  cat, camera, bokeh, shoot, blink, breathe, behindCounter, show, board, fx, toScreen, scene,
+};
+Object.assign(SCENES, chickenScenes(kit));
+
 // ------------------------------------------------------------------ API used by render.js
 let current = null;
 function enter(name) {
@@ -1105,6 +1133,7 @@ function enter(name) {
 window.SCENES = Object.keys(SCENES);
 window.renderFrame = (name, t, duration) => {
   enter(name);
+  fx.clearRect(0, 0, W, H);
   SCENES[name].update(t, duration || 4);
   scene.updateMatrixWorld(true);
   composer.render();

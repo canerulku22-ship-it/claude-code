@@ -193,8 +193,120 @@ def fx_sniff():
     return out
 
 
+def fx_whoosh():
+    seconds = 0.32
+    n = int(seconds * SR)
+    src, out, blocks = noise(seconds), np.zeros(n), 16
+    for b in range(blocks):  # band sweeps down: a quick swoosh past the camera
+        i0, i1 = b * n // blocks, (b + 1) * n // blocks
+        fc = 3200 * (0.25 ** (b / (blocks - 1)))
+        out[i0:i1] = band(src, fc * 0.6, fc * 1.6)[i0:i1]
+    env = np.sin(np.pi * np.clip(t_axis(n) / seconds, 0, 1)) ** 2
+    return norm(out) * env * 0.6
+
+
+def fx_splash():
+    out = np.zeros(int(0.6 * SR))
+    body = band(noise(0.5), 300, 5000) * decay(int(0.5 * SR), 0.12)
+    out[:len(body)] += norm(body) * 0.7
+    for _ in range(18):  # droplets
+        f = 600 + rng.random() * 1800
+        d = np.sin(2 * np.pi * np.cumsum(np.linspace(f, f * 1.8, int(0.04 * SR))) / SR) * decay(int(0.04 * SR), 0.01)
+        i = int((0.05 + rng.random() * 0.4) * SR)
+        out[i:i + len(d)] += d * (0.15 + rng.random() * 0.2)
+    thump = sweep_tone(130, 60, 0.15) * decay(int(0.15 * SR), 0.04)
+    out[:len(thump)] += thump * 0.5
+    return out
+
+
+def fx_puff():
+    n = int(0.35 * SR)
+    env = np.clip(t_axis(n) / 0.01, 0, 1) * np.exp(-t_axis(n) / 0.09)
+    return norm(band(noise(0.35), 150, 2500)) * env * 0.6 + sweep_tone(90, 50, 0.35) * decay(n, 0.05) * 0.3
+
+
+def fx_pop():
+    blip = sweep_tone(420, 900, 0.07) * decay(int(0.07 * SR), 0.018)
+    click = band(noise(0.01), 2000, 8000) * decay(int(0.01 * SR), 0.002)
+    out = blip.copy()
+    out[:len(click)] += norm(click) * 0.3
+    return out * 0.7
+
+
+def fx_ding():
+    return bell(1568.0, 1.2, index=0.8) * 0.5 + bell(2093.0, 1.2, index=0.5) * 0.25
+
+
+def fx_clink():
+    out = np.zeros(int(0.3 * SR))
+    for k, f in enumerate([2600, 3900]):
+        t = t_axis(int(0.25 * SR))
+        tone = np.sin(2 * np.pi * f * t) * np.exp(-t * 28)
+        i = int(k * 0.035 * SR)
+        out[i:i + len(tone)] += tone * 0.35
+    return out
+
+
+def fx_bubbles(seconds):
+    n = int(seconds * SR)
+    out = np.zeros(n)
+    for _ in range(int(seconds * 55)):  # little pops of frying bubbles
+        f = 500 + rng.random() * 1500
+        d = np.sin(2 * np.pi * np.cumsum(np.linspace(f, f * 1.5, int(0.025 * SR))) / SR) * decay(int(0.025 * SR), 0.006)
+        i = int(rng.random() * (n - len(d)))
+        out[i:i + len(d)] += d * (0.1 + rng.random() * 0.25)
+    env = np.clip(t_axis(n) / 0.05, 0, 1) * np.clip((seconds - t_axis(n)) / 0.15, 0, 1)
+    return out * env
+
+
+def fx_squirt(seconds):
+    n = int(seconds * SR)
+    src = band(noise(seconds), 250, 1600)
+    wobble = 0.6 + 0.4 * np.sin(2 * np.pi * 9 * t_axis(n)) ** 2
+    env = np.clip(t_axis(n) / 0.05, 0, 1) * np.clip((seconds - t_axis(n)) / 0.1, 0, 1)
+    return norm(src) * wobble * env * 0.35
+
+
+def fx_rustle(seconds):
+    n = int(seconds * SR)
+    src = band(noise(seconds), 2500, 9000)
+    grains = np.clip(band(noise(seconds), 4, 30, soft=0.5) * 6, 0, 1)
+    env = np.clip(t_axis(n) / 0.05, 0, 1) * np.clip((seconds - t_axis(n)) / 0.1, 0, 1)
+    return norm(src) * grains * env * 0.4
+
+
+def fx_thump():
+    boom = sweep_tone(110, 42, 0.35) * decay(int(0.35 * SR), 0.1)
+    slap = band(noise(0.1), 200, 3000) * decay(int(0.1 * SR), 0.02)
+    out = boom * 1.0
+    out[:len(slap)] += norm(slap) * 0.5
+    return out
+
+
+def fx_crunch():
+    out = np.zeros(int(0.45 * SR))
+    for _ in range(34):  # loud, dense crunchy grains
+        g = band(noise(0.025), 900, 7500) * decay(int(0.025 * SR), 0.005)
+        i = int(rng.random() * 0.3 * SR)
+        out[i:i + len(g)] += norm(g) * (0.4 + rng.random() * 0.6)
+    thump = sweep_tone(150, 60, 0.15) * decay(int(0.15 * SR), 0.04)
+    out[:len(thump)] += thump * 0.6
+    return np.tanh(out * 1.3) * 0.9
+
+
+def fx_sneeze():
+    n = int(0.45 * SR)
+    t = t_axis(n)
+    inhale = band(noise(0.45), 800, 3000) * np.clip(t / 0.25, 0, 1) * (t < 0.25) * 0.25
+    burst = band(noise(0.45), 1200, 6000) * np.exp(-np.clip(t - 0.28, 0, None) / 0.05) * (t >= 0.28)
+    return norm(inhale + burst * 1.4) * 0.6
+
+
 ONE_SHOTS = {'chop': (fx_chop, 0.75), 'place': (fx_place, 0.7), 'smash': (fx_smash, 0.9), 'plop': (fx_plop, 0.6), 'squish': (fx_squish, 0.5),
-             'sparkle': (fx_sparkle, 0.32), 'lick': (fx_lick, 0.6), 'bite': (fx_bite, 0.85), 'mrrp': (fx_mrrp, 0.55), 'sniff': (fx_sniff, 0.5)}
+             'sparkle': (fx_sparkle, 0.32), 'lick': (fx_lick, 0.6), 'bite': (fx_bite, 0.85), 'mrrp': (fx_mrrp, 0.55), 'sniff': (fx_sniff, 0.5),
+             'whoosh': (fx_whoosh, 0.5), 'splash': (fx_splash, 0.8), 'puff': (fx_puff, 0.8), 'pop': (fx_pop, 0.45), 'ding': (fx_ding, 0.45),
+             'clink': (fx_clink, 0.4), 'thump': (fx_thump, 0.85), 'crunch': (fx_crunch, 0.95), 'sneeze': (fx_sneeze, 0.6)}
+LOOPS = {'bubbles': (fx_bubbles, 0.5), 'squirt': (fx_squirt, 0.6), 'rustle': (fx_rustle, 0.5)}
 
 
 def render_sfx(spec):
@@ -212,7 +324,10 @@ def render_sfx(spec):
             add(buf, fx_sizzle(dur, float(ev.get('attack', 0.4))), t0, 0.6 * level, pan=0.25)
         elif kind in ONE_SHOTS:
             fn, gain = ONE_SHOTS[kind]
-            add(buf, fn(), t0, gain, pan=float(ev.get('pan', 0.0)))
+            add(buf, fn(), t0, gain * float(ev.get('gain', 1.0)), pan=float(ev.get('pan', 0.0)))
+        elif kind in LOOPS:
+            fn, gain = LOOPS[kind]
+            add(buf, fn(max(0.05, float(ev.get('dur', seconds - t0)))), t0, gain * float(ev.get('gain', 1.0)), pan=float(ev.get('pan', 0.0)))
     return np.tanh(buf * 1.1) * 0.9
 
 

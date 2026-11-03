@@ -56,8 +56,8 @@ class RenderProvider(Provider):
     def cache_key_extra(self) -> str:
         """Re-render cached clips whenever the scenes or the sound change."""
         h = hashlib.sha256()
-        for name in ("main.js", "render.js", "index.html", "audio.py"):
-            h.update((RENDERER / name).read_bytes())
+        for path in sorted([*RENDERER.glob("*.js"), RENDERER / "index.html", RENDERER / "audio.py"]):
+            h.update(path.name.encode()); h.update(path.read_bytes())
         return h.hexdigest()[:12]
 
     # ------------------------------------------------------------ provider interface

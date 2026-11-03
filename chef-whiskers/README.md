@@ -32,7 +32,9 @@ chef-whiskers/
 │   ├── fal.py               # fal.ai generative video
 │   └── placeholder.py       # offline test provider (test patterns)
 ├── renderer/                # the 3D animation
-│   ├── main.js              # Chef Whiskers, kitchen, food and the animated scenes
+│   ├── main.js              # Chef Whiskers, kitchen, smash burger food and scenes
+│   ├── chicken.js           # chicken burger food and scenes
+│   ├── fx2d.js              # 2D motion graphics drawn over the 3D (bursts, stickers, speed lines)
 │   ├── render.js            # renders frames in headless Chromium, pipes them to ffmpeg
 │   ├── audio.py             # synthesized sound effects and music bed (numpy)
 │   ├── index.html
@@ -41,7 +43,8 @@ chef-whiskers/
 │   ├── character.txt        # Chef Whiskers description, prepended to every AI prompt
 │   └── character_reference.txt  # prompt for the AI reference image
 ├── recipes/
-│   └── smash_burger.json    # sample recipe
+│   ├── smash_burger.json    # sample recipe
+│   └── chicken_burger.json  # sample recipe with 8 quick shots
 ├── output/
 │   ├── clips/               # raw clips and edited 1080x1920 shots
 │   └── final/               # finished videos and caption files
@@ -89,6 +92,9 @@ The recipe argument is a name in `recipes/` or a path to any recipe JSON.
 | `--music-volume 0-1` | Soundtrack level. Defaults to 1.0 for the render music bed and your own track over silent clips, 0.35 under clip audio. |
 | `--mute-clips` | Drop the audio that came with the clips. |
 | `--text-position` | `top` (default), `center` or `bottom` of the safe zone. |
+| `--text-style` | `animated` (default): captions pop in line by line, words appear one after another, `*emphasis*` is highlighted. `static`: plain text. |
+| `--transition` | `auto` (default, a varied set of whips, zooms and wipes), `cut`, or any ffmpeg xfade name such as `smoothleft` or `zoomin`. |
+| `--transition-seconds` | Length of each transition (default 0.25). The video's total length doesn't change. |
 | `--font FILE` | Bold `.ttf`/`.otf` for on-screen text. Also settable as `FONT_FILE` in `.env`. |
 | `--regen-ref` | Make `output/character_ref.png` again even if it exists. |
 | `--force` | Make clips again even when a cached clip matches. |
@@ -117,9 +123,11 @@ fast.
 }
 ```
 
-- **hook**: shown big, in yellow, over the first shot. Make the first shot the finished dish.
-- **shots**: aim for about 20 s in total. `on_screen_text` should be short (under ~45
-  characters) so it can be read in a few seconds; it may be empty.
+- **hook**: shown big over the first shot. Make the first shot the finished dish.
+- **shots**: aim for about 20 s in total; quick 2–3 s shots feel snappier. `on_screen_text`
+  should be short (under ~45 characters) so it can be read in a few seconds; it may be
+  empty. Wrap words in asterisks to highlight them, for example `"Fry at *350°F*"`
+  (also works in `hook`).
   - `scene` picks the animation for the render provider (see below). AI providers ignore it.
   - `visual_prompt` is what AI providers generate from; the character description is
     added automatically. The render provider ignores it.
@@ -148,15 +156,26 @@ problem it finds.
   sizzle, the smash, the bite, a happy "mrrp") and a cozy music bed for the whole
   video, all with numpy. No samples, so there is nothing to license.
 
-The scenes are `burger_hero`, `chop_onion`, `smash_patty`, `cheese_melt` and
-`stack_and_bite` (plus `ref`, the pose used for `output/character_ref.png`). A new
-recipe can reuse them. A new dish needs new scenes added to `SCENES` in
-`renderer/main.js`; each scene has a `setup()`, an `update(t, duration)` and an
-`events(duration)` for the sound. Preview frames with
-`node render.js stills <scene> <seconds> <outdir> 0.5 2.0`.
+Available scenes:
 
-**Render time.** Software rendering takes about 4 s per frame on 4 CPU cores, so a
-20-second video at 30 fps takes roughly 40 minutes. Rendering happens once: clips are
+| Dish | Scenes |
+| --- | --- |
+| Smash burger (`main.js`) | `burger_hero`, `chop_onion`, `smash_patty`, `cheese_melt`, `stack_and_bite` |
+| Chicken burger (`chicken.js`) | `chick_hero`, `chick_brine`, `chick_dredge`, `chick_fry`, `chick_golden`, `chick_sauce`, `chick_stack`, `chick_bite` |
+
+`ref` is the pose used for `output/character_ref.png`. The chicken scenes add more
+cat-and-food action (tossing, flipping, tongs, a squeeze bottle, a sneeze from the
+flour), squash-and-stretch, camera punches and shakes, and 2D motion graphics from
+`fx2d.js` drawn over the 3D: impact rings and action lines, speed lines, comic bursts,
+light rays, and stickers such as "350°F" with a thermometer icon.
+
+A new dish needs its own scene module. Copy `chicken.js` as a template, register it in
+`main.js` the same way (`Object.assign(SCENES, yourScenes(kit))`), and give each scene a
+`setup()`, an `update(t, duration)` and an `events(duration)` for the sound. Preview
+frames with `node render.js stills <scene> <seconds> <outdir> 0.5 2.0`.
+
+**Render time.** Software rendering takes about 4–8 s per frame on 4 CPU cores
+depending on the scene, so a 20-second video at 30 fps takes roughly 40–80 minutes. Rendering happens once: clips are
 cached until the renderer's code changes. `RENDER_WORKERS=2` in `.env` splits each
 clip across parallel browser processes, which helps only on machines with many cores.
 
@@ -198,12 +217,17 @@ For every shot, ffmpeg:
 
 1. scales the clip to cover 1080x1920 and center-crops the overflow,
 2. trims it to the shot's `seconds`, or holds the last frame if the clip is shorter,
-3. burns in the text in large bold type with a black outline, centered in TikTok's
+3. burns in the captions in large bold type with a black outline, centered in TikTok's
    safe zone (240 px from the top, 480 px from the bottom, 60 px from the left and
-   140 px from the right, clear of the app's buttons and caption), with a quick fade-in,
+   140 px from the right, clear of the app's buttons and caption). Animated captions are
+   rendered as ASS subtitles by libass: each line pops in with an overshoot and slides
+   up, its words appear one by one, and `*emphasized*` words turn yellow. Captions on
+   later shots wait for the transition to finish. If your ffmpeg lacks libass, the
+   script falls back to static text and says so.
 4. normalizes audio, adding a silent track if the clip has none.
 
-It then joins the shots, mixes in the soundtrack, and writes
+It then joins the shots with short transitions (or hard cuts), crossfading the audio,
+mixes in the soundtrack, and writes
 `output/final/<recipe>.mp4` (H.264/AAC, 30 fps) plus `output/final/<recipe>.txt`
 with the caption and hashtags ready to paste.
 
