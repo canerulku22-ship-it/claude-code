@@ -460,7 +460,7 @@ function makeCat() {
   // ---------- posing
   const base = { lean: 0, side: 0, turn: 0, headX: 0, headY: 0, headZ: 0, look: [0, 0], open: 1, squint: 0, happy: 0,
     sparkle: 0, mouth: 0, tongue: 0, tail: 0, tailLift: 0, ears: 0, chew: 0, tearT: -1, crumb: 0, glow: 0, bob: 0,
-    squash: 0, earsBack: 0, flour: 0 };
+    squash: 0, earsBack: 0, flour: 0, wink: 0 };
   function pose(o) {
     const p = { ...base, ...o };
     body.position.y = 0.17 + p.bob;
@@ -469,9 +469,10 @@ function makeCat() {
     flourDot.visible = p.flour > 0.01; flourDot.scale.setScalar(Math.max(0.01, p.flour));
     neckPivot.rotation.set(p.headX, p.headY, p.headZ);
     for (const [i, e] of eyes.entries()) {
-      const open = p.happy > 0.5 ? 0 : clamp(p.open * (1 - p.squint * 0.78));
-      e.eye.visible = p.happy <= 0.5;
-      e.happy.visible = p.happy > 0.5;
+      const shut = p.happy > 0.5 || (i === 0 && p.wink > 0.5);
+      const open = shut ? 0 : clamp(p.open * (1 - p.squint * 0.78));
+      e.eye.visible = !shut;
+      e.happy.visible = shut;
       e.lid.rotation.x = lerp(-Math.PI / 2 - 0.2, Math.PI / 2, 1 - open);
       e.look.position.set(p.look[0] * 0.006, p.look[1] * 0.005, 0);
       const ps = 1 + p.sparkle * 0.25;
@@ -1134,6 +1135,7 @@ window.SCENES = Object.keys(SCENES);
 window.renderFrame = (name, t, duration) => {
   enter(name);
   fx.clearRect(0, 0, W, H);
+  cat.root.visible = true;
   SCENES[name].update(t, duration || 4);
   scene.updateMatrixWorld(true);
   composer.render();

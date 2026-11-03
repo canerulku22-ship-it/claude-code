@@ -161,9 +161,17 @@ Available scenes:
 | Dish | Scenes |
 | --- | --- |
 | Smash burger (`main.js`) | `burger_hero`, `chop_onion`, `smash_patty`, `cheese_melt`, `stack_and_bite` |
-| Chicken burger (`chicken.js`) | `chick_hero`, `chick_brine`, `chick_dredge`, `chick_fry`, `chick_golden`, `chick_sauce`, `chick_stack`, `chick_bite` |
+| Chicken burger (`chicken.js`) | `chick_tease`, `chick_montage`, `chick_hero`, `chick_brine`, `chick_dredge`, `chick_fry`, `chick_golden`, `chick_sauce`, `chick_stack`, `chick_bite` |
 
-`ref` is the pose used for `output/character_ref.png`. The chicken scenes add more
+`ref` is the pose used for `output/character_ref.png`.
+
+The chicken burger opens with a hook built for the first seconds of a TikTok:
+- `chick_tease` is a cold open that shows the payoff first: the bite at 0.2 s, a CRUNCH!
+  burst, crumbs flying at the lens in slow motion, and a "SOUND ON" sticker.
+- `chick_montage` is three hits in 1.5 s, each opened by a white flash.
+- `chick_hero` has the cat wave and wink at the camera before the steps begin.
+
+The chicken scenes also add more
 cat-and-food action (tossing, flipping, tongs, a squeeze bottle, a sneeze from the
 flour), squash-and-stretch, camera punches and shakes, and 2D motion graphics from
 `fx2d.js` drawn over the 3D: impact rings and action lines, speed lines, comic bursts,

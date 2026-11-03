@@ -1,12 +1,24 @@
 {
   "title": "Crispy Buttermilk Chicken Burger",
-  "hook": "The *crunchiest* chicken burger",
+  "hook": "Listen to this *CRUNCH*",
   "shots": [
     {
-      "seconds": 2.6,
-      "scene": "chick_hero",
-      "visual_prompt": "Hero close-up of a finished crispy chicken burger on a wooden board: a thick, craggy, deep-golden fried chicken thigh, shredded lettuce, pickle chips, spicy mayo dripping, glossy toasted brioche bun, steam rising. Chef Whiskers pops up from behind it with sparkling eyes. Fast push-in.",
+      "seconds": 1.8,
+      "scene": "chick_tease",
+      "visual_prompt": "Extreme close-up cold open: Chef Whiskers takes a huge bite of a crispy chicken burger, crumbs burst toward the lens in slow motion, eyes closing in bliss.",
+      "on_screen_text": ""
+    },
+    {
+      "seconds": 1.5,
+      "scene": "chick_montage",
+      "visual_prompt": "Rapid three-hit montage with white flashes: floured chicken plunges into bubbling oil, chicken slams into seasoned flour in a big puff, golden fried chicken slams onto a lettuce-topped bun.",
       "on_screen_text": "Better than *drive-thru*"
+    },
+    {
+      "seconds": 1.7,
+      "scene": "chick_hero",
+      "visual_prompt": "Chef Whiskers pops up behind a finished crispy chicken burger spinning on a wooden board, looks straight at the camera, waves a paw and winks.",
+      "on_screen_text": "Let me show you *how*"
     },
     {
       "seconds": 2.2,

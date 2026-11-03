@@ -174,3 +174,21 @@ export function checkIcon(ctx, x, y, s, color = '#2fbf5b') {
   ctx.beginPath(); ctx.moveTo(-s * 0.2, 0); ctx.lineTo(-s * 0.05, s * 0.16); ctx.lineTo(s * 0.22, -s * 0.16); ctx.stroke();
   ctx.restore();
 }
+
+export function speakerIcon(ctx, x, y, s, color = '#ff5a36', t = 0) {
+  ctx.save(); ctx.translate(x, y); ctx.lineWidth = s * 0.09; ctx.strokeStyle = INK; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.44, -s * 0.14); ctx.lineTo(-s * 0.22, -s * 0.14); ctx.lineTo(s * 0.04, -s * 0.38);
+  ctx.lineTo(s * 0.04, s * 0.38); ctx.lineTo(-s * 0.22, s * 0.14); ctx.lineTo(-s * 0.44, s * 0.14); ctx.closePath();
+  ctx.fillStyle = color; ctx.fill(); ctx.stroke();
+  for (let k = 0; k < 2; k++) {
+    const r = s * (0.22 + k * 0.17), a = 0.62 + 0.1 * Math.sin(t * 14 + k * 1.5);
+    ctx.beginPath(); ctx.arc(s * 0.08, 0, r, -a, a); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Full-frame flash, e.g. white on a hard cut.
+export function flash(ctx, alpha, color = '255,255,255') {
+  withAlpha(ctx, alpha, () => { ctx.fillStyle = `rgb(${color})`; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); });
+}

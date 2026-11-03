@@ -2,7 +2,7 @@
 // Registered by main.js, which passes in the shared kit (the cat, kitchen, materials and helpers).
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
-import { starburst, actionLines, comicText, sticker, speedLines, rays, ringFx, twinkleStar, thermoIcon, clockIcon, flameIcon, checkIcon } from './fx2d.js';
+import { starburst, actionLines, comicText, sticker, speedLines, rays, ringFx, twinkleStar, thermoIcon, clockIcon, flameIcon, checkIcon, speakerIcon, flash } from './fx2d.js';
 
 export function chickenScenes(k) {
   const { THREE, V, vlerp, clamp, lerp, seg, smooth, easeOut, easeIn, easeInOut, backOut, mulberry32, noise1, std, phys, canvasTex, lathe,
@@ -344,39 +344,127 @@ export function chickenScenes(k) {
     ringFx(fx, p.x, p.y, lerp(r0, r1, easeOut(s)), { alpha: 1 - s, width: 14, color });
     if (lines) actionLines(fx, p.x, p.y, lerp(r0 * 1.4, r1 * 0.8, easeOut(s)), lerp(r0 * 2.2, r1 * 1.15, easeOut(s)), { alpha: 1 - s, color, seed: Math.floor(t0 * 10) });
   }
-  function stickerAt(t, t0, at, text, { dx = 0, dy = 0, scale = 1, rot = -0.06, ...rest } = {}) {
+  function stickerAt(t, t0, at, text, { dx = 0, dy = 0, scale = 1, rot = -0.06, absolute = false, ...rest } = {}) {
     if (t < t0) return;
-    const p = scr(at), sc = pop(t, t0, 0.32);
+    const p = absolute ? { x: 500, y: 700 } : scr(at), sc = pop(t, t0, 0.32);
     sticker(fx, p.x + dx, p.y + dy, text, { ...rest, scale: sc * scale, rot: rot + wob(t, t0, 22, 6) * 0.12, t });
   }
   const eyesOf = () => [cat.headWorld(V(-0.05, 0.03, 0.12)), cat.headWorld(V(0.05, 0.03, 0.12))];
 
   // ---------------------------------------------------------------- the scenes
   return {
-    // 1. Hook: the finished burger spins on its board; Chef Whiskers pops up behind it.
+    // 0a. Cold open: the payoff first. CRUNCH at 0.2 s, crumbs in slow motion, "sound on".
+    chick_tease: {
+      setup() { show(biteBurger, crumbs, sparkC); },
+      update(t, D) {
+        behindCounter(0, -0.33, 0);
+        const tC = 0.2, slow = t < tC ? t : tC + (t - tC) * 0.35;
+        const happy = t > tC + 0.04 ? 1 : 0, chew = t > 0.55 ? Math.abs(Math.sin((t - 0.55) * 7)) : 0;
+        cat.pose({ lean: 0.08, headX: 0.04, headZ: happy * Math.sin(t * 3) * 0.08, mouth: t < tC ? 1 : 0, chew: chew * happy, happy, crumb: happy, sparkle: 1,
+          squash: wob(t, tC, 30, 6) * 0.14, look: [0, -0.3], ears: 1, tail: Math.sin(t * 6) * 0.8, bob: breathe(t) });
+        const mouthW = cat.headWorld(V(0, -0.07, 0.11));
+        const near = mouthW.clone().add(V(-0.01, -0.085, 0.15)), bitePos = mouthW.clone().add(V(-0.01, -0.068, 0.092)), showP = mouthW.clone().add(V(-0.03, -0.115, 0.12));
+        const into = easeIn(seg(t, 0, tC)), back = easeInOut(seg(t, 0.75, 1.5));
+        biteBurger.position.copy(vlerp(near, bitePos, into).lerp(showP, back));
+        biteBurger.rotation.set(0.15 + 0.05 * back, 0.3 + 1.45 * back, 0);
+        biteBurger.userData.bite(t > tC);
+        crumbs.userData.burst(slow, tC, mouthW.clone().add(V(0, -0.03, 0.06)), { power: 1.05, life: 0.9, dir: V(0.05, 0.05, 0.5), up: 1.2 });
+        biteBurger.updateMatrixWorld(true);
+        cat.reach('R', biteBurger.localToWorld(V(-0.09, 0.05, 0)), V(-0.9, -0.5, -0.3));
+        cat.reach('L', biteBurger.localToWorld(V(0.09, 0.05, 0)), V(0.9, -0.5, -0.3));
+        const punch = t > tC ? 1 - seg(t, tC, tC + 0.7) : 0;
+        const aim = V(0.0, 0.185, -0.2);
+        cam(aim.clone().add(V(0.27, 0.03, 0.42)), aim, { fov: 36 - 6 * punch, jolt: shake(t, [tC], 0.01), focusAt: aim.clone().add(V(0, -0.02, 0.06)) });
+        twinkle(sparkC, t, eyesOf(), { amount: t > tC ? 0.8 : 0, size: 1 });
+        if (t > tC) {
+          const c = scr(mouthW.clone().add(V(0, -0.03, 0.1))), s = seg(t, tC, D), sc = pop(t, tC, 0.22);
+          speedLines(fx, c.x, c.y, t, { alpha: 0.6 * (1 - seg(t, tC, tC + 0.9)), inner: 380 });
+          starburst(fx, 520, 1230, 250 * sc, { rot: -0.2 + t * 0.5, alpha: 1 - smooth(seg(s, 0.75, 1)), points: 14 });
+          comicText(fx, 520, 1230, 'CRUNCH!', { size: 130, rot: -0.12 + wob(t, tC, 18, 4) * 0.12, scale: sc, alpha: 1 - smooth(seg(s, 0.75, 1)) });
+        }
+        stickerAt(t, 0.45, V(), 'SOUND ON', { icon: speakerIcon, size: 58, rot: 0.06, absolute: true });
+        flash(fx, 0.9 * (1 - seg(t, 0, 0.12)));
+      },
+      events: () => [{ t: 0, type: 'room', dur: 1.8 }, { t: 0.2, type: 'crunch' }, { t: 0.2, type: 'thump', gain: 0.8 }, { t: 0.45, type: 'pop' }, { t: 0.7, type: 'sparkle' }, { t: 1.0, type: 'mrrp' }],
+    },
+
+    // 0b. Montage: three hits in 1.5 s, each opened by a white flash: oil plunge, flour blast, chicken slam.
+    chick_montage: {
+      setup() { show(pot, oil, bubbles, chicken, oilDrops, smokeC, flourBowl, flour, flourPuffs[0], stackBurger, board, sparkC); },
+      update(t, D) {
+        const beat = Math.min(2, Math.floor(t / 0.5)), bt = t - beat * 0.5, tHit = 0.13;
+        const fry = beat === 0, dredge = beat === 1, slam = beat === 2;
+        for (const o of [pot, oil, bubbles, oilDrops, smokeC]) o.visible = fry;
+        for (const o of [flourBowl, flour, flourPuffs[0]]) o.visible = dredge;
+        stackBurger.visible = board.visible = slam; chicken.visible = !slam; cat.root.visible = slam;
+        const punch = bt > tHit ? 1 - seg(bt, tHit, tHit + 0.35) : 0;
+        if (fry) {
+          pot.position.set(0, 0, -0.1); oil.position.set(0, 0.08, -0.1);
+          const P = V(0, 0.08, -0.1);
+          const cp = bt < tHit ? V(0, lerp(0.22, 0.082, easeIn(bt / tHit)), -0.1) : P.clone().add(V(0, -0.006 + 0.012 * wob(bt, tHit, 16, 5), 0));
+          chicken.position.copy(cp); chicken.rotation.set(0.12, 0.6 + bt, 0); chicken.userData.state({ floured: 1, crag: 1, fried: 0.3 });
+          bubbles.userData.boil(t, cp, 0.1, 0.078, P.y, bt < tHit ? 0 : 1.7, P);
+          oil.userData.wave((x, z) => { const dt = bt - tHit; if (dt < 0) return 0; const r = Math.hypot(x, z); return 0.003 * Math.exp(-dt * 3) * Math.sin(r * 150 - dt * 35) * Math.exp(-r * 6); });
+          oilDrops.userData.burst(bt, tHit, cp.clone().add(V(0, 0.01, 0)), { power: 1.3, life: 0.4 });
+          rise(smokeC, t, P.clone().add(V(0, 0.02, 0)), { amount: 0.7, spread: 0.2, height: 0.25 });
+          cam(V(0.12, 0.36, 0.24), V(0, 0.1, -0.1), { fov: 36 - 5 * punch, jolt: shake(bt, [tHit], 0.008), focusAt: P });
+          impact(bt, tHit, P, { r0: 60, r1: 420, color: '#fff4c2' });
+        }
+        if (dredge) {
+          flourBowl.position.set(0, 0, -0.1); flourBowl.rotation.set(0, 0, 0);
+          const S = V(0, 0.056, -0.1); flour.position.copy(S);
+          const cp = bt < tHit ? V(0, lerp(0.19, 0.078, easeIn(bt / tHit)), -0.1) : S.clone().add(V(0, 0.022 - 0.006 * wob(bt, tHit, 18, 6), 0));
+          chicken.position.copy(cp); chicken.rotation.set(0.1, 1.2, 0);
+          const f = bt < tHit ? 0.15 : 0.9; chicken.userData.state({ floured: f, crag: f, fried: 0 });
+          puff(flourPuffs[0], bt, tHit, S, { spread: 0.26, up: 0.17, size: 1.5, life: 0.6 });
+          cam(V(-0.18, 0.24, 0.3), V(0, 0.1, -0.1), { fov: 36 - 5 * punch, jolt: shake(bt, [tHit], 0.008), focusAt: S });
+          impact(bt, tHit, S, { r0: 50, r1: 380, color: '#fffaf0' });
+        }
+        if (slam) {
+          behindCounter(0, -0.36, 0);
+          board.position.set(0, 0.011, -0.14); stackBurger.position.set(0, 0.022, -0.14); stackBurger.rotation.set(0, 0.3, 0);
+          const L = stackBurger.userData.layers, R = stackBurger.userData.rest, base = V(0, 0.022, -0.14);
+          L.lettuce.visible = true; L.lettuce.userData.layout(1); L.top.visible = false;
+          L.pickles.children.forEach(pk => pk.scale.setScalar(0.0001));
+          L.chicken.visible = true; L.chicken.position.y = R.chicken + (1 - easeIn(seg(bt, 0, tHit))) * 0.22;
+          const cs = bt > tHit ? wob(bt, tHit, 30, 8) : 0; L.chicken.scale.set(1 + cs * 0.14, 1 - cs * 0.25, 1 + cs * 0.14);
+          cat.pose({ lean: 0.2, headX: 0.25, sparkle: 1, earsBack: bt > tHit ? 0.6 * Math.exp(-(bt - tHit) * 5) : 0, squash: wob(bt, tHit, 26, 7) * 0.1, look: [0, -0.8], ears: 1, tail: Math.sin(t * 6) * 0.7 });
+          cat.relax('R', 0.4); cat.relax('L', 0.4);
+          cam(V(0.05, 0.19, 0.22), V(0, 0.07, -0.14), { fov: 36 - 5 * punch, jolt: shake(bt, [tHit], 0.008), focusAt: base.clone().add(V(0, 0.07, 0)) });
+          impact(bt, tHit, base.clone().add(V(0, 0.07, 0)), { r0: 70, r1: 460 });
+          if (bt > tHit) { const c = scr(base.clone().add(V(0, 0.07, 0))); speedLines(fx, c.x, c.y, t, { alpha: 0.5 * (1 - seg(bt, tHit, tHit + 0.35)), inner: 380 }); }
+        }
+        flash(fx, 0.85 * (1 - seg(bt, 0, 0.09)));
+      },
+      events: () => [{ t: 0, type: 'room', dur: 1.5 }, { t: 0.0, type: 'whoosh', gain: 0.7 }, { t: 0.13, type: 'sizzle', dur: 0.37, level: 1.0, attack: 0.02 }, { t: 0.13, type: 'thump', gain: 0.7 },
+        { t: 0.5, type: 'whoosh', gain: 0.7 }, { t: 0.63, type: 'puff' }, { t: 0.63, type: 'thump', gain: 0.5 }, { t: 1.0, type: 'whoosh', gain: 0.7 }, { t: 1.13, type: 'thump' }],
+    },
+
+    // 1. Chef Whiskers pops up behind the whip-spinning burger, waves and winks: "let me show you how".
     chick_hero: {
       setup() { show(board, heroBurger, steamC, sparkC); board.position.set(0, 0.011, 0.0); heroBurger.position.set(0, 0.022, 0.0); },
       update(t, D) {
-        heroBurger.rotation.y = 0.6 + t * 0.5;
-        const up = backOut(seg(t, 0.25, 0.62));
+        heroBurger.rotation.y = 0.6 + 5 * easeOut(seg(t, 0, 0.7)) + t * 0.4;
+        const up = backOut(seg(t, 0.06, 0.36));
         cat.root.position.set(0.03, lerp(-0.6, -0.18, up), -0.27); cat.root.rotation.set(0, -0.05, 0);
-        const lick = seg(t, 1.45, 2.2);
-        cat.pose({ squash: t < 0.25 ? -0.1 : wob(t, 0.62, 30, 8) * 0.12, lean: 0.12, headX: 0.14, headZ: 0.07 * Math.sin(t * 3), sparkle: smooth(seg(t, 0.55, 0.9)),
-          tongue: Math.sin(lick * Math.PI), mouth: 0.25 * Math.sin(lick * Math.PI), look: [0, -0.8], ears: 1, tail: Math.sin(t * 3) * 0.5, open: blink(t, 2.1, 0.9), bob: breathe(t) });
-        cat.relax('R', 0.3); cat.relax('L', 0.3);
+        const wink = t > 0.85 && t < 1.3 ? 1 : 0;
+        cat.pose({ squash: wob(t, 0.36, 30, 8) * 0.14, lean: 0.06, headX: 0.02, headZ: 0.12 * Math.sin(t * 5) * seg(t, 0.4, 1.0), sparkle: 1, look: [0, 0], wink, mouth: 0.25 * wink,
+          ears: 1, tail: Math.sin(t * 5) * 0.6, bob: breathe(t) });
+        if (t > 0.3) cat.reach('R', cat.headWorld(V(-0.15, 0.03 + 0.025 * Math.sin(t * 17), 0.07)), V(-0.9, -0.6, -0.2)); else cat.relax('R', 0.3);
+        cat.relax('L', 0.3);
         rise(steamC, t, V(0, 0.19, 0), { amount: 0.55, spread: 0.07, height: 0.14 });
-        const push = easeOut(seg(t, 0, 0.8)) * 0.75 + 0.25 * seg(t, 0.8, D);
+        const push = easeOut(seg(t, 0, 0.5)) * 0.8 + 0.2 * seg(t, 0.5, D);
         cam(V(0, lerp(0.25, 0.24, push), lerp(1.0, 0.64, push)), V(0, 0.19, 0), { fov: 34, aperture: 0.025, maxblur: 0.012, focusAt: V(0, 0.11, 0) });
-        twinkle(sparkC, t, eyesOf(), { amount: smooth(seg(t, 0.7, 1.0)), size: 0.9 });
+        twinkle(sparkC, t, eyesOf(), { amount: 1, size: 0.9 });
         const c = scr(V(0, 0.11, 0));
-        rays(fx, c.x, c.y, t, { alpha: 0.11 * smooth(seg(t, 0, 0.35)) });
-        impact(t, 0.02, V(0, 0.1, 0), { r0: 120, r1: 700, life: 0.5, lines: false });
+        rays(fx, c.x, c.y, t, { alpha: 0.12 });
+        impact(t, 0.02, V(0, 0.1, 0), { r0: 120, r1: 700, life: 0.45, lines: false });
         for (let i = 0; i < 5; i++) {
-          const a = i * 1.3 + 0.5, ph = (t * 1.3 + i * 0.37) % 1;
+          const a = i * 1.3 + 0.5, ph = (t * 1.6 + i * 0.37) % 1;
           twinkleStar(fx, c.x + Math.cos(a) * 300, c.y + Math.sin(a) * 210, 28 * Math.sin(Math.PI * ph), { alpha: Math.sin(Math.PI * ph), rot: t });
         }
       },
-      events: () => [{ t: 0, type: 'room', dur: 2.6 }, { t: 0, type: 'sizzle', dur: 2.6, level: 0.15 }, { t: 0.02, type: 'whoosh' }, { t: 0.45, type: 'pop' }, { t: 0.75, type: 'sparkle' }, { t: 1.6, type: 'lick' }],
+      events: () => [{ t: 0, type: 'room', dur: 1.7 }, { t: 0, type: 'sizzle', dur: 1.7, level: 0.15 }, { t: 0.0, type: 'whoosh' }, { t: 0.2, type: 'pop' }, { t: 0.5, type: 'sparkle' }, { t: 0.9, type: 'mrrp' }],
     },
 
     // 2. Toss the raw chicken into buttermilk: splash, ripples, and a startled cat.

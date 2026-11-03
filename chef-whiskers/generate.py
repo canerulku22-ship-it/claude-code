@@ -61,7 +61,7 @@ CHAR_WIDTH_EM = 0.62  # conservative average glyph width of a bold sans font, fo
 LINE_SPACING = 1.2
 TEXT_FADE_IN = 0.25  # seconds (static text style)
 EMPHASIS_COLOR = "0xFFD84D"  # *words* in on-screen text are highlighted in this colour
-TRANSITIONS = ["smoothleft", "zoomin", "smoothup", "circleopen", "smoothright", "fadewhite", "slideleft", "radial"]
+TRANSITIONS = ["fadewhite", "zoomin", "smoothleft", "smoothup", "circleopen", "smoothright", "slideleft", "radial", "smoothdown"]
 
 FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Debian/Ubuntu
@@ -560,7 +560,7 @@ def assemble(clips: list[Path], dest: Path, total: float, music: Optional[Path],
         fade_out = max(0.0, total - 1.5)
         graph += (
             f";[{n}:a:0]aresample=48000,aformat=channel_layouts=stereo,volume={music_volume},"
-            f"afade=t=in:d=0.5,afade=t=out:st={fade_out:.3f}:d=1.5[m]"
+            f"afade=t=in:d=0.03,afade=t=out:st={fade_out:.3f}:d=1.5[m]"
             ";[a][m]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[mix]"
         )
         audio_out = "[mix]"

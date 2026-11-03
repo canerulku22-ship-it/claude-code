@@ -385,7 +385,11 @@ def render_music(seconds):
         for beat_pos, midi in melody:
             add(buf, bell(mtof(midi), 0.9, index=1.0), t0 + beat_pos * beat, 0.09, pan=0.25)
         t0 += loop
-    fade = np.clip(t_axis(n) / 0.3, 0, 1) * np.clip((seconds - t_axis(n)) / 1.5, 0, 1)
+    crash = band(noise(1.6), 3000, 14000) * decay(int(1.6 * SR), 0.45)
+    add(buf, norm(crash), 0.0, 0.22, pan=-0.2)
+    add(buf, norm(band(noise(1.6), 3000, 14000) * decay(int(1.6 * SR), 0.45)), 0.0, 0.22, pan=0.2)
+    add(buf, sweep_tone(120, 40, 0.4) * decay(int(0.4 * SR), 0.12), 0.0, 0.5)
+    fade = np.clip(t_axis(n) / 0.01, 0, 1) * np.clip((seconds - t_axis(n)) / 1.5, 0, 1)
     out = buf * fade
     return out / (np.abs(out).max() + 1e-9) * 0.32
 
