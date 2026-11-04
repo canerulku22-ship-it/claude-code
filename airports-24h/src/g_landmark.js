@@ -31,5 +31,17 @@ const LANDMARK = (() => {
     const s = new THREE.Mesh(new THREE.CylinderGeometry(70, 70, 16, 40), m); s.position.set(AP.satellite.x, 8, AP.satellite.z); sceneA.add(s);
     upd.push((t, night) => { m.emissiveIntensity = 0.1 + night * 0.6; });
   }
+  if (AP.landmark === 'tulipTower') {
+    // Istanbul Airport's tulip-shaped control tower
+    const T = AP.tulip; const prof = [[11, 0], [9, 14], [6.8, 38], [5.6, 58], [6.2, 68], [9.5, 75], [14.5, 81], [17.5, 87], [16.5, 92], [12, 96], [6, 98.5], [0.1, 99.5]];
+    const mat = new THREE.MeshLambertMaterial({ color: 0xeef2f6, emissive: 0xbfe0ff, emissiveIntensity: 0 });
+    const tul = new THREE.Mesh(new THREE.LatheGeometry(prof.map(p => new THREE.Vector2(p[0], p[1])), 32), mat); tul.position.set(T.x, 0, T.z); sceneA.add(tul);
+    const ribs = new THREE.MeshLambertMaterial({ color: 0xc8102e, emissive: 0xc8102e, emissiveIntensity: 0 });
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; const pts = prof.slice(4, 10).map(p => new THREE.Vector3(T.x + Math.cos(a) * (p[0] + 0.4), p[1], T.z + Math.sin(a) * (p[0] + 0.4)));
+      const rib = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.5, 6, false), ribs); sceneA.add(rib); }
+    const glow = pointsGeo(1); glow.attributes.position.setXYZ(0, T.x, 88, T.z); glow.attributes.acol.setXYZ(0, 0.7, 0.85, 1); glow.attributes.size.setX(0, 90); glow.attributes.alpha.setX(0, 0);
+    const gm = glowMat(false); const gp = new THREE.Points(glow, gm); gp.frustumCulled = false; sceneA.add(gp);
+    upd.push((t, night) => { mat.emissiveIntensity = 0.1 + night * 0.85; ribs.emissiveIntensity = 0.2 + night * 0.9; glow.attributes.alpha.setX(0, night * 0.45); glow.attributes.alpha.needsUpdate = true; gm.uniforms.uScale.value = camA.userData.us || 600; });
+  }
   return { update: (t, night) => upd.forEach(f => f(t, night)) };
 })();

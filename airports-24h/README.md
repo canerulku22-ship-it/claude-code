@@ -1,4 +1,4 @@
-# 24 Hours in the Sky: LAX, Gatwick, Birmingham and Izmir
+# 24 Hours in the Sky: LAX, Gatwick, Birmingham, Izmir and Istanbul
 
 These are vertical 1080×1920, 60 fps, 60-second videos with sound. They use the same
 engine as `heathrow-24h/v2`, rebuilt to be driven by a config file for each airport.
@@ -9,6 +9,7 @@ engine as `heathrow-24h/v2`, rebuilt to be driven by a config file for each airp
 | London Gatwick (LGW) | `lgw_24h_in_the_sky_9x16.mp4` | `cfg_LGW.js` | `schedule_LGW.json` |
 | Birmingham (BHX) | `bhx_24h_in_the_sky_9x16.mp4` | `cfg_BHX.js` | `schedule_BHX.json` |
 | İzmir Adnan Menderes (ADB) | `adb_24h_in_the_sky_9x16.mp4` | `cfg_ADB.js` | `schedule_ADB.json` |
+| İstanbul Airport (IST) | `ist_24h_in_the_sky_9x16.mp4` | `cfg_IST.js` | `schedule_IST.json` |
 
 ## What changed from Heathrow v2
 
