@@ -31,7 +31,10 @@ def new_scene(name, nframes, world, samples=None):
     cy.diffuse_bounces = 1
     cy.glossy_bounces = 2
     cy.transmission_bounces = 4
-    cy.transparent_max_bounces = 10
+    # Steam is many overlapping camera-facing transparent sprites. With a low
+    # limit, rays that pass through more than that many quads are terminated
+    # and render as hard-edged black blocks (seen top-down over the fry pot).
+    cy.transparent_max_bounces = 64
     cy.use_fast_gi = True
     cy.fast_gi_method = "REPLACE"
     cy.volume_bounces = 0

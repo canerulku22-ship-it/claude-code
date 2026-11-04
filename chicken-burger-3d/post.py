@@ -121,6 +121,36 @@ def rrect(d, box, r, fill):
     d.rounded_rectangle(box, radius=r, fill=fill)
 
 
+SAFE = 28          # px: no label or callout is drawn closer than this to the frame edge
+
+
+def label_layout(x, y, sgn, pw, ph, L=120):
+    """Place a side label's pill for an anchor at (x, y).
+
+    Preferred: pill beside the anchor (left or right), at the end of a leader
+    line with an elbow. If that would leave the frame, the pill slides inward
+    by the overflow and rises above the anchor so it never covers the dot.
+    Both offsets grow continuously with the overflow, so a label tracking an
+    orbiting object never jumps. Returns the pill's top-left, the leader's
+    elbow and the leader's end point on the pill's edge.
+    """
+    px0 = x + sgn * L if sgn > 0 else x + sgn * L - pw
+    shift = 0.0
+    if px0 < SAFE:
+        shift = SAFE - px0
+    elif px0 + pw > W - SAFE:
+        shift = (W - SAFE) - (px0 + pw)
+    px0 += shift
+    lift = min(1.0, abs(shift) / 90.0) * (ph / 2 + 30)
+    cy = y - 40 - lift
+    py0 = min(max(cy - ph / 2, SAFE), H - SAFE - ph)
+    elx, ely = x + sgn * 60 * (1 - min(1.0, abs(shift) / 90.0)), y - 40 * (1 - min(1.0, abs(shift) / 90.0))
+    # leader ends at the point of the pill's box nearest to the elbow
+    tx = min(max(elx, px0 + ph / 2), px0 + pw - ph / 2)
+    ty = min(max(ely, py0), py0 + ph)
+    return (px0, py0), (elx, ely), (tx, ty)
+
+
 # --------------------------------------------------------------- overlays ---
 class Overlays:
     def __init__(self, shot):
@@ -189,19 +219,21 @@ class Overlays:
         pw, ph = tw + 78, th + 26
         if side == "below":
             ex, ey = x, y + 10
-            px0, py0 = x - pw / 2, ey + 18
+            px0, py0 = clamp(x - pw / 2, SAFE, W - SAFE - pw), ey + 18
             d.ellipse((x - 9 * a_dot, y - 9 * a_dot, x + 9 * a_dot, y + 9 * a_dot), fill=RED + (int(255 * min(1, a_dot)),))
         else:
             sgn = 1 if side == "right" else -1
-            L = 120
-            ex, ey = x + sgn * L * a_line, y - 40 * a_line
+            (px0, py0), (elx, ely), (tx_, ty_) = label_layout(x, y, sgn, pw, ph)
+            # the pill slides out with its leader line
+            slide = sgn * 120 * (a_line - 1)
+            px0 += slide
             ring = 9 + 10 * seg(f, t0, t0 + 12)
             d.ellipse((x - ring, y - ring, x + ring, y + ring), outline=CREAM + (int(160 * (1 - seg(f, t0, t0 + 12)) * (1 - tout)),), width=3)
             d.ellipse((x - 8 * a_dot, y - 8 * a_dot, x + 8 * a_dot, y + 8 * a_dot), fill=RED + (int(255 * min(1, a_dot)),))
             if a_line > 0:
-                d.line((x, y, x + sgn * 60 * a_line, y - 40 * a_line, ex, ey), fill=CREAM + (int(230 * a_line),), width=4, joint="curve")
-            px0 = ex if sgn > 0 else ex - pw
-            py0 = ey - ph / 2
+                pts = [(x, y), (x + (elx - x) * a_line, y + (ely - y) * a_line),
+                       (x + (tx_ + slide - x) * a_line, y + (ty_ - y) * a_line)]
+                d.line(pts, fill=CREAM + (int(230 * a_line),), width=4, joint="curve")
         if a_pill > 0:
             s = 0.75 + 0.25 * a_pill
             cx, cy = px0 + pw / 2, py0 + ph / 2
@@ -222,8 +254,12 @@ class Overlays:
         if p is None:
             return
         x, y = p
+        fnt = font(C.FONT_BLACK, 50)
+        txt, pad = text_layer(it["text"], fnt, CREAM + (255,), spacing=3, shadow=False)
+        tw, th = txt.width - 2 * pad, fnt.getmetrics()[0]
+        half = (tw + 50) / 2 + SAFE          # full-size half-width of the red box, plus margin
         tx, ty = x + it.get("dx", -200), y + it.get("dy", -300)
-        tx = clamp(tx, 220, W - 220)
+        tx = clamp(tx, half, W - half)
         ty = clamp(ty, 300, H - 260)
         tin = eout(seg(f, t0, t0 + 10))
         tout = ein(seg(f, t1 - 3, t1 + 3))
@@ -249,9 +285,6 @@ class Overlays:
                 d.polygon([(x2, y2), (x2 - hl * math.cos(ang - 0.45), y2 - hl * math.sin(ang - 0.45)),
                            (x2 - hl * math.cos(ang + 0.45), y2 - hl * math.sin(ang + 0.45))],
                           fill=CREAM + (int(240 * a),))
-        fnt = font(C.FONT_BLACK, 50)
-        txt, pad = text_layer(it["text"], fnt, CREAM + (255,), spacing=3, shadow=False)
-        tw, th = txt.width - 2 * pad, fnt.getmetrics()[0]
         s = 0.7 + 0.3 * eback(seg(f, t0, t0 + 9))
         pw, ph = (tw + 50) * s, (th + 34) * s
         box = (tx - pw / 2, ty - ph / 2, tx + pw / 2, ty + ph / 2)
@@ -336,7 +369,8 @@ def haze(im, f, y0, y1, amp):
         _grid = np.meshgrid(np.arange(W, dtype=np.float32), np.arange(H, dtype=np.float32))
     xx, yy = _grid
     m = np.clip((yy / H - y0) / max(y1 - y0, 1e-3), 0, 1)
-    m = np.sin(np.pi * m) ** 0.8
+    # clip: float32 sin(pi) is slightly negative, and a negative ** 0.8 is NaN
+    m = np.clip(np.sin(np.pi * m), 0.0, 1.0) ** 0.8
     dx = amp * m * np.sin(yy * 0.045 - f * 0.55 + 1.7 * np.sin(xx * 0.012 + f * 0.21))
     dy = 0.5 * amp * m * np.sin(xx * 0.03 + f * 0.4)
     return cv2.remap(im, xx + dx, yy + dy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)

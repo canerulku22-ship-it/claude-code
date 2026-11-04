@@ -544,9 +544,17 @@ def shot_fry(name, n):
             rx = math.pi - 0.25 * tl
         return Vector((0, 0, zc)), (rx, ry, rz)
     U.animate(ck, S.frames(), lambda f: dict(loc=chicken_place(*state(f)), rot=state(f)[1]))
+    # Browning is clearly visible in the wide pot shot (pale -> golden by the
+    # cut), then deepens to golden brown in the macro lift.
     for f in S.frames():
-        fr = 0.55 * smooth(seg(f, 26, T_CUT)) + 0.45 * smooth(seg(f, T_CUT, 125))
+        fr = 0.8 * smooth(seg(f, 26, T_CUT)) + 0.2 * smooth(seg(f, T_CUT, 120))
         U.key_socket(PRM["fry"].outputs[0], f, fr)
+    # The macro is lit at grazing angle: pull exposure down half a stop so the
+    # crust's highlights do not clip to a pale peach.
+    for f in (1, T_CUT - 1):
+        U.key_prop(S.sc.view_settings, "exposure", f, C.EXPOSURE)
+    for f in (T_CUT, n):
+        U.key_prop(S.sc.view_settings, "exposure", f, C.EXPOSURE - 0.5)
     for f in (1, T_CUT - 1, T_CUT, n):
         fx.key_input(ck, "Crust", "Level", f, 2 if f < T_CUT else 3)
     # ---- tongs ---------------------------------------------------------------
@@ -673,7 +681,9 @@ def shot_fry(name, n):
         U.key_prop(S.cam.data.dof, "aperture_fstop", f, 5.6)
     for f in (T_CUT, n):
         U.key_prop(S.cam.data.dof, "aperture_fstop", f, 2.2)
-    ST.studio_rig(S.sc, (0, 0, OZ), k=0.28, rim=1.8)
+    # The camera looks down onto the crust, so the rims and top light hit the
+    # surface the viewer sees. Keep them low or the golden crust reads peach.
+    ST.studio_rig(S.sc, (0, 0, OZ), k=0.224, rim=0.5625, top=0.75)
     # ---- overlays / cues ---------------------------------------------------
     S.ov(type="header", num=C.FRY_TITLE[0], text=C.FRY_TITLE[1], t0=6, t1=T_CUT - 2)
     if C.FRY_TEMPERATURE_LABEL:
