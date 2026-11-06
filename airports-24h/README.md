@@ -1,4 +1,4 @@
-# 24 Hours in the Sky: LAX, Gatwick, Birmingham, Izmir, Istanbul and Manchester
+# 24 Hours in the Sky: LAX, Gatwick, Birmingham, Izmir, Istanbul, Manchester and Liverpool
 
 These are vertical 1080×1920, 60 fps, 60-second videos with sound. They use the same
 engine as `heathrow-24h/v2`, rebuilt to be driven by a config file for each airport.
@@ -11,6 +11,7 @@ engine as `heathrow-24h/v2`, rebuilt to be driven by a config file for each airp
 | İzmir Adnan Menderes (ADB) | `adb_24h_in_the_sky_9x16.mp4` | `cfg_ADB.js` | `schedule_ADB.json` |
 | İstanbul Airport (IST) | `ist_24h_in_the_sky_9x16.mp4` | `cfg_IST.js` | `schedule_IST.json` |
 | Manchester (MAN) | `man_24h_in_the_sky_9x16.mp4` | `cfg_MAN.js` | `schedule_MAN.json` |
+| Liverpool John Lennon (LPL) | `lpl_24h_in_the_sky_9x16.mp4` | `cfg_LPL.js` | `schedule_LPL.json` |
 
 ## What changed from Heathrow v2
 
@@ -43,6 +44,13 @@ engine as `heathrow-24h/v2`, rebuilt to be driven by a config file for each airp
   frame, so runway 33 at BHX and 34L/34R at ADB work like the east–west runways.
 - The LAX and Gatwick videos were rendered before these changes. Re-rendering them now
   would give them the new opening too.
+
+## Landmarks
+
+Some airports get a landmark model from `src/g_landmark.js`, chosen by the config's
+`landmark` field: the LAX Theme Building, Gatwick's South Terminal satellite, Istanbul's
+tulip control tower and Liverpool's Yellow Submarine, which glows after dark and has its
+own camera shot.
 
 ## Rebuild
 

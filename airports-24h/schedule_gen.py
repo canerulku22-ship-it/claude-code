@@ -600,9 +600,59 @@ MAN = dict(code="MAN", lat=53.3537, lon=-2.275, target_moves=500, target_pax=68_
   rwy=lambda typ, t, i: "23R" if typ == "A" else "23L",
 )
 
-AP = {"LAX": LAX, "LGW": LGW, "BHX": BHX, "ADB": ADB, "IST": IST, "MAN": MAN}[sys.argv[1] if len(sys.argv) > 1 else "LAX"]
+# --------------------------------------------------------------------------- LPL (local = GMT)
+LPL = dict(code="LPL", lat=53.3336, lon=-2.8497, target_moves=74, target_pax=9_600,
+  routes=[
+    R("BFS", "BELFAST", 54.6575, -6.2158, H(0, 55), 2, "EUL", "U2", "A320"),
+    R("IOM", "ISLE OF MAN", 54.0833, -4.6239, H(0, 40), 2, "EUL", "U2 LM", "A319 AT7"),
+    R("DUB", "DUBLIN", 53.4213, -6.2701, H(0, 55), 2, "EUL", "FR", "737"),
+    R("NOC", "KNOCK", 53.9103, -8.8185, H(1, 5), 1, "EUL", "FR", "737"),
+    R("AMS", "AMSTERDAM", 52.3086, 4.7639, H(1, 15), 2, "EUL", "U2", "A320"),
+    R("GVA", "GENEVA", 46.2381, 6.109, H(1, 50), 1, "EUL", "U2", "A320"),
+    R("CDG", "PARIS", 49.0097, 2.5479, H(1, 25), 1, "EUL", "U2", "A320"),
+    R("BER", "BERLIN", 52.3667, 13.5033, H(2, 5), 1, "EUL", "U2", "A320"),
+    R("BCN", "BARCELONA", 41.2971, 2.0785, H(2, 25), 2, "EUL", "U2 FR", "A320 737"),
+    R("ALC", "ALICANTE", 38.2822, -0.5582, H(2, 45), 2, "EUL", "U2 FR", "A320 737"),
+    R("AGP", "MALAGA", 36.6749, -4.4991, H(3, 0), 2, "EUL", "U2 FR", "A320 737"),
+    R("PMI", "PALMA", 39.5517, 2.7388, H(2, 35), 1, "EUL", "U2", "A320"),
+    R("FAO", "FARO", 37.0144, -7.9659, H(2, 50), 1, "EUL", "FR", "737"),
+    R("LIS", "LISBON", 38.7813, -9.1359, H(2, 55), 1, "EUL", "U2", "A320"),
+    R("MAD", "MADRID", 40.4719, -3.5626, H(2, 35), 1, "EUL", "FR", "737"),
+    R("TFS", "TENERIFE", 28.0445, -16.5725, H(4, 30), 2, "EUL", "U2 FR", "A320 737"),
+    R("ACE", "LANZAROTE", 28.9455, -13.6052, H(4, 10), 1, "EUL", "FR", "737"),
+    R("LPA", "GRAN CANARIA", 27.9319, -15.3866, H(4, 25), 1, "EUL", "U2", "A320"),
+    R("FUE", "FUERTEVENTURA", 28.4527, -13.8638, H(4, 15), 1, "EUL", "FR", "737"),
+    R("RAK", "MARRAKECH", 31.6069, -8.0363, H(3, 45), 1, "EUL", "U2", "A320"),
+    R("KRK", "KRAKOW", 50.0777, 19.7848, H(2, 30), 2, "EUL", "FR W6", "737 A321"),
+    R("GDN", "GDANSK", 54.3776, 18.4662, H(2, 25), 1, "EUL", "W6", "A321"),
+    R("WAW", "WARSAW", 52.1657, 20.9671, H(2, 40), 1, "EUL", "FR", "737"),
+    R("KTW", "KATOWICE", 50.4743, 19.08, H(2, 30), 1, "EUL", "W6", "A321"),
+    R("OTP", "BUCHAREST", 44.5711, 26.085, H(3, 25), 1, "EUL", "W6", "A321"),
+    R("CLJ", "CLUJ", 46.7852, 23.6862, H(3, 5), 1, "EUL", "W6", "A321"),
+    R("SOF", "SOFIA", 42.6967, 23.4114, H(3, 15), 1, "EUL", "W6", "A321"),
+    R("BUD", "BUDAPEST", 47.4369, 19.2556, H(2, 40), 1, "EUL", "W6", "A321"),
+    R("RIX", "RIGA", 56.9236, 23.9711, H(2, 40), 1, "EUL", "FR", "737"),
+    R("VNO", "VILNIUS", 54.6341, 25.2858, H(2, 45), 1, "EUL", "W6", "A321"),
+    R("WRO", "WROCLAW", 51.1027, 16.8858, H(2, 15), 1, "EUL", "FR", "737"),
+    R("POZ", "POZNAN", 52.4211, 16.8263, H(2, 10), 1, "EUL", "FR", "737"),
+    R("FCO", "ROME", 41.8003, 12.2389, H(2, 55), 1, "EUL", "FR", "737"),
+    R("BGY", "MILAN", 45.6739, 9.7042, H(2, 20), 1, "EUL", "FR", "737"),
+    R("PSA", "PISA", 43.6839, 10.3927, H(2, 30), 1, "EUL", "FR", "737"),
+    R("PRG", "PRAGUE", 50.1008, 14.26, H(2, 10), 1, "EUL", "FR", "737"),
+    R("PFO", "PAPHOS", 34.718, 32.4857, H(4, 45), 1, "EUL", "U2", "A320"),
+    R("HRG", "HURGHADA", 27.1783, 33.7994, H(5, 25), 1, "EUL", "U2", "A320"),
+  ],
+  prof={
+    "EUL": ({6: 4.0, 7: 1.6, 8: 0.6, 9: 0.6, 10: 0.7, 11: 0.8, 12: 0.8, 13: 0.8, 14: 0.8, 15: 0.9, 16: 0.9, 17: 1.0, 18: 1.0, 19: 0.8, 20: 0.5, 21: 0.3},
+            {9: 0.6, 10: 0.9, 11: 0.9, 12: 0.9, 13: 1.0, 14: 1.0, 15: 1.0, 16: 1.0, 17: 1.0, 18: 1.0, 19: 1.0, 20: 1.0, 21: 1.0, 22: 1.1, 23: 1.0, 0: 0.4}),
+  },
+  cap=lambda typ, h: (0 if typ == "D" and h < 6 else (1 if 1 <= h <= 4 else 10)),
+  rwy=lambda typ, t, i: "27",
+)
+
+AP = {"LAX": LAX, "LGW": LGW, "BHX": BHX, "ADB": ADB, "IST": IST, "MAN": MAN, "LPL": LPL}[sys.argv[1] if len(sys.argv) > 1 else "LAX"]
 random.seed(hash(AP["code"]) % 100000 + 20261102)
-random.seed({"LAX": 20261102, "LGW": 20261103, "BHX": 20261104, "ADB": 20261105, "IST": 20261106, "MAN": 20261107}[AP["code"]])
+random.seed({"LAX": 20261102, "LGW": 20261103, "BHX": 20261104, "ADB": 20261105, "IST": 20261106, "MAN": 20261107, "LPL": 20261108}[AP["code"]])
 
 def cat_of(m): return 0 if m < 120 else 1 if m < 240 else 2 if m < 480 else 3
 routes = AP["routes"]

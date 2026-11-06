@@ -754,6 +754,24 @@ const LANDMARK = (() => {
     const gm = glowMat(false); const gp = new THREE.Points(glow, gm); gp.frustumCulled = false; sceneA.add(gp);
     upd.push((t, night) => { mat.emissiveIntensity = 0.1 + night * 0.85; ribs.emissiveIntensity = 0.2 + night * 0.9; glow.attributes.alpha.setX(0, night * 0.45); glow.attributes.alpha.needsUpdate = true; gm.uniforms.uScale.value = camA.userData.us || 600; });
   }
+  if (AP.landmark === 'yellowSub') {
+    // Liverpool's Yellow Submarine sculpture by the terminal (drawn a little over life size so it reads on camera)
+    const S = AP.sub, k = S.scale || 1.6;
+    const mat = new THREE.MeshLambertMaterial({ color: 0xffcc14, emissive: 0xffb000, emissiveIntensity: 0 });
+    const g = new THREE.Group(); g.position.set(S.x, 0, S.z); g.rotation.y = S.rot || 0.4; g.scale.setScalar(k); sceneA.add(g);
+    const hull = new THREE.Mesh(new THREE.CapsuleGeometry(2.6, 12, 8, 20), mat); hull.rotation.z = Math.PI / 2; hull.position.y = 4.2; g.add(hull);
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(4.2, 3.4, 2.4), mat); tower.position.set(-0.6, 7.6, 0); g.add(tower);
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.2, 1.6), mat); deck.position.set(-0.4, 9.9, 0); g.add(deck);
+    for (const dx of [-1.6, 0.9]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 2.8, 8), mat); p.position.set(dx, 10.4, 0); g.add(p); }
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 6.2), mat); fin.position.set(-8.6, 4.2, 0); g.add(fin);
+    const rud = new THREE.Mesh(new THREE.BoxGeometry(1.6, 4.6, 0.3), mat); rud.position.set(-8.6, 4.2, 0); g.add(rud);
+    const prop = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.25, 12), new THREE.MeshLambertMaterial({ color: 0xd94a1e })); prop.rotation.z = Math.PI / 2; prop.position.set(-9.7, 4.2, 0); g.add(prop);
+    const portMat = new THREE.MeshLambertMaterial({ color: 0x1d2a3a, emissive: 0xffe0a0, emissiveIntensity: 0 });
+    for (let i = 0; i < 5; i++) for (const s of [1, -1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.3, 10), portMat); p.rotation.x = Math.PI / 2; p.position.set(-4 + i * 2, 4.6, s * 2.55); g.add(p); }
+    const glow = pointsGeo(1); glow.attributes.position.setXYZ(0, S.x, 9 * k, S.z); glow.attributes.acol.setXYZ(0, 1, 0.8, 0.2); glow.attributes.size.setX(0, 70); glow.attributes.alpha.setX(0, 0);
+    const gm = glowMat(false); const gp = new THREE.Points(glow, gm); gp.frustumCulled = false; sceneA.add(gp);
+    upd.push((t, night) => { mat.emissiveIntensity = 0.08 + night * 0.55; portMat.emissiveIntensity = night * 1.2; glow.attributes.alpha.setX(0, night * 0.4); glow.attributes.alpha.needsUpdate = true; gm.uniforms.uScale.value = camA.userData.us || 600; });
+  }
   return { update: (t, night) => upd.forEach(f => f(t, night)) };
 })();
 const TAN3 = Math.tan(3 * D2R);
