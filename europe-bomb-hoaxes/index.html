@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* TikTok-safe content box: x 70..930, y 190..1510 */
+  :root { --red: #FF3B3B; --org: #FF8A1F; --yel: #FFD21F; --grn: #3DF5A0; --blu: #5FB8FF; --ink: #eef2ff; --mute: #9aa8cc; --panel: rgba(9, 12, 26, 0.84); --edge: rgba(255, 120, 120, 0.22); }
+  html, body { margin: 0; padding: 0; width: 1080px; height: 1920px; overflow: hidden; background: #03060e; }
+  body { font-family: 'Inter', sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  canvas { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; display: block; }
+  .abs { position: absolute; }
+  .num { font-variant-numeric: tabular-nums; }
+  .panel { background: var(--panel); border: 1.5px solid var(--edge); border-radius: 18px; box-shadow: 0 10px 36px rgba(0,0,0,0.5); }
+  #shadeTop { position: absolute; left: 0; top: 0; width: 1080px; height: 470px; background: linear-gradient(180deg, rgba(3,6,14,0.97) 0px, rgba(3,6,14,0.93) 400px, rgba(3,6,14,0) 470px); }
+  #shadeBot { position: absolute; left: 0; top: 1120px; width: 1080px; height: 800px; background: linear-gradient(180deg, rgba(3,6,14,0) 0px, rgba(3,6,14,0.9) 80px, rgba(3,6,14,0.97) 100%); }
+  #dim { position: absolute; inset: 0; background: #02040a; opacity: 0; }
+
+  /* intro */
+  #intro { position: absolute; inset: 0; text-align: center; }
+  #iKick { position: absolute; left: 70px; width: 860px; top: 470px; font-size: 26px; font-weight: 800; letter-spacing: 7px; color: #ff6b6b; white-space: nowrap; }
+  #iBig { position: absolute; left: 40px; width: 1000px; top: 528px; font-size: 128px; font-weight: 900; line-height: 1; white-space: nowrap; letter-spacing: -2px; filter: drop-shadow(0 0 30px rgba(255,60,60,0.55)); }
+  #iSky { position: absolute; left: 70px; width: 860px; top: 690px; font-size: 44px; font-weight: 800; letter-spacing: 6px; color: #fff; white-space: nowrap; text-shadow: 0 2px 24px rgba(0,0,0,0.9); }
+  #iRule { position: absolute; left: 330px; width: 420px; top: 762px; height: 3px; background: linear-gradient(90deg, rgba(255,59,59,0), #FF3B3B, rgba(255,170,60,0)); }
+  #iSub { position: absolute; left: 70px; width: 860px; top: 790px; font-size: 36px; font-weight: 700; color: #e3e8ff; white-space: nowrap; text-shadow: 0 2px 18px rgba(0,0,0,0.95); }
+
+  /* header */
+  #hTitle { left: 70px; top: 196px; font-size: 40px; font-weight: 900; white-space: nowrap; letter-spacing: -0.5px; }
+  #hSub { left: 72px; top: 246px; font-size: 15px; font-weight: 800; letter-spacing: 4px; color: var(--mute); white-space: nowrap; }
+  #dayBox { left: 630px; width: 300px; top: 186px; text-align: right; }
+  #dayBig { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; white-space: nowrap; }
+  #daySub { font-size: 14px; font-weight: 800; letter-spacing: 3px; color: var(--mute); margin-top: 5px; white-space: nowrap; }
+  #live { left: 70px; top: 152px; font-size: 14px; font-weight: 800; letter-spacing: 2px; padding: 4px 10px; border-radius: 7px; background: #e5262d; color: #fff; }
+
+  /* counters */
+  .ctr { position: absolute; top: 284px; width: 202px; height: 104px; border-radius: 16px; background: rgba(10,13,28,0.88); border: 1.5px solid rgba(255,255,255,0.10); overflow: hidden; }
+  .ctr .acc { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+  .ctr .k { position: absolute; left: 20px; top: 13px; font-size: 13px; font-weight: 800; letter-spacing: 2px; white-space: nowrap; }
+  .ctr .odo { position: absolute; left: 18px; top: 36px; }
+  .ctr .plus { position: absolute; top: 40px; font-size: 34px; font-weight: 800; }
+  .ctr .glow { position: absolute; inset: 0; opacity: 0; }
+  .odo { display: flex; align-items: flex-start; font-weight: 900; letter-spacing: -1px; }
+  .odo .col { position: relative; overflow: hidden; }
+  .odo .strip { position: absolute; left: 0; top: 0; width: 100%; text-align: center; }
+
+  /* day bar */
+  #dayBar { left: 70px; top: 402px; width: 860px; height: 44px; }
+  .dseg { position: absolute; top: 0; height: 44px; }
+  .dseg .bar { position: absolute; left: 0; right: 6px; top: 26px; height: 7px; border-radius: 4px; background: rgba(255,255,255,0.10); overflow: hidden; }
+  .dseg .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, #FF8A1F, #FF3B3B); }
+  .dseg .lab { position: absolute; left: 0; top: 0; font-size: 14px; font-weight: 800; letter-spacing: 2px; color: var(--mute); white-space: nowrap; }
+  .dseg .cnt { position: absolute; left: 74px; top: 0; font-size: 14px; font-weight: 800; color: #ff7a7a; white-space: nowrap; }
+
+  /* legend */
+  #legend { left: 70px; width: 860px; top: 1140px; display: flex; justify-content: center; gap: 18px; font-size: 14px; font-weight: 800; letter-spacing: 1.5px; color: #b9c3e6; }
+  #legend .i { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+
+  /* card */
+  #card { left: 70px; top: 1180px; width: 860px; height: 262px; }
+  #card .acc { position: absolute; left: 0; top: 0; bottom: 0; width: 7px; border-radius: 18px 0 0 18px; }
+  #cTag { position: absolute; left: 30px; top: 18px; font-size: 14px; font-weight: 800; letter-spacing: 3px; color: #ff7a7a; white-space: nowrap; }
+  #cAir { position: absolute; left: 30px; top: 44px; height: 44px; display: flex; align-items: center; gap: 12px; }
+  #cAirB { font-size: 22px; font-weight: 900; letter-spacing: 1.5px; padding: 6px 13px; border-radius: 9px; color: #fff; white-space: nowrap; }
+  #cFn { font-size: 30px; font-weight: 800; white-space: nowrap; }
+  #cRoute { position: absolute; left: 30px; top: 98px; width: 800px; font-size: 30px; font-weight: 800; line-height: 1.15; color: #fff; }
+  #cOut { position: absolute; left: 30px; top: 146px; width: 800px; font-size: 30px; font-weight: 900; letter-spacing: 0.5px; line-height: 1.15; }
+  #cDet { position: absolute; left: 30px; top: 192px; width: 800px; font-size: 20px; font-weight: 600; color: #c3cbe8; line-height: 1.3; }
+  #cSrc { position: absolute; right: 22px; top: 18px; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #7f8bb0; white-space: nowrap; }
+
+  /* centre splash (day / how / who) */
+  #splash { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; text-align: center; }
+  #sBig { position: absolute; left: 40px; width: 1000px; top: 640px; font-size: 118px; font-weight: 900; line-height: 1; white-space: nowrap; letter-spacing: -1px; text-shadow: 0 6px 40px rgba(0,0,0,0.9); }
+  #sSub { position: absolute; left: 70px; width: 860px; top: 772px; font-size: 34px; font-weight: 800; letter-spacing: 6px; color: #fff; white-space: nowrap; text-shadow: 0 2px 20px rgba(0,0,0,1); }
+  #sAns { position: absolute; left: 70px; width: 860px; top: 770px; font-size: 54px; font-weight: 900; color: #fff; line-height: 1.12; text-shadow: 0 2px 26px rgba(0,0,0,1); }
+  #sNote { position: absolute; left: 90px; width: 820px; top: 920px; font-size: 26px; font-weight: 600; color: #c9d2f0; line-height: 1.35; text-shadow: 0 2px 16px rgba(0,0,0,1); }
+
+  /* finale */
+  #finale { position: absolute; inset: 0; text-align: center; }
+  .fl { position: absolute; left: 40px; width: 1000px; font-size: 76px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; line-height: 1; text-shadow: 0 4px 30px rgba(0,0,0,0.8); }
+  .frow { position: absolute; left: 110px; width: 860px; height: 112px; border-radius: 20px; background: rgba(8,10,24,0.9); border: 1.5px solid rgba(255,255,255,0.12); overflow: hidden; }
+  .frow .acc { position: absolute; left: 0; top: 0; bottom: 0; width: 7px; }
+  .frow .k { position: absolute; left: 30px; top: 0; height: 112px; line-height: 112px; font-size: 22px; font-weight: 800; letter-spacing: 3px; white-space: nowrap; }
+  .frow .odo { position: absolute; right: 30px; top: 20px; }
+  .frow .pre { position: absolute; top: 46px; font-size: 18px; font-weight: 800; letter-spacing: 2px; color: #9aa8cc; white-space: nowrap; }
+  #fFoot { position: absolute; left: 70px; width: 860px; top: 1440px; font-size: 16px; font-weight: 600; color: #8a96bb; line-height: 1.45; }
+</style>
+</head>
+<body>
+<canvas id="map" width="1080" height="1920"></canvas>
+<div id="alarm" style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 55% at 50% 42%, rgba(255,40,40,0) 55%, rgba(255,40,40,0.16) 100%);opacity:0"></div>
+<div id="shadeTop"></div>
+<div id="shadeBot"></div>
+<div id="dim"></div>
+<div id="hud">
+  <div id="live" class="abs">● BREAKING</div>
+  <div id="hTitle" class="abs"></div>
+  <div id="hSub" class="abs"></div>
+  <div id="dayBox" class="abs"><div id="dayBig"></div><div id="daySub"></div></div>
+  <div id="ctrs"></div>
+  <div id="dayBar" class="abs"></div>
+  <div id="legend" class="abs">
+    <div class="i"><svg width="34" height="6"><line x1="1" y1="3" x2="33" y2="3" stroke="#dfe6ff" stroke-width="2.5" stroke-dasharray="5 4"/></svg>PLANNED</div>
+    <div class="i"><svg width="34" height="6"><line x1="1" y1="3" x2="33" y2="3" stroke="#FF8A1F" stroke-width="4"/></svg>DIVERTED</div>
+    <div class="i"><svg width="22" height="18" viewBox="-11 -9 22 18"><path d="M10 0 L-6 -7 L-3 -1.5 L-9 -2 L-9 2 L-3 1.5 L-6 7 Z" fill="#9fd4ff"/></svg>FIGHTER ESCORT</div>
+    <div class="i"><svg width="18" height="18"><circle cx="9" cy="9" r="6.5" fill="none" stroke="#FF3B3B" stroke-width="2.5"/></svg>THREAT</div>
+  </div>
+  <div id="card" class="abs panel"><div class="acc" id="cAcc"></div>
+    <div id="cTag"></div><div id="cSrc"></div>
+    <div id="cAir"><div id="cAirB"></div><div id="cFn"></div></div>
+    <div id="cRoute"></div><div id="cOut"></div><div id="cDet"></div>
+  </div>
+  <div id="splash"><div id="sBig"></div><div id="sSub"></div><div id="sAns"></div><div id="sNote"></div></div>
+  <div id="intro"><div id="iKick"></div><div id="iBig"></div><div id="iSky"></div><div id="iRule"></div><div id="iSub"></div></div>
+  <div id="finale">
+    <div id="fL1" class="fl" style="top:330px"></div>
+    <div id="fL2" class="fl" style="top:420px"></div>
+    <div id="fRows"></div>
+    <div id="fFoot"></div>
+  </div>
+</div>
+<script type="module" src="./hoax.js"></script>
+</body>
+</html>
