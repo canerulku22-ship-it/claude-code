@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* TikTok-safe content box: x 70..930, y 190..1510 */
+  :root { --ink: #eef2ff; --mute: #9aa8cc; --panel: rgba(8, 13, 30, 0.86); --edge: rgba(140, 170, 255, 0.20); }
+  html, body { margin: 0; padding: 0; width: 1080px; height: 1920px; overflow: hidden; background: #03070f; }
+  body { font-family: 'Inter', sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+  canvas { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; display: block; }
+  .abs { position: absolute; }
+  .panel { background: var(--panel); border: 1.5px solid var(--edge); border-radius: 18px; box-shadow: 0 10px 36px rgba(0,0,0,0.5); }
+  #dim { position: absolute; inset: 0; background: #02040a; opacity: 0; }
+
+  /* intro */
+  #intro { position: absolute; inset: 0; text-align: center; }
+  #iKick { position: absolute; left: 70px; width: 860px; top: 520px; font-size: 26px; font-weight: 800; letter-spacing: 8px; color: #9fc4ff; white-space: nowrap; }
+  #iBig { position: absolute; left: 40px; width: 1000px; top: 568px; font-size: 156px; font-weight: 900; line-height: 1; white-space: nowrap; letter-spacing: -3px; filter: drop-shadow(0 0 30px rgba(110,140,255,0.55)); }
+  #iSky { position: absolute; left: 70px; width: 860px; top: 745px; font-size: 48px; font-weight: 800; letter-spacing: 5px; color: #fff; white-space: nowrap; text-shadow: 0 2px 24px rgba(0,0,0,0.9); }
+  #iRule { position: absolute; left: 330px; width: 420px; top: 820px; height: 3px; background: linear-gradient(90deg, rgba(90,169,255,0), #A06BFF, rgba(255,111,181,0)); }
+  #iSub { position: absolute; left: 70px; width: 860px; top: 846px; font-size: 38px; font-weight: 700; color: #e3e8ff; white-space: nowrap; }
+
+  /* header */
+  #hTitle { left: 70px; top: 194px; font-size: 46px; font-weight: 900; white-space: nowrap; letter-spacing: -0.5px; }
+  #hSub { left: 72px; top: 250px; font-size: 15px; font-weight: 800; letter-spacing: 4px; color: var(--mute); white-space: nowrap; }
+  #yearBox { left: 600px; width: 330px; top: 180px; height: 100px; }
+  #yearOdo { position: absolute; right: 0; top: 0; }
+  #yearLab { position: absolute; right: 2px; top: 92px; font-size: 13px; font-weight: 800; letter-spacing: 3px; color: var(--mute); white-space: nowrap; }
+
+  /* plan panel frame + labels */
+  #planFrame { left: 70px; top: 300px; width: 860px; height: 590px; border-radius: 20px; border: 1.5px solid rgba(140,170,255,0.18); box-shadow: inset 0 0 60px rgba(0,0,0,0.6); }
+  #planTag { left: 92px; top: 314px; font-size: 13px; font-weight: 800; letter-spacing: 2.5px; color: #8fa3d6; white-space: nowrap; }
+
+  /* passengers panel */
+  #paxP { left: 70px; top: 904px; width: 860px; height: 250px; }
+  #paxK { position: absolute; left: 26px; top: 18px; font-size: 14px; font-weight: 800; letter-spacing: 3px; color: #FFC27A; white-space: nowrap; }
+  #paxOdo { position: absolute; left: 22px; top: 40px; }
+  #paxApprox { position: absolute; top: 52px; font-size: 22px; font-weight: 800; color: #FFC27A; opacity: 0.8; white-space: nowrap; }
+
+  /* small counters */
+  .ctr { position: absolute; top: 1168px; width: 276px; height: 96px; border-radius: 16px; background: rgba(10,14,32,0.88); border: 1.5px solid rgba(255,255,255,0.10); overflow: hidden; }
+  .ctr .acc { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+  .ctr .k { position: absolute; left: 20px; top: 13px; font-size: 13px; font-weight: 800; letter-spacing: 2px; white-space: nowrap; }
+  .ctr .v { position: absolute; left: 18px; top: 34px; font-size: 46px; font-weight: 900; line-height: 52px; white-space: nowrap; }
+  .ctr .glow { position: absolute; inset: 0; opacity: 0; }
+  .odo { display: flex; align-items: flex-start; font-weight: 900; letter-spacing: -1px; }
+  .odo .col { position: relative; overflow: hidden; }
+  .odo .strip { position: absolute; left: 0; top: 0; width: 100%; text-align: center; }
+  .odo .sepc { text-align: center; }
+
+  /* milestone card */
+  #card { left: 70px; top: 1280px; width: 860px; height: 186px; }
+  #card .acc { position: absolute; left: 0; top: 0; bottom: 0; width: 7px; border-radius: 18px 0 0 18px; background: linear-gradient(180deg,#5AA9FF,#A06BFF,#FF6FB5); }
+  #cYear { position: absolute; left: 30px; top: 20px; font-size: 20px; font-weight: 900; letter-spacing: 1px; padding: 5px 12px; border-radius: 9px; color: #fff; background: linear-gradient(90deg,#3d6bff,#8a4dff); white-space: nowrap; }
+  #cTitle { position: absolute; left: 30px; top: 66px; width: 810px; font-size: 38px; font-weight: 900; line-height: 1.1; white-space: nowrap; }
+  #cDet { position: absolute; left: 30px; top: 118px; width: 810px; font-size: 22px; font-weight: 600; color: #c3cbe8; line-height: 1.3; }
+
+  /* section titles (routes / future) */
+  #secT { left: 70px; width: 860px; top: 196px; font-size: 46px; font-weight: 900; white-space: nowrap; text-align: left; }
+  #secS { left: 72px; width: 860px; top: 252px; font-size: 16px; font-weight: 800; letter-spacing: 3px; color: var(--mute); white-space: nowrap; }
+  .rrow { position: absolute; left: 70px; width: 860px; height: 76px; border-radius: 16px; background: rgba(8,12,28,0.9); border: 1.5px solid rgba(255,255,255,0.10); overflow: hidden; }
+  .rrow .bar { position: absolute; left: 0; top: 0; bottom: 0; opacity: 0.30; }
+  .rrow .rk { position: absolute; left: 22px; top: 0; line-height: 76px; font-size: 30px; font-weight: 900; color: #9fb6ff; }
+  .rrow .rn { position: absolute; left: 76px; top: 13px; font-size: 28px; font-weight: 900; white-space: nowrap; }
+  .rrow .rs { position: absolute; left: 76px; top: 47px; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #9aa8cc; white-space: nowrap; }
+  .rrow .rv { position: absolute; right: 24px; top: 0; line-height: 76px; font-size: 32px; font-weight: 900; white-space: nowrap; }
+  #rNote { left: 70px; width: 860px; top: 1440px; font-size: 18px; font-weight: 700; color: #b9c3e6; text-align: center; white-space: nowrap; }
+
+  /* finale */
+  #finale { position: absolute; inset: 0; text-align: center; }
+  .fl { position: absolute; left: 40px; width: 1000px; font-size: 70px; font-weight: 900; letter-spacing: 1px; white-space: nowrap; line-height: 1; text-shadow: 0 4px 30px rgba(0,0,0,0.8); }
+  #fHead { position: absolute; left: 70px; width: 860px; top: 520px; height: 30px; font-size: 16px; font-weight: 800; letter-spacing: 3px; color: #9aa8cc; }
+  .frow { position: absolute; left: 70px; width: 860px; height: 104px; border-radius: 18px; background: rgba(8,10,24,0.92); border: 1.5px solid rgba(255,255,255,0.12); overflow: hidden; text-align: left; }
+  .frow .acc { position: absolute; left: 0; top: 0; bottom: 0; width: 7px; }
+  .frow .k { position: absolute; left: 26px; top: 0; line-height: 104px; font-size: 19px; font-weight: 800; letter-spacing: 2.5px; white-space: nowrap; }
+  .frow .a { position: absolute; left: 250px; width: 230px; top: 0; line-height: 104px; font-size: 30px; font-weight: 800; color: #9aa8cc; text-align: right; white-space: nowrap; }
+  .frow .ar { position: absolute; left: 496px; top: 0; line-height: 104px; font-size: 28px; font-weight: 800; color: #5f6c92; }
+  .frow .b { position: absolute; right: 26px; top: 0; line-height: 104px; font-size: 36px; font-weight: 900; text-align: right; white-space: nowrap; }
+  #fFoot { position: absolute; left: 70px; width: 860px; top: 1430px; font-size: 15px; font-weight: 600; color: #8a96bb; line-height: 1.45; }
+</style>
+</head>
+<body>
+<canvas id="cv" width="1080" height="1920"></canvas>
+<div id="dim"></div>
+<div id="hud">
+  <div id="planFrame" class="abs"></div>
+  <div id="planTag" class="abs"></div>
+  <div id="hTitle" class="abs"></div>
+  <div id="hSub" class="abs"></div>
+  <div id="yearBox" class="abs"><div id="yearOdo"></div><div id="yearLab"></div></div>
+  <div id="paxP" class="abs panel"><div id="paxK"></div><div id="paxOdo"></div><div id="paxApprox"></div><canvas id="chart" width="812" height="112" style="left:24px;top:124px;width:812px;height:112px"></canvas></div>
+  <div id="ctrs"></div>
+  <div id="card" class="abs panel"><div class="acc"></div><div id="cYear"></div><div id="cTitle"></div><div id="cDet"></div></div>
+  <div id="secT" class="abs"></div><div id="secS" class="abs"></div>
+  <div id="rRows"></div>
+  <div id="sizeA" class="abs" style="left:70px;width:860px;top:930px;font-size:74px;font-weight:900;text-align:center;white-space:nowrap"></div>
+  <div id="sizeB" class="abs" style="left:90px;width:820px;top:1030px;font-size:24px;font-weight:600;color:#c9d2f0;text-align:center;line-height:1.35"></div>
+  <div id="sizeC" class="abs" style="left:70px;width:860px;top:1140px;font-size:22px;font-weight:800;letter-spacing:2px;color:#9fb6ff;text-align:center;white-space:nowrap"></div><div id="rNote" class="abs"></div>
+  <div id="intro"><div id="iKick"></div><div id="iBig"></div><div id="iSky"></div><div id="iRule"></div><div id="iSub"></div></div>
+  <div id="finale">
+    <div id="fL1" class="fl" style="top:330px"></div>
+    <div id="fL2" class="fl" style="top:415px"></div>
+    <div id="fHead"></div>
+    <div id="fRows"></div>
+    <div id="fFoot"></div>
+  </div>
+</div>
+<script type="module" src="./h80.js"></script>
+</body>
+</html>
