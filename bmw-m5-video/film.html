@@ -1,0 +1,1351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BMW M5 Film</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  canvas { display: block; position: absolute; inset: 0; margin: auto;
+           width: min(100vw, 177.78vh); height: min(56.25vw, 100vh); }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+'use strict';
+/* =====================================================================
+   BMW M5 — a motion-graphics film rendered frame by frame on a canvas.
+   drawFrame(t) is a pure function of time t (seconds), so render.mjs
+   can step through it deterministically. Open this file directly in a
+   browser to preview it in real time.
+   ===================================================================== */
+
+const W = 1920, H = 1080, DURATION = 103;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+const C = {
+  ink: '#f3f5f8', mute: '#9aa3b2', dim: '#5a6476', line: 'rgba(255,255,255,0.12)',
+  mBlue: '#3fa9f5', mNavy: '#3a5fc8', mRed: '#e5322d', ev: '#38d6ff', amber: '#ffb24a',
+  warm: '#ffd38a',
+};
+
+/* ---------- maths & easing ---------- */
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const eOC = t => 1 - Math.pow(1 - t, 3);
+const eIC = t => t * t * t;
+const eIOC = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const eOE = t => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
+const eOB = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+const eIOS = t => -(Math.cos(Math.PI * t) - 1) / 2;
+function rng(seed) { // mulberry32
+  return function () {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let r = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// alpha envelope: fade in over [a, a+fi], out over [b-fo, b]
+const env = (t, a, b, fi = 0.35, fo = 0.35) => Math.min(prog(t, a, a + fi), 1 - prog(t, b - fo, b));
+
+/* ---------- text ---------- */
+const font = (w, s, f = 'Inter Display') => `${w} ${s}px '${f}'`;
+function text(str, x, y, o = {}) {
+  ctx.save();
+  ctx.font = font(o.w || 600, o.s || 48, o.f);
+  ctx.fillStyle = o.c || C.ink;
+  ctx.textAlign = o.a || 'left';
+  ctx.textBaseline = o.b || 'alphabetic';
+  ctx.letterSpacing = (o.ls || 0) + 'px';
+  ctx.globalAlpha *= (o.al ?? 1);
+  if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.gb || 30; }
+  ctx.fillText(str, x, y);
+  ctx.restore();
+}
+function measure(str, o = {}) {
+  ctx.save();
+  ctx.font = font(o.w || 600, o.s || 48, o.f);
+  ctx.letterSpacing = (o.ls || 0) + 'px';
+  const m = ctx.measureText(str).width;
+  ctx.restore();
+  return m;
+}
+// Kinetic line: words rise in with a stagger at t0, leave from t1.
+function line(str, x, y, t, t0, t1, o = {}) {
+  const out = o.out ?? 0.4;
+  if (t < t0 || t > t1 + out) return;
+  ctx.save();
+  ctx.font = font(o.w || 600, o.s || 48, o.f);
+  ctx.letterSpacing = (o.ls || 0) + 'px';
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  const words = str.split(' ');
+  const space = ctx.measureText(' ').width;
+  const widths = words.map(w => ctx.measureText(w).width);
+  const total = widths.reduce((a, b) => a + b, 0) + space * (words.length - 1);
+  let cx = o.a === 'center' ? x - total / 2 : o.a === 'right' ? x - total : x;
+  const st = o.st ?? 0.055, d = o.d ?? 0.6;
+  const ex = eIC(prog(t, t1, t1 + out));
+  const size = o.s || 48;
+  words.forEach((wd, i) => {
+    const p = eOC(prog(t, t0 + i * st, t0 + i * st + d));
+    const key = wd.replace(/[.,!?:;—]/g, '');
+    ctx.fillStyle = (o.hl && o.hl[key]) || o.c || C.ink;
+    ctx.globalAlpha = p * (1 - ex) * (o.al ?? 1);
+    if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.gb || 24; }
+    const dy = (1 - p) * size * 0.55 - ex * size * 0.3;
+    ctx.fillText(wd, cx, y + dy);
+    cx += widths[i] + space;
+  });
+  ctx.restore();
+}
+// Typewriter (mono)
+function typed(str, x, y, t, t0, t1, o = {}) {
+  if (t < t0 || t > t1 + 0.3) return;
+  const n = Math.floor(clamp((t - t0) / (o.cps ? 1 / o.cps : 0.035) , 0, str.length));
+  const a = 1 - prog(t, t1, t1 + 0.3);
+  const shown = str.slice(0, n);
+  text(shown, x, y, { ...o, f: o.f || 'JetBrains Mono', al: a * (o.al ?? 1) });
+  if (n < str.length || Math.floor(t * 3) % 2 === 0) {
+    const w = measure(shown, { ...o, f: o.f || 'JetBrains Mono' });
+    ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = o.c || C.mBlue;
+    ctx.fillRect(x + w + 4, y - (o.s || 30) * 0.8, (o.s || 30) * 0.5, (o.s || 30) * 0.95); ctx.restore();
+  }
+}
+function tri(x, y, w, h, p, alpha = 1) { // M-style tricolour stripe
+  const cols = [C.mBlue, C.mNavy, C.mRed];
+  ctx.save(); ctx.globalAlpha = alpha;
+  cols.forEach((c, i) => {
+    const pp = eOC(prog(p, i * 0.15, 0.55 + i * 0.15));
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    const x0 = x + i * (w + 8);
+    ctx.moveTo(x0 + h * 0.6, y); ctx.lineTo(x0 + h * 0.6 + w * pp, y);
+    ctx.lineTo(x0 + w * pp, y + h); ctx.lineTo(x0, y + h); ctx.closePath(); ctx.fill();
+  });
+  ctx.restore();
+}
+
+/* ---------- overlays ---------- */
+const grainCv = document.createElement('canvas');
+grainCv.width = grainCv.height = 256;
+{
+  const g = grainCv.getContext('2d'), id = g.createImageData(256, 256), r = rng(99);
+  for (let i = 0; i < id.data.length; i += 4) {
+    const v = Math.floor(r() * 255);
+    id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255;
+  }
+  g.putImageData(id, 0, 0);
+}
+function grain(t, a = 0.05) {
+  const f = Math.floor(t * 30);
+  const r = rng(f + 1);
+  ctx.save();
+  ctx.globalAlpha = a; ctx.globalCompositeOperation = 'overlay';
+  const ox = Math.floor(r() * 256), oy = Math.floor(r() * 256);
+  ctx.translate(-ox, -oy);
+  ctx.fillStyle = ctx.createPattern(grainCv, 'repeat');
+  ctx.fillRect(0, 0, W + 256, H + 256);
+  ctx.restore();
+}
+function vignette(a = 0.65) {
+  const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.05);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${a})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function black(a) { if (a <= 0) return; ctx.fillStyle = `rgba(0,0,0,${clamp(a)})`; ctx.fillRect(0, 0, W, H); }
+function flash(t, t0, d = 0.35, a = 0.8) {
+  const p = prog(t, t0, t0 + d); if (p <= 0 || p >= 1) return;
+  ctx.fillStyle = `rgba(255,255,255,${a * (1 - eOC(p))})`; ctx.fillRect(0, 0, W, H);
+}
+
+/* =====================================================================
+   THE CAR — a generic modern super-saloon in side profile, facing right.
+   Local units: x 0 (rear) .. 1000 (nose), ground at y = 0, up is -y.
+   k morphs saloon (0) into an estate/Touring roofline (1).
+   ===================================================================== */
+const RW = { x: 222, y: -71 }, FW = { x: 812, y: -71 }, TYRE = 71;
+function L(a, b, k) { return a.map((v, i) => lerp(v, b[i], k)); }
+function bodyPath(k = 0) {
+  const p = new Path2D();
+  const archA = 2.6, archB = 0.54, ar = 84;
+  p.moveTo(30, -28);
+  p.lineTo(150, -28);
+  p.arc(RW.x, RW.y, ar, archA, archB, false);
+  p.lineTo(740, -28);
+  p.arc(FW.x, FW.y, ar, archA, archB, false);
+  p.lineTo(968, -26);
+  p.quadraticCurveTo(992, -30, 997, -58);
+  p.lineTo(1001, -112);
+  p.quadraticCurveTo(1003, -140, 984, -150);
+  p.bezierCurveTo(900, -166, 780, -190, 690, -203);
+  p.bezierCurveTo(640, -232, 592, -270, 548, -288);
+  let s;
+  s = L([500, -299, 400, -299, 345, -287], [500, -299, 400, -298, 300, -293], k); p.bezierCurveTo(...s);
+  s = L([280, -268, 210, -232, 175, -214], [220, -290, 140, -285, 94, -277], k); p.bezierCurveTo(...s);
+  s = L([140, -208, 90, -208, 58, -211], [72, -271, 54, -252, 48, -238], k); p.bezierCurveTo(...s);
+  s = L([44, -215], [42, -228], k); p.lineTo(...s);
+  s = L([30, -207, 18, -190, 14, -170], [30, -212, 18, -194, 14, -170], k); p.bezierCurveTo(...s);
+  p.lineTo(8, -118);
+  p.bezierCurveTo(6, -80, 14, -46, 30, -28);
+  p.closePath();
+  return p;
+}
+function glassPath(k = 0) {
+  const p = new Path2D();
+  p.moveTo(666, -206);
+  p.bezierCurveTo(624, -233, 586, -262, 550, -277);
+  let s = L([500, -286, 400, -286, 352, -275], [500, -286, 400, -285, 300, -282], k); p.bezierCurveTo(...s);
+  s = L([300, -262, 252, -238, 216, -219], [190, -279, 120, -273, 104, -228], k); p.bezierCurveTo(...s);
+  s = L([226, -214], [110, -219], k); p.lineTo(...s);
+  p.lineTo(666, -206);
+  p.closePath();
+  return p;
+}
+const paint = { hi: '#9cc7b6', top: '#4f8270', mid: '#21473b', low: '#0d221c', deep: '#06110d' };
+
+function drawWheel(cx, cy, rot, blur = 0, bp = false) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (bp) {
+    ctx.beginPath(); ctx.arc(0, 0, TYRE, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 54, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore(); return;
+  }
+  // tyre
+  const tg = ctx.createRadialGradient(0, 0, 50, 0, 0, TYRE);
+  tg.addColorStop(0, '#16181c'); tg.addColorStop(0.8, '#0b0c0f'); tg.addColorStop(1, '#050506');
+  ctx.fillStyle = tg; ctx.beginPath(); ctx.arc(0, 0, TYRE, 0, Math.PI * 2); ctx.fill();
+  // rim barrel
+  ctx.fillStyle = '#0e1013'; ctx.beginPath(); ctx.arc(0, 0, 55, 0, Math.PI * 2); ctx.fill();
+  // brake disc + caliper (fixed)
+  const dg = ctx.createRadialGradient(0, 0, 10, 0, 0, 46);
+  dg.addColorStop(0, '#3a3d42'); dg.addColorStop(1, '#5d6168');
+  ctx.fillStyle = dg; ctx.beginPath(); ctx.arc(0, 0, 45, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2a63c9';
+  ctx.beginPath(); ctx.arc(0, 0, 47, -1.25, -0.25); ctx.arc(0, 0, 33, -0.25, -1.25, true); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath(); ctx.arc(0, 0, 46, -1.15, -0.85); ctx.arc(0, 0, 43, -0.85, -1.15, true); ctx.closePath(); ctx.fill();
+  // spokes
+  const sa = 1 - blur * 0.85;
+  ctx.save(); ctx.rotate(rot);
+  for (let i = 0; i < 5; i++) {
+    ctx.save(); ctx.rotate(i * Math.PI * 2 / 5);
+    for (const off of [-0.17, 0.17]) {
+      ctx.save(); ctx.rotate(off);
+      const g = ctx.createLinearGradient(0, -12, 0, -54);
+      g.addColorStop(0, `rgba(70,74,82,${sa})`); g.addColorStop(1, `rgba(150,156,166,${sa})`);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(-6, -12); ctx.lineTo(6, -12); ctx.lineTo(4, -53); ctx.lineTo(-4, -53); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+  if (blur > 0) { // motion smear
+    ctx.fillStyle = `rgba(110,116,126,${blur * 0.45})`;
+    ctx.beginPath(); ctx.arc(0, 0, 53, 0, Math.PI * 2); ctx.arc(0, 0, 14, 0, Math.PI * 2, true); ctx.fill();
+  }
+  // rim lip + hub
+  ctx.strokeStyle = '#7d838c'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, 0, 54, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#1b1d21'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#9aa1ab'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+// x, y: screen position of local (0,0); s: scale.
+function drawCar(x, y, s, o = {}) {
+  const k = o.k || 0, rot = o.rot || 0, blur = o.blur || 0;
+  ctx.save();
+  ctx.translate(x, y); ctx.scale(s, s);
+  if (o.alpha != null) ctx.globalAlpha *= o.alpha;
+  const body = bodyPath(k), glass = glassPath(k);
+
+  if (o.blueprint) {
+    const bp = o.blueprint; // progress 0..1 for line draw-on
+    ctx.lineWidth = 2.2 / s * (o.lw || 1.4);
+    ctx.strokeStyle = o.bpColor || 'rgba(120,200,255,0.9)';
+    ctx.shadowColor = 'rgba(80,180,255,0.6)'; ctx.shadowBlur = 12;
+    ctx.setLineDash([3200, 3200]); ctx.lineDashOffset = 3200 * (1 - bp);
+    ctx.stroke(body); ctx.stroke(glass);
+    ctx.setLineDash([]);
+    ctx.globalAlpha *= clamp(bp * 1.5 - 0.3);
+    ctx.lineWidth = 1.2 / s * 1.4; ctx.strokeStyle = 'rgba(120,200,255,0.45)';
+    ctx.beginPath(); ctx.moveTo(965, -150); ctx.bezierCurveTo(800, -170, 400, -186, 40, -192); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(668, -205); ctx.lineTo(684, -40); ctx.moveTo(456, -212); ctx.lineTo(458, -36); ctx.stroke();
+    ctx.lineWidth = 2.2 / s * 1.4; ctx.strokeStyle = o.bpColor || 'rgba(120,200,255,0.9)';
+    drawWheel(RW.x, RW.y, 0, 0, true); drawWheel(FW.x, FW.y, 0, 0, true);
+    ctx.restore();
+    return;
+  }
+
+  // ground shadow
+  if (!o.noShadow) {
+    ctx.save();
+    const sg = ctx.createRadialGradient(500, 0, 20, 500, 0, 560);
+    sg.addColorStop(0, 'rgba(0,0,0,0.85)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.scale(1, 0.09); ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(500, 0, 560, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  // wheel wells (dark behind wheels)
+  ctx.fillStyle = '#030405';
+  ctx.beginPath(); ctx.arc(RW.x, RW.y, 82, Math.PI, 0); ctx.arc(FW.x, FW.y, 82, Math.PI, 0); ctx.fill();
+  drawWheel(RW.x, RW.y, rot, blur); drawWheel(FW.x, FW.y, rot, blur);
+
+  // body paint
+  const pg = ctx.createLinearGradient(0, -300, 0, -24);
+  pg.addColorStop(0, paint.hi); pg.addColorStop(0.18, paint.top); pg.addColorStop(0.38, paint.mid);
+  pg.addColorStop(0.44, '#5d9480'); pg.addColorStop(0.47, paint.mid);
+  pg.addColorStop(0.75, paint.low); pg.addColorStop(1, paint.deep);
+  ctx.fillStyle = pg; ctx.fill(body);
+
+  ctx.save(); ctx.clip(body);
+  // horizontal environment reflection on the flank
+  const rg = ctx.createLinearGradient(0, -140, 0, -60);
+  rg.addColorStop(0, 'rgba(255,255,255,0)'); rg.addColorStop(0.5, 'rgba(190,230,215,0.10)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = rg; ctx.fillRect(0, -140, 1000, 80);
+  // lower body + sill in darker trim
+  ctx.fillStyle = 'rgba(5,10,9,0.85)';
+  ctx.fillRect(0, -44, 1000, 20);
+  // moving light sweep
+  if (o.sweep != null && o.sweep > 0 && o.sweep < 1) {
+    const sx = lerp(-300, 1300, o.sweep);
+    const lg = ctx.createLinearGradient(sx - 160, 0, sx + 160, 0);
+    lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,255,255,0.42)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = lg;
+    ctx.save(); ctx.transform(1, 0, -0.5, 1, 0, 0); ctx.fillRect(sx - 300, -320, 600, 320); ctx.restore();
+  }
+  ctx.restore();
+
+  // glass
+  const gg = ctx.createLinearGradient(0, -290, 0, -205);
+  gg.addColorStop(0, '#3b4a58'); gg.addColorStop(0.45, '#141b22'); gg.addColorStop(1, '#07090c');
+  ctx.fillStyle = gg; ctx.fill(glass);
+  ctx.save(); ctx.clip(glass);
+  ctx.fillStyle = 'rgba(200,225,255,0.10)';
+  ctx.beginPath(); ctx.moveTo(560, -300); ctx.lineTo(620, -300); ctx.lineTo(500, -200); ctx.lineTo(440, -200); ctx.fill();
+  // pillars
+  ctx.fillStyle = '#05070a';
+  ctx.fillRect(448, -300, 14, 110);
+  if (k > 0.02) { ctx.globalAlpha *= k; ctx.fillRect(lerp(240, 214, k), -300, 16, 110); }
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(10,14,18,0.9)'; ctx.lineWidth = 3; ctx.stroke(glass);
+
+  // character lines
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(220,255,240,0.35)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(965, -148); ctx.bezierCurveTo(800, -168, 400, -184, 40, -190); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(960, -143); ctx.bezierCurveTo(800, -162, 400, -178, 36, -184); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(732, -86); ctx.bezierCurveTo(600, -78, 420, -80, 302, -92); ctx.stroke();
+  // shut lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(668, -205); ctx.bezierCurveTo(676, -150, 690, -100, 690, -44);
+  ctx.moveTo(456, -213); ctx.lineTo(460, -40);
+  const rd = lerp(300, 300, k);
+  ctx.moveTo(lerp(226, 226, k), -214); ctx.bezierCurveTo(rd, -170, rd + 8, -120, 304, -84);
+  ctx.stroke();
+  // handles
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(588, -184, 44, 5); ctx.fillRect(382, -187, 44, 5);
+  // side gill
+  ctx.fillStyle = '#05080a';
+  ctx.beginPath(); ctx.moveTo(716, -132); ctx.lineTo(758, -134); ctx.lineTo(752, -124); ctx.lineTo(712, -122); ctx.fill();
+  // mirror
+  ctx.fillStyle = paint.mid;
+  ctx.beginPath(); ctx.moveTo(660, -206); ctx.quadraticCurveTo(646, -236, 616, -236); ctx.lineTo(602, -226);
+  ctx.quadraticCurveTo(612, -210, 636, -206); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(200,240,225,0.25)'; ctx.fillRect(612, -236, 30, 3);
+  // charge flap
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1.4; ctx.strokeRect(712, -166, 26, 18);
+  // front intake & grille edge
+  ctx.fillStyle = '#04070a';
+  ctx.beginPath(); ctx.moveTo(996, -96); ctx.lineTo(950, -92); ctx.quadraticCurveTo(936, -66, 950, -44); ctx.lineTo(992, -44); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(1000, -138); ctx.lineTo(990, -136); ctx.lineTo(992, -104); ctx.lineTo(1001, -104); ctx.closePath(); ctx.fill();
+  // rear diffuser + exhaust
+  ctx.fillStyle = '#050608';
+  ctx.beginPath(); ctx.moveTo(12, -62); ctx.lineTo(80, -58); ctx.lineTo(70, -30); ctx.lineTo(28, -28); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#5c6068'; ctx.beginPath(); ctx.ellipse(30, -44, 10, 7, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#111'; ctx.beginPath(); ctx.ellipse(30, -44, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+  // lights
+  const lo = o.lights ?? 0;
+  ctx.fillStyle = lo > 0 ? `rgba(240,248,255,${0.5 + 0.5 * lo})` : '#20262c';
+  ctx.beginPath(); ctx.moveTo(987, -150); ctx.lineTo(930, -153); ctx.quadraticCurveTo(920, -146, 930, -140); ctx.lineTo(994, -138); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = lo > 0 ? `rgba(255,40,40,${0.6 + 0.4 * lo})` : '#5a1414';
+  ctx.beginPath(); ctx.moveTo(16, -176); ctx.lineTo(76, -183); ctx.quadraticCurveTo(84, -176, 76, -170); ctx.lineTo(12, -162); ctx.closePath(); ctx.fill();
+  if (lo > 0) {
+    ctx.globalCompositeOperation = 'lighter';
+    let g = ctx.createRadialGradient(990, -146, 2, 990, -146, 90);
+    g.addColorStop(0, `rgba(200,230,255,${0.55 * lo})`); g.addColorStop(1, 'rgba(200,230,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(880, -240, 220, 190);
+    g = ctx.createRadialGradient(30, -172, 2, 30, -172, 90);
+    g.addColorStop(0, `rgba(255,40,40,${0.5 * lo})`); g.addColorStop(1, 'rgba(255,40,40,0)');
+    ctx.fillStyle = g; ctx.fillRect(-70, -260, 200, 180);
+    if (o.beam) { // light cone on the road ahead
+      g = ctx.createLinearGradient(1000, 0, 1000 + 700, 0);
+      g.addColorStop(0, `rgba(210,230,255,${0.22 * lo * o.beam})`); g.addColorStop(1, 'rgba(210,230,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(995, -146); ctx.lineTo(1700, -60); ctx.lineTo(1700, 40); ctx.lineTo(995, -130); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  // crisp top-edge highlight
+  ctx.save(); ctx.clip(body);
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 3; ctx.stroke(body);
+  ctx.restore();
+  ctx.restore();
+}
+
+// Draw the car with a fading reflection on a glossy floor.
+function carWithReflection(x, y, s, o, refl = 0.22) {
+  ctx.save();
+  ctx.translate(0, 2 * y); ctx.scale(1, -1);
+  ctx.globalAlpha = refl;
+  drawCar(x, y, s, { ...o, noShadow: true, beam: 0 });
+  ctx.restore();
+  const g = ctx.createLinearGradient(0, y, 0, y + 330 * s);
+  g.addColorStop(0, 'rgba(5,7,11,0.25)'); g.addColorStop(0.7, 'rgba(5,7,11,1)');
+  ctx.fillStyle = g; ctx.fillRect(0, y, W, H - y);
+  drawCar(x, y, s, o);
+}
+
+function speedLines(t, a, seed = 3, y0 = 200, y1 = 900, dir = -1) {
+  if (a <= 0) return;
+  const r = rng(seed);
+  ctx.save(); ctx.globalAlpha = a;
+  for (let i = 0; i < 46; i++) {
+    const y = y0 + r() * (y1 - y0), len = 200 + r() * 600, sp = 2600 + r() * 2600, ph = r() * 3000;
+    let x = ((ph + t * sp) % (W + len * 2)) - len;
+    if (dir < 0) x = W - x;
+    const g = ctx.createLinearGradient(x, 0, x + len * -dir, 0);
+    g.addColorStop(0, 'rgba(200,225,255,0.35)'); g.addColorStop(1, 'rgba(200,225,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(Math.min(x, x - len * dir), y, len, 1.5 + r() * 1.5);
+  }
+  ctx.restore();
+}
+
+/* ---------- chapter furniture ---------- */
+function chapterCard(t, t0, num, title, d = 1.65) {
+  if (t < t0 || t > t0 + d) return;
+  const lt = t - t0;
+  const a = env(lt, 0, d, 0.25, 0.35);
+  ctx.save();
+  ctx.globalAlpha = a;
+  const p = eOE(prog(lt, 0, 0.9));
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(960 - 380 * p, 590); ctx.lineTo(960 + 380 * p, 590); ctx.stroke();
+  ctx.restore();
+  line(num, 960, 470, t, t0 + 0.05, t0 + d - 0.35, { a: 'center', s: 34, w: 600, f: 'JetBrains Mono', c: C.mBlue, ls: 8 });
+  line(title, 960, 560, t, t0 + 0.12, t0 + d - 0.35, { a: 'center', s: 92, w: 800 });
+  tri(905, 625, 30, 8, prog(lt, 0.3, 1.1), a);
+}
+function header(t, a, b, num, title) {
+  const al = env(t, a, b, 0.4, 0.3);
+  if (al <= 0) return;
+  ctx.save(); ctx.globalAlpha = al;
+  text(num, 120, 96, { f: 'JetBrains Mono', s: 22, w: 600, c: C.mBlue, ls: 4 });
+  ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(170, 89, 40, 1.5);
+  text(title.toUpperCase(), 226, 96, { s: 22, w: 600, c: C.mute, ls: 5 });
+  ctx.restore();
+}
+function clock(t, a, b, hhmm, day) {
+  const al = env(t, a, b, 0.3, 0.3);
+  if (al <= 0) return;
+  ctx.save(); ctx.globalAlpha = al;
+  const p = eOC(prog(t, a, a + 0.5));
+  text(hhmm, 1800, 120 + (1 - p) * 20, { f: 'JetBrains Mono', s: 64, w: 600, a: 'right' });
+  text(day, 1800, 158 + (1 - p) * 20, { s: 22, w: 600, a: 'right', c: C.mute, ls: 6 });
+  ctx.restore();
+}
+
+/* =====================================================================
+   SCENES
+   ===================================================================== */
+
+// 1 — Cold open (0 – 6.2)
+function sCold(t) {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const r = rng(7);
+  for (let i = 0; i < 16; i++) { // passing headlight streaks
+    const st = r() * 6, y = 160 + r() * 760, len = 300 + r() * 900, sp = 1600 + r() * 2600;
+    const red = r() < 0.35, col = red ? '255,60,50' : '190,215,255';
+    const x = -len + (t - st) * sp;
+    if (x > W || x + len < 0) continue;
+    const g = ctx.createLinearGradient(x, 0, x + len, 0);
+    g.addColorStop(0, `rgba(${col},0)`); g.addColorStop(1, `rgba(${col},0.45)`);
+    ctx.fillStyle = g; ctx.fillRect(x, y, len, 2);
+  }
+  // engine "pulse" oscilloscope
+  const blips = [1.0, 2.95, 4.65];
+  let amp = 6;
+  for (const b of blips) amp += 70 * Math.exp(-Math.max(0, t - b) * 4) * (t > b ? 1 : 0);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(63,169,245,0.85)'; ctx.lineWidth = 2.5; ctx.shadowColor = C.mBlue; ctx.shadowBlur = 18;
+  ctx.globalAlpha = 0.75 * env(t, 0, 6.2, 0.6, 0.5);
+  ctx.beginPath();
+  for (let x = 460; x <= 1460; x += 4) {
+    const w = Math.sin(Math.PI * (x - 460) / 1000);
+    const y = 860 + Math.sin(x * 0.045 - t * 14) * Math.sin(x * 0.011 + t * 3) * amp * w * w;
+    x === 460 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke(); ctx.restore();
+  line('Some cars are fast.', 960, 560, t, 0.45, 2.05, { a: 'center', s: 88, w: 700 });
+  line('Some cars are practical.', 960, 560, t, 2.4, 3.95, { a: 'center', s: 88, w: 700 });
+  line('Very few are both.', 960, 575, t, 4.35, 5.85, { a: 'center', s: 116, w: 800, hl: { both: C.mBlue }, glow: 'rgba(63,169,245,0.35)' });
+}
+
+// 2 — Title (6.2 – 13.5)
+function studio(t, warm = false) {
+  ctx.fillStyle = '#04060a'; ctx.fillRect(0, 0, W, H);
+  const g = ctx.createRadialGradient(960, 260, 0, 960, 260, 1100);
+  g.addColorStop(0, warm ? 'rgba(120,100,80,0.28)' : 'rgba(70,110,150,0.30)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const fg = ctx.createLinearGradient(0, 760, 0, H);
+  fg.addColorStop(0, '#0b1017'); fg.addColorStop(1, '#020304');
+  ctx.fillStyle = fg; ctx.fillRect(0, 820, W, H - 820);
+  const hl = ctx.createLinearGradient(0, 0, W, 0);
+  hl.addColorStop(0, 'rgba(120,170,220,0)'); hl.addColorStop(0.5, 'rgba(120,170,220,0.35)'); hl.addColorStop(1, 'rgba(120,170,220,0)');
+  ctx.fillStyle = hl; ctx.fillRect(0, 819, W, 1.5);
+}
+function sTitle(t) {
+  studio(t);
+  const S = 1.25, GY = 822, restX = 960 - 500 * S;
+  // big M5 behind the car
+  const wipe = eIOC(prog(t, 8.5, 9.6));
+  if (wipe > 0) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, W * wipe + 40, H); ctx.clip();
+    ctx.font = font(900, 600); ctx.textAlign = 'center'; ctx.letterSpacing = '-20px';
+    const tg = ctx.createLinearGradient(0, 240, 0, 760);
+    tg.addColorStop(0, 'rgba(255,255,255,0.16)'); tg.addColorStop(1, 'rgba(255,255,255,0.01)');
+    ctx.fillStyle = tg; ctx.fillText('M5', 960, 720);
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 2; ctx.strokeText('M5', 960, 720);
+    ctx.restore();
+  }
+  // car motion: decelerate in, hold, launch out
+  const pin = eOC(prog(t, 6.2, 8.4));
+  const pout = eIC(prog(t, 12.55, 13.5));
+  const x = lerp(-1700, restX, pin) + pout * 2600;
+  const dist = x + 1700;
+  const speed = t < 8.4 ? (1 - pin) : pout;
+  drawCarScene(x, GY, S, { rot: dist / S / TYRE, blur: clamp(speed * 1.4), lights: t > 6.9 ? (t < 7.15 ? (Math.floor(t * 30) % 2) : 1) : 0, sweep: prog(t, 8.6, 9.9) });
+  speedLines(t, (t < 8.4 ? (1 - pin) : pout) * 0.9, 5, 300, 800, 1);
+
+  line('BMW M5 · SEVENTH GENERATION', 960, 170, t, 9.0, 12.6, { a: 'center', s: 26, w: 600, c: C.mute, ls: 10, st: 0.04 });
+  line('Forty years of the super-saloon.', 960, 960, t, 9.6, 12.6, { a: 'center', s: 58, w: 700 });
+  if (t > 9.9 && t < 13.2) tri(912, 990, 26, 7, prog(t, 9.9, 10.8), 1 - prog(t, 12.6, 13.0));
+}
+function drawCarScene(x, gy, s, o) { carWithReflection(x, gy, s, o); }
+
+// 3 — History (13.5 – 28.5)
+function boxySaloon(x, y, s, p) { // a generic 1980s three-box outline (line drawing)
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.strokeStyle = 'rgba(255,215,160,0.75)'; ctx.lineWidth = 2 / s;
+  ctx.shadowColor = 'rgba(255,190,120,0.5)'; ctx.shadowBlur = 10;
+  ctx.setLineDash([3000, 3000]); ctx.lineDashOffset = 3000 * (1 - p);
+  ctx.beginPath();
+  ctx.moveTo(20, -40); ctx.lineTo(20, -150); ctx.lineTo(200, -158); ctx.lineTo(290, -250); ctx.lineTo(610, -252);
+  ctx.lineTo(720, -165); ctx.lineTo(985, -150); ctx.lineTo(990, -42); ctx.lineTo(905, -40);
+  ctx.arc(820, -66, 80, 0.33, Math.PI - 0.33, true); ctx.lineTo(256, -40);
+  ctx.arc(180, -66, 80, 0.33, Math.PI - 0.33, true); ctx.closePath();
+  ctx.moveTo(240, -158); ctx.lineTo(310, -235); ctx.lineTo(450, -237); ctx.lineTo(450, -160); ctx.closePath();
+  ctx.moveTo(470, -160); ctx.lineTo(470, -237); ctx.lineTo(600, -236); ctx.lineTo(690, -163); ctx.closePath();
+  ctx.moveTo(20, -100); ctx.lineTo(990, -100);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = clamp(p * 2 - 1);
+  for (const cx of [180, 820]) {
+    ctx.beginPath(); ctx.arc(cx, -66, 64, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, -66, 40, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+function sHistory(t) {
+  ctx.fillStyle = '#05070b'; ctx.fillRect(0, 0, W, H);
+  chapterCard(t, 13.5, '01', 'The Origin');
+  header(t, 15.2, 28.5, '01', 'The Origin');
+  // Part A — the founding story
+  if (t < 18.6) {
+    const a = env(t, 15.1, 18.6, 0.4, 0.4);
+    ctx.save(); ctx.globalAlpha = a;
+    const g = ctx.createRadialGradient(1380, 600, 0, 1380, 600, 700);
+    g.addColorStop(0, 'rgba(255,170,90,0.10)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    boxySaloon(1010, 780, 0.78, eIOC(prog(t, 15.3, 17.2)));
+    ctx.restore();
+    typed('1984 · BMW MOTORSPORT GmbH', 150, 380, t, 15.25, 18.15, { s: 30, w: 600, c: C.amber, cps: 36 });
+    line('A small team of engineers', 150, 490, t, 15.6, 18.15, { s: 66, w: 700 });
+    line('puts a supercar engine', 150, 570, t, 15.85, 18.15, { s: 66, w: 700 });
+    line('into a family saloon.', 150, 650, t, 16.1, 18.15, { s: 66, w: 700, hl: { family: C.amber, saloon: C.amber } });
+    line('Its 286 PS straight-six came from the M1 supercar.', 150, 740, t, 16.7, 18.15, { s: 30, w: 500, c: C.mute, st: 0.03 });
+    line('The super-saloon is born.', 150, 830, t, 17.1, 18.15, { s: 40, w: 700, c: C.amber });
+  }
+  // Part B — power by generation
+  if (t >= 18.3) {
+    const gens = [
+      ['E28', "'84", 286, 'Straight-six'], ['E34', "'88", 315, 'Straight-six'], ['E39', "'98", 400, 'V8'],
+      ['E60', "'04", 507, 'V10'], ['F10', "'11", 560, 'Twin-turbo V8'], ['F90', "'17", 600, 'TT V8 · AWD'],
+      ['G90', "'24", 727, 'V8 plug-in hybrid'],
+    ];
+    const fade = 1 - prog(t, 28.0, 28.5);
+    ctx.save(); ctx.globalAlpha = fade;
+    line('Seven generations. One idea.', 150, 205, t, 18.4, 30, { s: 64, w: 800 });
+    line('Power at launch, PS', 150, 255, t, 18.7, 30, { s: 28, w: 500, c: C.mute });
+    line('727 PS — the most powerful M5 yet.', 150, 340, t, 25.5, 30, { s: 40, w: 700, c: C.mBlue, glow: 'rgba(63,169,245,0.4)' });
+    const base = 900, x0 = 230, slot = 225, bw = 124, sc = 0.72;
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(170, base, 1600 * eOC(prog(t, 18.5, 19.3)), 2);
+    const tops = [];
+    gens.forEach((g, i) => {
+      const t0 = 18.9 + i * 0.85;
+      const p = eOC(prog(t, t0, t0 + 0.75));
+      const bx = x0 + i * slot, h = g[2] * sc * p, last = i === 6;
+      tops.push([bx + bw / 2, base - g[2] * sc]);
+      if (p <= 0) return;
+      const bg = ctx.createLinearGradient(0, base - h, 0, base);
+      if (last) { bg.addColorStop(0, C.mBlue); bg.addColorStop(0.55, C.mNavy); bg.addColorStop(1, 'rgba(229,50,45,0.9)'); }
+      else { bg.addColorStop(0, 'rgba(160,180,205,0.55)'); bg.addColorStop(1, 'rgba(70,85,105,0.25)'); }
+      ctx.save();
+      if (last) { ctx.shadowColor = 'rgba(63,169,245,0.6)'; ctx.shadowBlur = 40 * p; }
+      ctx.fillStyle = bg; ctx.fillRect(bx, base - h, bw, h);
+      ctx.restore();
+      ctx.fillStyle = last ? '#fff' : 'rgba(255,255,255,0.6)'; ctx.fillRect(bx, base - h, bw, 3);
+      const val = Math.round(g[2] * p);
+      text(String(val), bx + bw / 2, base - h - 18, { a: 'center', s: last ? 54 : 40, w: 800, c: last ? '#fff' : C.ink, al: clamp(p * 3) });
+      text(g[0], bx + bw / 2, base + 50, { a: 'center', s: 34, w: 800, al: clamp(p * 3), c: last ? C.mBlue : C.ink });
+      text(g[1], bx + bw / 2, base + 84, { a: 'center', s: 24, w: 500, f: 'JetBrains Mono', c: C.mute, al: clamp(p * 3) });
+      text(g[3], bx + bw / 2, base + 116, { a: 'center', s: 21, w: 500, c: last ? C.ev : C.dim, al: clamp(p * 2 - 0.5) });
+    });
+    // trend line across bar tops
+    const lp = eIOC(prog(t, 25.0, 26.0));
+    if (lp > 0) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([8, 8]);
+      ctx.beginPath();
+      const n = (tops.length - 1) * lp;
+      tops.forEach(([x, y], i) => {
+        if (i > Math.ceil(n)) return;
+        const yy = y - 74;
+        if (i === 0) ctx.moveTo(x, yy);
+        else if (i <= n) ctx.lineTo(x, yy);
+        else { const f = n - Math.floor(n); const [px, py] = tops[i - 1]; ctx.lineTo(lerp(px, x, f), lerp(py - 74, yy, f)); }
+      });
+      ctx.stroke(); ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+
+// 4 — Anatomy (28.5 – 45)
+function blueprintBg(t, a = 1) {
+  ctx.fillStyle = '#040a14'; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.globalAlpha = a;
+  const off = (t * 12) % 40;
+  ctx.strokeStyle = 'rgba(90,150,220,0.07)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = -off; x < W; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = 0; y < H; y += 40) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(90,150,220,0.13)';
+  ctx.beginPath();
+  for (let x = -off; x < W; x += 200) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = 0; y < H; y += 200) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+  const g = ctx.createRadialGradient(960, 560, 0, 960, 560, 900);
+  g.addColorStop(0, 'rgba(40,110,200,0.16)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+function polyPoint(pts, f) { // point at fraction f along polyline
+  let total = 0; const seg = [];
+  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
+  let d = f * total;
+  for (let i = 0; i < seg.length; i++) {
+    if (d <= seg[i]) { const k = d / seg[i]; return [lerp(pts[i][0], pts[i + 1][0], k), lerp(pts[i][1], pts[i + 1][1], k)]; }
+    d -= seg[i];
+  }
+  return pts[pts.length - 1];
+}
+function flow(pts, t, col, n = 10, speed = 0.6, size = 5, a = 1) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha = a; ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = col.replace('A', '0.25'); ctx.lineWidth = 3;
+  ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+  for (let i = 0; i < n; i++) {
+    const f = ((t * speed + i / n) % 1);
+    const [x, y] = polyPoint(pts, f);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, size * 3);
+    g.addColorStop(0, col.replace('A', '1')); g.addColorStop(1, col.replace('A', '0'));
+    ctx.fillStyle = g; ctx.fillRect(x - size * 3, y - size * 3, size * 6, size * 6);
+  }
+  ctx.restore();
+}
+function callout(t, t0, ax, ay, lx, ly, title, sub, col, align = 'left') {
+  const p = eOC(prog(t, t0, t0 + 0.6));
+  if (p <= 0) return;
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.globalAlpha = 0.9;
+  const mx = lx, my = align === 'below' ? ly - 52 : ly + 22;
+  ctx.beginPath(); ctx.moveTo(ax, ay);
+  const ex = lerp(ax, mx, p), ey = lerp(ay, my, p);
+  ctx.lineTo(ex, ey); ctx.stroke();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(ax, ay, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.arc(ax, ay, 6 + 10 * ((t * 1.5) % 1), 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+  line(title, lx, ly, t, t0 + 0.25, 99, { s: 40, w: 700 });
+  line(sub, lx, ly + 40, t, t0 + 0.4, 99, { s: 26, w: 500, c: col, st: 0.03 });
+}
+function sAnatomy(t) {
+  blueprintBg(t);
+  chapterCard(t, 28.5, '02', 'The Heart');
+  header(t, 30.2, 45, '02', 'The Heart');
+  const S = 1.4, X = 960 - 500 * S, GY = 760;
+  const P = (lx, ly) => [X + lx * S, GY + ly * S];
+  const fade = 1 - prog(t, 44.5, 45);
+  if (t < 30.1) return;
+  ctx.save(); ctx.globalAlpha = fade;
+  // ground line
+  ctx.fillStyle = 'rgba(120,200,255,0.25)'; ctx.fillRect(200, GY, 1520 * eOC(prog(t, 30.1, 30.9)), 1.5);
+  drawCar(X, GY, S, { blueprint: eIOC(prog(t, 30.1, 31.6)) });
+
+  // engine
+  const eA = eOC(prog(t, 31.5, 32.2));
+  if (eA > 0) {
+    ctx.save(); ctx.globalAlpha *= eA;
+    const [ex, ey] = P(650, -188);
+    ctx.shadowColor = 'rgba(255,170,60,0.8)'; ctx.shadowBlur = 30 + 10 * Math.sin(t * 8);
+    ctx.fillStyle = 'rgba(255,170,60,0.22)'; ctx.strokeStyle = C.amber; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(ex, ey, 180 * S, 96 * S, 10); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+    for (let i = 0; i < 4; i++) { // cylinder bank
+      const cx = ex + (30 + i * 40) * S, cy = ey + 34 * S;
+      ctx.beginPath(); ctx.arc(cx, cy, 13 * S, 0, Math.PI * 2); ctx.stroke();
+      const pump = Math.sin(t * 18 + i * 1.7);
+      ctx.fillStyle = `rgba(255,190,90,${0.3 + 0.3 * pump})`; ctx.fill();
+    }
+    // turbos
+    ctx.beginPath(); ctx.arc(ex + 160 * S, ey + 80 * S, 15 * S, 0, Math.PI * 2); ctx.stroke();
+    ctx.save(); ctx.translate(ex + 160 * S, ey + 80 * S); ctx.rotate(t * 20);
+    for (let i = 0; i < 6; i++) { ctx.rotate(Math.PI / 3); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(13 * S, 0); ctx.stroke(); }
+    ctx.restore();
+    ctx.restore();
+  }
+  // e-motor in gearbox
+  const mA = eOC(prog(t, 34.0, 34.7));
+  if (mA > 0) {
+    ctx.save(); ctx.globalAlpha *= mA;
+    const [mx, my] = P(548, -124);
+    ctx.shadowColor = 'rgba(56,214,255,0.9)'; ctx.shadowBlur = 28;
+    ctx.fillStyle = 'rgba(56,214,255,0.2)'; ctx.strokeStyle = C.ev; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(mx, my, 92 * S, 66 * S, 14); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.save(); ctx.translate(mx + 46 * S, my + 33 * S); ctx.rotate(-t * 6);
+    ctx.beginPath(); ctx.arc(0, 0, 22 * S, 0, Math.PI * 2); ctx.stroke();
+    for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI * 2 / 3); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(20 * S, 0); ctx.stroke(); }
+    ctx.restore();
+    ctx.restore();
+  }
+  // battery
+  const bA = eOC(prog(t, 36.4, 37.1));
+  if (bA > 0) {
+    ctx.save(); ctx.globalAlpha *= bA;
+    const [bx, by] = P(290, -64);
+    ctx.shadowColor = 'rgba(56,214,255,0.9)'; ctx.shadowBlur = 24;
+    ctx.fillStyle = 'rgba(56,214,255,0.16)'; ctx.strokeStyle = C.ev; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(bx, by, 290 * S, 30 * S, 6); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+    for (let i = 1; i < 12; i++) { ctx.beginPath(); ctx.moveTo(bx + i * 290 * S / 12, by + 4); ctx.lineTo(bx + i * 290 * S / 12, by + 30 * S - 4); ctx.stroke(); }
+    const lvl = 0.5 + 0.5 * Math.sin(t * 2);
+    ctx.fillStyle = `rgba(56,214,255,${0.25 + 0.25 * lvl})`;
+    ctx.fillRect(bx + 4, by + 4, (290 * S - 8) * (0.3 + 0.7 * prog(t, 37, 39)), 30 * S - 8);
+    ctx.restore();
+  }
+  // power flow
+  const fA = prog(t, 38.8, 39.4);
+  if (fA > 0) {
+    const bat = P(435, -49), mot = P(594, -91), eng = P(655, -110), rr = P(RW.x, RW.y), fr = P(FW.x, FW.y);
+    flow([bat, [bat[0], mot[1] + 30], [mot[0], mot[1] + 30], mot], t, 'rgba(56,214,255,A)', 8, 0.9, 5, fA * fade);
+    flow([eng, [mot[0] + 60, eng[1]], mot], t, 'rgba(255,178,74,A)', 6, 1.1, 5, fA * fade);
+    flow([mot, [mot[0], rr[1]], rr], t, 'rgba(160,220,255,A)', 14, 0.7, 6, fA * fade);
+    flow([[mot[0] + 40, mot[1] + 50], [fr[0], mot[1] + 50], fr], t, 'rgba(160,220,255,A)', 10, 0.7, 6, fA * fade);
+    for (const w of [rr, fr]) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(w[0], w[1], 0, w[0], w[1], 120);
+      g.addColorStop(0, `rgba(120,200,255,${0.35 * fA * fade})`); g.addColorStop(1, 'rgba(120,200,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(w[0] - 120, w[1] - 120, 240, 240);
+      ctx.restore();
+    }
+  }
+  // callouts
+  const [eax, eay] = P(740, -188);
+  callout(t, 32.0, eax, eay, 1180, 215, '4.4-litre twin-turbo V8', '585 PS · petrol', C.amber);
+  const [max_, may] = P(594, -124);
+  callout(t, 34.5, max_, may, 560, 215, 'Electric motor', '197 PS · built into the 8-speed gearbox', C.ev);
+  const [bax, bay] = P(435, -34);
+  callout(t, 36.9, bax, bay, 300, 878, '18.6 kWh battery', 'Up to 43 miles of electric driving (WLTP)', C.ev, 'below');
+  const [xax, xay] = P(FW.x, 0);
+  callout(t, 39.4, xax, xay, 1100, 878, 'M xDrive', 'All-wheel drive — or pure rear-drive 2WD', '#a0dcff', 'below');
+  ctx.restore();
+  // total
+  const tp = prog(t, 41.2, 41.9);
+  if (tp > 0) {
+    ctx.save(); ctx.globalAlpha = fade;
+    ctx.fillStyle = `rgba(4,10,20,${0.55 * tp})`; ctx.fillRect(0, 990, W, 90);
+    ctx.restore();
+    line('Together:', 960 - 470, 1040, t, 41.3, 44.3, { s: 34, w: 500, c: C.mute });
+    line('727 PS · 1,000 Nm', 960 - 300, 1042, t, 41.45, 44.3, { s: 52, w: 800, glow: 'rgba(63,169,245,0.5)', hl: { PS: C.mBlue, Nm: C.mBlue } });
+  }
+}
+
+// 5 — Numbers (45 – 57.5)
+function speedAt(t) {
+  if (t < 51.2) return 0;
+  if (t < 53.4) return 62 * eIOS(prog(t, 51.2, 53.4)) ;
+  if (t < 55.6) return lerp(62, 190, eOC(prog(t, 53.4, 55.6)));
+  return lerp(190, 87, eIOC(prog(t, 55.6, 56.6)));
+}
+function gauge(t, cx, cy, R, v, ev) {
+  const a0 = Math.PI * 0.75, sweep = Math.PI * 1.5, vmax = 200;
+  const ang = v => a0 + sweep * clamp(v / vmax);
+  // track
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 26;
+  ctx.beginPath(); ctx.arc(cx, cy, R, a0, a0 + sweep); ctx.stroke();
+  // progress
+  if (v > 0.2) {
+    const g = ctx.createConicGradient(a0, cx, cy);
+    g.addColorStop(0, ev ? C.ev : C.mBlue); g.addColorStop(0.5, ev ? '#7ae8ff' : C.mNavy); g.addColorStop(0.75, ev ? C.ev : C.mRed); g.addColorStop(1, C.mRed);
+    ctx.strokeStyle = g; ctx.lineWidth = 26; ctx.shadowColor = ev ? C.ev : C.mBlue; ctx.shadowBlur = 30;
+    ctx.beginPath(); ctx.arc(cx, cy, R, a0, ang(v)); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  // ticks
+  for (let s = 0; s <= vmax; s += 5) {
+    const a = ang(s), major = s % 20 === 0;
+    const r1 = R - 34, r2 = R - (major ? 62 : 46);
+    ctx.strokeStyle = s <= v ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = major ? 3 : 1.5;
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); ctx.stroke();
+    if (major) text(String(s), cx + Math.cos(a) * (R - 92), cy + Math.sin(a) * (R - 92) + 9, { a: 'center', s: 24, w: 600, f: 'JetBrains Mono', c: s <= v ? C.ink : C.dim });
+  }
+  // needle
+  const a = ang(v);
+  ctx.strokeStyle = ev ? C.ev : C.mRed; ctx.lineWidth = 5; ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 20;
+  ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * 60, cy + Math.sin(a) * 60); ctx.lineTo(cx + Math.cos(a) * (R - 40), cy + Math.sin(a) * (R - 40)); ctx.stroke();
+  ctx.restore();
+  text(String(Math.round(v)), cx, cy + 40, { a: 'center', s: 132, w: 700, f: 'JetBrains Mono' });
+  text(ev ? 'MPH · ELECTRIC' : 'MPH', cx, cy + 92, { a: 'center', s: 24, w: 600, c: ev ? C.ev : C.mute, ls: 6 });
+}
+function statCard(t, t0, t1, big, unit, cap, col = C.ink, decimals = 0) {
+  if (t < t0 || t > t1 + 0.35) return;
+  const pin = eOC(prog(t, t0, t0 + 0.5)), pout = eIC(prog(t, t1, t1 + 0.35));
+  const val = big * eOC(prog(t, t0, t0 + 1.0));
+  const str = decimals ? val.toFixed(decimals) : Math.round(val).toLocaleString('en-GB');
+  ctx.save();
+  ctx.globalAlpha = pin * (1 - pout);
+  const y = 600 + (1 - pin) * 60 - pout * 60;
+  text(str, 1080, y, { s: 250, w: 800, c: col, ls: -8 });
+  const w = measure(str, { s: 250, w: 800, ls: -8 });
+  text(unit, 1080 + w + 20, y, { s: 80, w: 700, c: C.mBlue });
+  text(cap, 1084, y + 80, { s: 38, w: 500, c: C.mute });
+  ctx.restore();
+}
+function sNumbers(t) {
+  ctx.fillStyle = '#05070b'; ctx.fillRect(0, 0, W, H);
+  chapterCard(t, 45, '03', 'The Numbers');
+  header(t, 46.6, 57.5, '03', 'The Numbers');
+  if (t < 46.5) return;
+  const fade = 1 - prog(t, 57.1, 57.5);
+  ctx.save(); ctx.globalAlpha = fade * prog(t, 46.5, 47.0);
+  const v = speedAt(t), ev = t > 55.6;
+  // background glow that intensifies with speed
+  const g = ctx.createRadialGradient(560, 600, 0, 560, 600, 800);
+  g.addColorStop(0, ev ? 'rgba(56,214,255,0.14)' : `rgba(229,50,45,${0.04 + 0.12 * v / 190})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  speedLines(t, clamp(v / 190) * 0.6 * (ev ? 0.4 : 1), 11, 120, 1000, -1);
+  const shake = !ev && t > 51.2 && t < 55.6 ? (rng(Math.floor(t * 60))() - 0.5) * 4 * v / 190 : 0;
+  ctx.translate(shake, shake * 0.6);
+  gauge(t, 560, 590, 340, v, ev);
+  if (t > 51.2 && t < 53.6) {
+    const el = Math.min(3.5, 3.5 * prog(t, 51.2, 53.4));
+    text(`0–62  ${el.toFixed(1)} s`, 560, 830, { a: 'center', s: 30, w: 600, f: 'JetBrains Mono', c: C.mRed });
+  }
+  ctx.restore();
+  ctx.save(); ctx.globalAlpha = fade;
+  statCard(t, 46.7, 48.95, 727, 'PS', '717 bhp from V8 + electric motor');
+  statCard(t, 49.0, 51.15, 1000, 'Nm', '738 lb ft of torque');
+  statCard(t, 51.2, 53.35, 3.5, 's', '0–62 mph', C.ink, 1);
+  statCard(t, 53.4, 55.55, 190, 'mph', 'Top speed with M Driver’s Package');
+  statCard(t, 55.6, 57.3, 87, 'mph', 'Top speed on electric power alone', C.ev);
+  ctx.restore();
+}
+
+// 6 — A day in Britain (57.5 – 85.5)
+function hills(y, amp, seed, col, step = 6) {
+  const r = rng(seed); const ph = [r() * 6, r() * 6, r() * 6];
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, H);
+  for (let x = 0; x <= W; x += step) {
+    const yy = y + Math.sin(x * 0.0021 + ph[0]) * amp + Math.sin(x * 0.0057 + ph[1]) * amp * 0.4 + Math.sin(x * 0.013 + ph[2]) * amp * 0.12;
+    ctx.lineTo(x, yy);
+  }
+  ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+}
+function village(t, lit) {
+  const r = rng(21);
+  ctx.fillStyle = '#0a0d17';
+  const houses = [];
+  let x = 60;
+  while (x < W) {
+    const w = 70 + r() * 90, h = 50 + r() * 50, roof = 30 + r() * 30, gap = r() < 0.3 ? 120 + r() * 160 : 6 + r() * 30;
+    houses.push([x, w, h, roof]);
+    x += w + gap;
+  }
+  const base = 820;
+  // trees
+  const tr = rng(5);
+  for (let i = 0; i < 22; i++) {
+    const tx = tr() * W, ts = 40 + tr() * 50;
+    ctx.beginPath(); ctx.ellipse(tx, base - ts * 0.9, ts * 0.7, ts, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  for (const [hx, w, h, roof] of houses) {
+    ctx.beginPath(); ctx.moveTo(hx, base); ctx.lineTo(hx, base - h); ctx.lineTo(hx + w / 2, base - h - roof); ctx.lineTo(hx + w, base - h); ctx.lineTo(hx + w, base); ctx.closePath(); ctx.fill();
+    ctx.fillRect(hx + w * 0.7, base - h - roof * 0.9, 10, roof * 0.6); // chimney
+  }
+  // church with spire
+  ctx.beginPath(); ctx.moveTo(1180, base); ctx.lineTo(1180, base - 140); ctx.lineTo(1205, base - 260); ctx.lineTo(1230, base - 140); ctx.lineTo(1230, base);
+  ctx.lineTo(1400, base); ctx.lineTo(1400, base - 90); ctx.lineTo(1230, base - 90); ctx.closePath(); ctx.fill();
+  // lit windows
+  const wr = rng(8);
+  for (const [hx, w, h] of houses) {
+    if (wr() < 0.45) {
+      const on = lit * (wr() < 0.5 ? 1 : clamp((t - 59 - wr() * 4) * 2));
+      if (on <= 0) continue;
+      ctx.fillStyle = `rgba(255,200,110,${0.85 * on})`;
+      ctx.shadowColor = 'rgba(255,190,90,0.9)'; ctx.shadowBlur = 16;
+      ctx.fillRect(hx + w * 0.25, base - h * 0.7, 14, 16);
+      ctx.shadowBlur = 0; ctx.fillStyle = '#0a0d17';
+    }
+  }
+}
+function evPill(x, y, t, label = 'EV MODE') {
+  const w = measure(label, { s: 22, w: 700, ls: 3 }) + 56;
+  ctx.save();
+  ctx.fillStyle = 'rgba(56,214,255,0.14)'; ctx.strokeStyle = C.ev; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(x - w / 2, y - 22, w, 44, 22); ctx.fill(); ctx.stroke();
+  const pulse = 0.5 + 0.5 * Math.sin(t * 6);
+  ctx.fillStyle = C.ev; ctx.shadowColor = C.ev; ctx.shadowBlur = 12 * pulse;
+  ctx.beginPath(); ctx.arc(x - w / 2 + 24, y, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  text(label, x - w / 2 + 40, y + 8, { s: 22, w: 700, c: C.ev, ls: 3 });
+}
+function sDawn(t) { // 59 – 64.5
+  const day = prog(t, 59, 64.5);
+  const sky = ctx.createLinearGradient(0, 0, 0, 840);
+  sky.addColorStop(0, '#070b1c'); sky.addColorStop(0.55, `rgb(${lerp(26, 48, day)},${lerp(30, 46, day)},${lerp(62, 80, day)})`);
+  sky.addColorStop(1, `rgb(${lerp(150, 236, day)},${lerp(80, 128, day)},${lerp(70, 84, day)})`);
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+  const r = rng(4);
+  for (let i = 0; i < 140; i++) { // stars
+    const sx = r() * W, sy = r() * 520, tw = 0.5 + 0.5 * Math.sin(t * 3 + i);
+    ctx.fillStyle = `rgba(255,255,255,${(0.2 + 0.5 * tw) * (1 - day * 0.8) * (1 - sy / 600)})`;
+    ctx.fillRect(sx, sy, 2, 2);
+  }
+  const sun = ctx.createRadialGradient(1500, 820, 0, 1500, 820, 600);
+  sun.addColorStop(0, `rgba(255,190,120,${0.25 + 0.3 * day})`); sun.addColorStop(1, 'rgba(255,150,90,0)');
+  ctx.fillStyle = sun; ctx.fillRect(0, 0, W, H);
+  hills(690, 50, 1, '#1c2140'); hills(760, 34, 2, '#121630');
+  village(t, 1);
+  ctx.fillStyle = '#07080f'; ctx.fillRect(0, 820, W, H - 820);
+  ctx.fillStyle = '#14161f'; ctx.fillRect(0, 846, W, 70);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  for (let x = 0; x < W; x += 90) ctx.fillRect(x, 880, 44, 3);
+  const S = 0.62, cx = lerp(-700, 1350, prog(t, 59, 64.5));
+  drawCar(cx, 900, S, { rot: (cx + 700) / S / TYRE, lights: 1, beam: 1, blur: 0.1 });
+  if (t > 59.6) evPill(cx + 500 * S, 900 - 330 * S - 30, t);
+  { const bg = ctx.createLinearGradient(0, 120, 0, 470); bg.addColorStop(0, 'rgba(0,0,0,0.35)'); bg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, 470); }
+  line('06:40 — The Cotswolds.', 150, 230, t, 59.3, 64.1, { s: 34, w: 600, c: C.warm, f: 'JetBrains Mono' });
+  line('Electric mode.', 150, 320, t, 59.8, 64.1, { s: 72, w: 800, c: C.ev });
+  line('The whole village sleeps through it.', 150, 395, t, 60.3, 64.1, { s: 56, w: 700 });
+}
+function pin(x, y, label, col) {
+  ctx.save();
+  ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 20;
+  ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = 0.5; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y, 24, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  text(label, x, y + 66, { a: 'center', s: 26, w: 700, ls: 6, c: C.ink });
+}
+function miniCar(x, y, s, flip, t) {
+  ctx.save(); ctx.translate(x, y); if (flip) ctx.scale(-1, 1);
+  drawCar(-500 * s, 0, s, { rot: t * 20, lights: 1, noShadow: true });
+  ctx.restore();
+}
+function sCommute(t) { // 64.5 – 71
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#0b1526'); g.addColorStop(1, '#152a40');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  line('07:55 — The commute.', 150, 200, t, 64.7, 70.6, { s: 34, w: 600, c: C.warm, f: 'JetBrains Mono' });
+  line('The average British commute is under 10 miles each way.', 150, 280, t, 65.0, 70.6, { s: 50, w: 700, st: 0.035 });
+  const x0 = 300, x1 = 1620, ry = 520;
+  const lp = eOC(prog(t, 65.2, 66.0));
+  ctx.save(); ctx.globalAlpha = 1 - prog(t, 70.6, 71);
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  ctx.setLineDash([2, 16]);
+  ctx.beginPath(); ctx.moveTo(x0, ry); ctx.lineTo(lerp(x0, x1, lp), ry); ctx.stroke(); ctx.setLineDash([]);
+  if (lp > 0.05) pin(x0, ry, 'HOME', C.ev);
+  if (lp > 0.95) pin(x1, ry, 'WORK', C.warm);
+  text('≈ 8½ miles each way', 960, ry + 66, { a: 'center', s: 26, w: 500, c: C.mute, al: lp });
+  // trip progress: there (66.2–67.8) and back (67.9–69.5)
+  const there = eIOS(prog(t, 66.2, 67.8)), back = eIOS(prog(t, 67.9, 69.5));
+  const trip = (there + back) / 2;
+  if (t > 66.0) {
+    const cx = back > 0 ? lerp(x1, x0, back) : lerp(x0, x1, there);
+    // lit trail
+    ctx.strokeStyle = C.ev; ctx.lineWidth = 6; ctx.shadowColor = C.ev; ctx.shadowBlur = 18;
+    ctx.beginPath(); ctx.moveTo(x0, ry); ctx.lineTo(back > 0 ? x1 : cx, ry); ctx.stroke(); ctx.shadowBlur = 0;
+    miniCar(cx, ry - 30, 0.17, back > 0, t);
+  }
+  // battery bar
+  const by = 690, bw = x1 - x0;
+  const range = 43, used = 17 * trip, pct = 1 - used / range;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.beginPath(); ctx.roundRect(x0, by, bw, 64, 12); ctx.fill();
+  const bg = ctx.createLinearGradient(x0, 0, x1, 0); bg.addColorStop(0, '#1d8fd0'); bg.addColorStop(1, C.ev);
+  ctx.fillStyle = bg; ctx.shadowColor = C.ev; ctx.shadowBlur = 20;
+  ctx.beginPath(); ctx.roundRect(x0, by, bw * pct * eOC(prog(t, 65.6, 66.2)), 64, 12); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(x0 + bw * (1 - 17 / 43), by - 10, 2, 84);
+  text('ELECTRIC RANGE', x0, by - 24, { s: 22, w: 700, ls: 4, c: C.mute, al: prog(t, 65.6, 66) });
+  text(`${Math.round(range - used)} of 43 miles left`, x1, by - 24, { a: 'right', s: 26, w: 600, f: 'JetBrains Mono', c: C.ev, al: prog(t, 65.6, 66) });
+  ctx.restore();
+  line('There and back on electricity alone —', 150, 880, t, 69.0, 70.6, { s: 56, w: 800, c: C.ev });
+  line('without a drop of petrol.', 150, 950, t, 69.25, 70.6, { s: 56, w: 800 });
+}
+function sCharge(t) { // 71 – 76
+  const sky = ctx.createLinearGradient(0, 0, 0, 850);
+  sky.addColorStop(0, '#03050d'); sky.addColorStop(1, '#101a33');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+  const r = rng(12);
+  for (let i = 0; i < 120; i++) { const tw = 0.5 + 0.5 * Math.sin(t * 2 + i * 3); ctx.fillStyle = `rgba(255,255,255,${0.15 + 0.4 * tw})`; ctx.fillRect(r() * W, r() * 600, 2, 2); }
+  // moon arcs across (time-lapse)
+  const mp = prog(t, 71.5, 76);
+  const mx = lerp(1330, 1640, mp), my = 340 - Math.sin(mp * Math.PI) * 110;
+  ctx.save(); ctx.fillStyle = '#e8eef8'; ctx.shadowColor = 'rgba(220,235,255,0.8)'; ctx.shadowBlur = 50;
+  ctx.beginPath(); ctx.arc(mx, my, 40, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  hills(760, 40, 9, '#0b1022');
+  // house
+  ctx.fillStyle = '#080a12';
+  ctx.beginPath(); ctx.moveTo(1380, 860); ctx.lineTo(1380, 560); ctx.lineTo(1600, 420); ctx.lineTo(1820, 560); ctx.lineTo(1820, 860); ctx.closePath(); ctx.fill();
+  ctx.fillRect(1700, 440, 34, 80);
+  const lit = t < 73.5 ? 1 : 1 - prog(t, 73.5, 74);
+  ctx.save(); ctx.fillStyle = `rgba(255,200,110,${0.9 * lit})`; ctx.shadowColor = 'rgba(255,190,90,0.9)'; ctx.shadowBlur = 30 * lit;
+  ctx.fillRect(1480, 610, 80, 90); ctx.fillRect(1640, 610, 80, 90); ctx.restore();
+  ctx.fillStyle = '#05060a'; ctx.fillRect(0, 860, W, H - 860);
+  // wallbox
+  ctx.fillStyle = '#1b2230'; ctx.beginPath(); ctx.roundRect(1396, 700, 46, 70, 6); ctx.fill();
+  ctx.fillStyle = C.ev; ctx.shadowColor = C.ev; ctx.shadowBlur = 14; ctx.fillRect(1412, 712, 14, 4); ctx.shadowBlur = 0;
+  // car parked
+  const S = 0.78, X = 1340 - 1000 * S - 30, GY = 870;
+  drawCar(X, GY, S, { lights: 0 });
+  const port = [X + 725 * S, GY - 157 * S], wb = [1419, 768];
+  const plug = eOC(prog(t, 71.4, 72.0));
+  const end = [lerp(1330, port[0], plug), lerp(866, port[1], plug)];
+  const segs = [
+    [wb, [1408, 860], [1352, 872], [1322, 820]],
+    [[1322, 820], [1300, lerp(800, 720, plug)], [end[0] + 150, end[1] - 30 * plug], end],
+  ];
+  ctx.strokeStyle = '#2a3140'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(...segs[0][0]);
+  for (const sg of segs) ctx.bezierCurveTo(...sg[1], ...sg[2], ...sg[3]);
+  ctx.stroke();
+  ctx.fillStyle = '#3a4252'; ctx.beginPath(); ctx.arc(end[0], end[1], 7, 0, Math.PI * 2); ctx.fill();
+  if (t > 72.0) {
+    const ca = 1 - prog(t, 75.3, 75.7);
+    for (let i = 0; i < 8; i++) { // charge pulses travel from the wallbox to the car
+      const f = (t * 0.8 + i / 8) % 1, sg = segs[f < 0.5 ? 0 : 1], u = (f % 0.5) * 2, v = 1 - u;
+      const b = [v * v * v, 3 * v * v * u, 3 * v * u * u, u * u * u];
+      const px = b.reduce((s2, c, j) => s2 + c * sg[j][0], 0), py = b.reduce((s2, c, j) => s2 + c * sg[j][1], 0);
+      const g = ctx.createRadialGradient(px, py, 0, px, py, 16);
+      g.addColorStop(0, `rgba(56,214,255,${ca})`); g.addColorStop(1, 'rgba(56,214,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(px - 16, py - 16, 32, 32);
+    }
+  }
+  // battery HUD
+  const pct = t < 72.2 ? 60 : lerp(60, 100, eIOS(prog(t, 72.2, 75.2)));
+  const hx = 560, hy = 470;
+  ctx.save(); ctx.globalAlpha = prog(t, 71.8, 72.3);
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.roundRect(hx, hy, 300, 110, 14); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillRect(hx + 300, hy + 35, 12, 40);
+  ctx.fillStyle = pct >= 99.5 ? '#5ef08a' : C.ev; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 24;
+  ctx.beginPath(); ctx.roundRect(hx + 10, hy + 10, 280 * pct / 100, 90, 8); ctx.fill(); ctx.shadowBlur = 0;
+  text(`${Math.round(pct)}%`, hx + 340, hy + 76, { s: 64, w: 700, f: 'JetBrains Mono', c: pct >= 99.5 ? '#5ef08a' : C.ink });
+  ctx.restore();
+  line('18:45 — Home. Plug in.', 150, 200, t, 71.2, 75.6, { s: 34, w: 600, c: C.warm, f: 'JetBrains Mono' });
+  line('Charge overnight on an off-peak tariff.', 150, 290, t, 71.5, 75.6, { s: 60, w: 800 });
+  line('Full by breakfast.', 150, 365, t, 74.2, 75.6, { s: 60, w: 800, c: '#5ef08a' });
+}
+// winding mountain road (map view)
+const ROAD = (() => {
+  const pts = [];
+  const ctrl = [[120, 980], [380, 900], [520, 760], [430, 620], [560, 520], [800, 600], [930, 470], [820, 330], [980, 240], [1200, 330], [1300, 520], [1480, 600], [1600, 450], [1520, 300], [1700, 200], [1900, 140]];
+  for (let i = 0; i < ctrl.length - 1; i++) { // Catmull-Rom
+    const p0 = ctrl[Math.max(0, i - 1)], p1 = ctrl[i], p2 = ctrl[i + 1], p3 = ctrl[Math.min(ctrl.length - 1, i + 2)];
+    for (let s = 0; s < 1; s += 0.05) {
+      const s2 = s * s, s3 = s2 * s;
+      const f = (a, b, c, d) => 0.5 * ((2 * b) + (-a + c) * s + (2 * a - 5 * b + 4 * c - d) * s2 + (-a + 3 * b - 3 * c + d) * s3);
+      pts.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
+    }
+  }
+  pts.push(ctrl[ctrl.length - 1]);
+  return pts;
+})();
+function rain(t, a = 1, n = 260) {
+  const r = rng(77);
+  ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = 'rgba(190,210,235,0.35)'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const sp = 1400 + r() * 900, x0 = r() * (W + 400), y0 = r() * H;
+    const y = (y0 + t * sp) % (H + 100) - 50, x = (x0 - (t * sp) * 0.25) % (W + 400);
+    const xx = x < 0 ? x + W + 400 : x;
+    ctx.moveTo(xx, y); ctx.lineTo(xx - 8, y + 32);
+  }
+  ctx.stroke(); ctx.restore();
+}
+function sWales(t) { // 76 – 82
+  ctx.fillStyle = '#08100d'; ctx.fillRect(0, 0, W, H);
+  // contours
+  ctx.save(); ctx.strokeStyle = 'rgba(120,200,150,0.08)'; ctx.lineWidth = 1.5;
+  for (let k = 0; k < 14; k++) {
+    for (const [cx, cy] of [[700, 420], [1350, 720], [300, 300]]) {
+      ctx.beginPath();
+      for (let a = 0; a <= Math.PI * 2 + 0.01; a += 0.08) {
+        const rr = 40 + k * 34 + Math.sin(a * 3 + k * 0.6 + cx) * 14 + Math.sin(a * 5 + k) * 8;
+        const x = cx + Math.cos(a) * rr * 1.3, y = cy + Math.sin(a) * rr;
+        a === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+  const dp = eIOC(prog(t, 76.3, 77.0));
+  const cp = eIOS(prog(t, 76.8, 81.6));
+  const n = ROAD.length;
+  // road base
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(20,28,26,1)'; ctx.lineWidth = 26;
+  ctx.beginPath(); ROAD.slice(0, Math.max(2, Math.floor(n * dp))).forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 2; ctx.setLineDash([10, 12]); ctx.stroke(); ctx.setLineDash([]);
+  // trail
+  const upto = Math.floor((n - 1) * cp);
+  if (upto > 1) {
+    const g = ctx.createLinearGradient(0, 1000, 1900, 140);
+    g.addColorStop(0, C.mBlue); g.addColorStop(0.6, C.mNavy); g.addColorStop(1, C.mRed);
+    ctx.strokeStyle = g; ctx.lineWidth = 8; ctx.shadowColor = C.mBlue; ctx.shadowBlur = 22;
+    ctx.beginPath(); ROAD.slice(0, upto + 1).forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  // car marker
+  if (t > 76.8) {
+    const fi = (n - 1) * cp, i0 = Math.floor(fi), i1 = Math.min(n - 1, i0 + 1), f = fi - i0;
+    const x = lerp(ROAD[i0][0], ROAD[i1][0], f), y = lerp(ROAD[i0][1], ROAD[i1][1], f);
+    const ang = Math.atan2(ROAD[i1][1] - ROAD[i0][1], ROAD[i1][0] - ROAD[i0][0]);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    ctx.fillStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.roundRect(-18, -9, 36, 18, 5); ctx.fill();
+    ctx.globalCompositeOperation = 'lighter';
+    const bg = ctx.createLinearGradient(18, 0, 140, 0);
+    bg.addColorStop(0, 'rgba(220,235,255,0.4)'); bg.addColorStop(1, 'rgba(220,235,255,0)');
+    ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(18, -6); ctx.lineTo(140, -40); ctx.lineTo(140, 40); ctx.lineTo(18, 6); ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+  rain(t, 0.9);
+  // xDrive torque HUD
+  const ha = prog(t, 78.4, 78.9) * (1 - prog(t, 81.6, 82));
+  if (ha > 0) {
+    ctx.save(); ctx.globalAlpha = ha;
+    const hx = 1500, hy = 760;
+    ctx.fillStyle = 'rgba(5,10,12,0.75)'; ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath(); ctx.roundRect(hx, hy, 300, 220, 16); ctx.fill(); ctx.stroke();
+    text('M xDRIVE · 4WD SPORT', hx + 150, hy + 36, { a: 'center', s: 18, w: 700, ls: 3, c: C.mute });
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(hx + 120, hy + 58, 60, 140, 14); ctx.stroke();
+    const front = 0.3 + 0.18 * Math.sin(t * 2.6) + 0.06 * Math.sin(t * 7.1);
+    [[hx + 98, hy + 72, front], [hx + 182, hy + 72, front], [hx + 98, hy + 150, 1 - front], [hx + 182, hy + 150, 1 - front]].forEach(([x, y, v]) => {
+      ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x, y, 20, 40);
+      ctx.fillStyle = v > 0.55 ? C.mRed : C.mBlue; ctx.fillRect(x, y + 40 * (1 - v), 20, 40 * v);
+    });
+    text(`F ${Math.round(front * 100)}%`, hx + 30, hy + 98, { s: 20, w: 600, f: 'JetBrains Mono', c: C.mBlue });
+    text(`R ${Math.round((1 - front) * 100)}%`, hx + 30, hy + 176, { s: 20, w: 600, f: 'JetBrains Mono', c: C.mRed });
+    ctx.restore();
+  }
+  { const bg = ctx.createRadialGradient(560, 290, 0, 560, 290, 720); bg.addColorStop(0, 'rgba(0,0,0,0.6)'); bg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.save(); ctx.scale(1, 0.45); ctx.translate(0, 290 / 0.45 - 290); ctx.fillStyle = bg; ctx.fillRect(0, 0, 1500, 900); ctx.restore(); }
+  line('SATURDAY · A4069 BLACK MOUNTAIN PASS, WALES', 150, 210, t, 76.2, 81.6, { s: 26, w: 600, c: C.warm, f: 'JetBrains Mono', st: 0.02 });
+  line('It’s raining. Obviously.', 150, 300, t, 76.6, 81.6, { s: 72, w: 800 });
+  line('All-wheel drive finds the grip. Rear-wheel steering', 150, 360, t, 78.4, 81.6, { s: 34, w: 500, c: C.mute, st: 0.03 });
+  line('tightens every hairpin.', 150, 400, t, 78.6, 81.6, { s: 34, w: 500, c: C.mute, st: 0.03 });
+}
+function sTouring(t) { // 82 – 85.5
+  studio(t, true);
+  const k = eIOC(prog(t, 83.0, 83.9));
+  const S = 1.15, X = 960 - 500 * S, GY = 840;
+  carWithReflection(X, GY, S, { k, lights: 1, sweep: prog(t, 83.6, 84.8) });
+  flash(t, 83.4, 0.5, 0.35);
+  line('SUNDAY · 10:30', 960, 190, t, 82.1, 85.1, { a: 'center', s: 26, w: 600, c: C.warm, f: 'JetBrains Mono', ls: 4 });
+  line('The dog. The bikes. The tip run.', 960, 280, t, 82.25, 83.3, { a: 'center', s: 64, w: 800, out: 0.3 });
+  line('There’s an M5 Touring for that.', 960, 280, t, 83.7, 85.1, { a: 'center', s: 64, w: 800, hl: { Touring: C.mBlue } });
+}
+function sBritain(t) {
+  ctx.fillStyle = '#05070b'; ctx.fillRect(0, 0, W, H);
+  chapterCard(t, 57.5, '04', 'A Day in Britain');
+  if (t >= 59 && t < 64.5) sDawn(t);
+  else if (t >= 64.5 && t < 71) sCommute(t);
+  else if (t >= 71 && t < 76) sCharge(t);
+  else if (t >= 76 && t < 82) sWales(t);
+  else if (t >= 82) sTouring(t);
+  if (t >= 59) {
+    header(t, 59.1, 85.3, '04', 'A Day in Britain');
+    const cuts = [59, 64.5, 71, 76, 82, 85.5];
+    for (const c of cuts) black(1 - prog(Math.abs(t - c), 0, 0.22));
+    clock(t, 59.2, 64.3, '06:40', 'TUESDAY');
+    clock(t, 64.7, 70.8, '07:55', 'TUESDAY');
+    clock(t, 71.2, 75.8, t < 73.8 ? '18:45' : '06:30', t < 73.8 ? 'TUESDAY' : 'WEDNESDAY');
+    clock(t, 76.2, 81.8, '09:10', 'SATURDAY');
+  }
+}
+
+// 7 — Why Britain (85.5 – 96)
+function check(x, y, p) {
+  ctx.save();
+  ctx.strokeStyle = C.mBlue; ctx.lineWidth = 3; ctx.globalAlpha = clamp(p * 2);
+  ctx.beginPath(); ctx.arc(x, y, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * eOC(clamp(p * 1.6))); ctx.stroke();
+  const q = clamp(p * 2 - 0.8);
+  if (q > 0) {
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(x - 11, y + 1);
+    const a = clamp(q * 2), b = clamp(q * 2 - 1);
+    ctx.lineTo(x - 11 + 8 * a, y + 1 + 8 * a);
+    if (b > 0) ctx.lineTo(x - 3 + 15 * b, y + 9 - 18 * b);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function sWhy(t) {
+  ctx.fillStyle = '#05070b'; ctx.fillRect(0, 0, W, H);
+  // drifting tricolour diagonals
+  ctx.save(); ctx.globalAlpha = 0.07 * prog(t, 86.5, 87.5) * (1 - prog(t, 95.5, 96));
+  ctx.translate(1500, 540); ctx.rotate(-0.35);
+  [C.mBlue, C.mNavy, C.mRed].forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(-1200 + ((t * 60) % 400), -60 + i * 70 - 300, 3000, 46); });
+  ctx.restore();
+  chapterCard(t, 85.5, '05', 'Why It Works in Britain');
+  header(t, 87.1, 96, '05', 'Why it works in Britain');
+  const rows = [
+    ['Up to 43 miles on electricity', 'Covers a typical commute there and back without using petrol'],
+    ['37–39 g/km CO₂ (WLTP)', 'A far lower company-car tax band than any petrol-only M5'],
+    ['ULEZ-compliant, silent in town', 'Glides through villages and city streets on electric power'],
+    ['All-wheel drive for British weather', 'Rain, frost, wet leaves: M xDrive keeps it planted'],
+    ['Right-hand drive, saloon or Touring', 'From around £110,000 at UK launch'],
+  ];
+  const fade = 1 - prog(t, 95.5, 96);
+  ctx.save(); ctx.globalAlpha = fade;
+  rows.forEach(([h, d], i) => {
+    const t0 = 87.3 + i * 1.2, y = 270 + i * 150;
+    if (t < t0) return;
+    check(200, y - 14, prog(t, t0, t0 + 0.8));
+    line(h, 260, y, t, t0 + 0.1, 99, { s: 48, w: 800, st: 0.04 });
+    line(d, 260, y + 44, t, t0 + 0.3, 99, { s: 28, w: 500, c: C.mute, st: 0.02 });
+  });
+  ctx.restore();
+}
+
+// 8 — Outro (96 – 103)
+function sOutro(t) {
+  ctx.fillStyle = '#030406'; ctx.fillRect(0, 0, W, H);
+  // distant city bokeh
+  const r = rng(31);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 60; i++) {
+    const x = r() * W, y = 640 + r() * 120, rr = 6 + r() * 18, warm = r() < 0.6;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rr);
+    g.addColorStop(0, warm ? 'rgba(255,190,110,0.35)' : 'rgba(140,190,255,0.3)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - rr, y - rr, rr * 2, rr * 2);
+  }
+  ctx.restore();
+  const fg = ctx.createLinearGradient(0, 800, 0, H); fg.addColorStop(0, '#0b0f15'); fg.addColorStop(1, '#010101');
+  ctx.fillStyle = fg; ctx.fillRect(0, 812, W, H - 812);
+  const S = 1.05, GY = 830, X0 = 960 - 500 * S;
+  const go = eIC(prog(t, 97.0, 98.4));
+  const x = X0 + go * 2600;
+  // taillight trails
+  if (go > 0) {
+    const tx = x + 30 * S, ty = GY - 172 * S;
+    const g = ctx.createLinearGradient(X0, 0, tx, 0);
+    g.addColorStop(0, 'rgba(255,40,40,0)'); g.addColorStop(1, 'rgba(255,40,40,0.8)');
+    ctx.save(); ctx.globalAlpha = 1 - prog(t, 99.3, 100.1); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.shadowColor = 'red'; ctx.shadowBlur = 20;
+    ctx.fillRect(X0 - 200, ty - 4, tx - X0 + 200, 8); ctx.restore();
+  }
+  ctx.save(); ctx.globalAlpha = 1 - prog(t, 99.6, 100);
+  carWithReflection(x, GY, S, { rot: go * 2600 / S / TYRE, lights: 1, blur: clamp(go * 3) });
+  ctx.restore();
+  speedLines(t, go * (1 - prog(t, 99, 100)), 17, 250, 850, 1);
+  line('Electric on Monday.', 960, 440, t, 97.8, 99.8, { a: 'center', s: 96, w: 800, hl: { Electric: C.ev } });
+  line('V8 on Saturday.', 960, 560, t, 98.5, 99.8, { a: 'center', s: 96, w: 800, hl: { V8: C.mRed } });
+  // end card
+  if (t > 100) {
+    const p = eOC(prog(t, 100, 100.8));
+    ctx.save(); ctx.globalAlpha = p;
+    const g = ctx.createRadialGradient(960, 520, 0, 960, 520, 700);
+    g.addColorStop(0, 'rgba(63,169,245,0.12)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+    line('BMW M5', 960, 560, t, 100.0, 120, { a: 'center', s: 180, w: 900, ls: -4, d: 0.8, st: 0.12 });
+    tri(888, 600, 40, 10, prog(t, 100.4, 101.3));
+    line('The super-saloon that plugs in.', 960, 700, t, 100.7, 120, { a: 'center', s: 44, w: 600, c: C.mute });
+    line('Figures: BMW WLTP data and UK launch pricing. Real-world electric range varies. Independent film, not affiliated with or endorsed by BMW.', 960, 1030, t, 101.0, 120, { a: 'center', s: 18, w: 500, c: C.dim, st: 0.008, d: 0.4 });
+  }
+}
+
+/* =====================================================================
+   TIMELINE
+   ===================================================================== */
+function drawFrame(t) {
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
+  if (t < 6.2) sCold(t);
+  else if (t < 13.5) sTitle(t);
+  else if (t < 28.5) sHistory(t);
+  else if (t < 45) sAnatomy(t);
+  else if (t < 57.5) sNumbers(t);
+  else if (t < 85.5) sBritain(t);
+  else if (t < 96) sWhy(t);
+  else sOutro(t);
+  // transitions: quick dip at major cuts, flash on the title hit
+  for (const c of [13.5, 28.5, 45, 57.5, 85.5, 96]) black(1 - prog(Math.abs(t - c), 0, 0.2));
+  flash(t, 6.2, 0.45, 0.6);
+  flash(t, 45, 0.3, 0.4);
+  flash(t, 100, 0.5, 0.25);
+  vignette(0.6);
+  grain(t, 0.045);
+  black(prog(t, 102.3, 103));
+  black(1 - prog(t, 0, 0.3));
+  ctx.restore();
+}
+window.drawFrame = drawFrame;
+window.DURATION = DURATION;
+
+if (!location.hash.includes('render')) {
+  const start = performance.now() - (parseFloat(new URLSearchParams(location.search).get('t')) || 0) * 1000;
+  const loop = () => { drawFrame(((performance.now() - start) / 1000) % DURATION); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
