@@ -1,0 +1,961 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Same Position, Different Level</title>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// Every frame is a pure function of time t (seconds), so render.js can step through it.
+const W = 1080, H = 1920, CX = 540, CY = 960;
+const C = {
+  bg: '#07070c', ink: '#f4f4f6', dim: 'rgba(244,244,246,0.5)', faint: 'rgba(244,244,246,0.12)',
+  lime: '#c8ff2e', limeA: a => `rgba(200,255,46,${a})`, pink: '#ff2e63', pinkA: a => `rgba(255,46,99,${a})`,
+  cyan: '#2ee6ff', whiteA: a => `rgba(244,244,246,${a})`,
+};
+const FONT = '"Inter Display", "Inter", sans-serif';
+const MONO = '"JetBrains Mono", monospace';
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const buf = document.createElement('canvas'); buf.width = W; buf.height = H;
+const bctx = buf.getContext('2d');
+let TL = null, L = null;
+
+// ---------------------------------------------------------------- math helpers
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const Ez = {
+  outExpo: x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x),
+  outCubic: x => 1 - Math.pow(1 - x, 3),
+  inCubic: x => x * x * x,
+  inOutCubic: x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2,
+  outBack: x => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); },
+};
+function hash(n) { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+function noise1(t) { const i = Math.floor(t), f = t - i, u = f * f * (3 - 2 * f); return lerp(hash(i), hash(i + 1), u) * 2 - 1; }
+const T = id => L[id].start;
+const TE = id => L[id].end;
+const fmt = n => Math.round(n).toLocaleString('en-US');
+
+// rough per-word timing inside a voice line, weighted by length and pauses
+const _wt = {};
+function wt(id) {
+  if (_wt[id]) return _wt[id];
+  const l = L[id];
+  const raw = l.text.split(/\s+/);
+  const weights = raw.map(w => w.replace(/[^a-z']/gi, '').length + 1.6);
+  const pauses = raw.map(w => /\.\.\.$/.test(w) ? 5 : /[,.]$/.test(w) ? 1.5 : 0);
+  const total = weights.reduce((a, b) => a + b, 0) + pauses.reduce((a, b) => a + b, 0);
+  const span = (l.end - l.start) - 0.06;
+  let acc = 0;
+  _wt[id] = raw.map((w, i) => {
+    const t0 = l.start + span * acc / total;
+    acc += weights[i];
+    const t1 = l.start + span * acc / total;
+    acc += pauses[i];
+    return { w, t0, t1 };
+  });
+  return _wt[id];
+}
+const WT = (id, i) => wt(id)[i].t0;
+
+// ---------------------------------------------------------------- impacts / beats
+function impactSum(t, k) {
+  let s = 0;
+  for (const [ti, a] of TL.impacts) if (t >= ti && t - ti < 2) s += a * Math.exp(-(t - ti) * k);
+  return s;
+}
+function beatPulse(t, k = 9) {
+  let best = 0;
+  for (const b of TL.beats) if (t >= b && t - b < 1) best = Math.max(best, Math.exp(-(t - b) * k));
+  return best;
+}
+
+// ---------------------------------------------------------------- drawing helpers
+function font(size, weight = 900, f = FONT) { return `${weight} ${size}px ${f}`; }
+function textW(str, size, weight = 900, f = FONT, ls = 0) {
+  ctx.save(); ctx.font = font(size, weight, f); ctx.letterSpacing = ls + 'px';
+  const w = ctx.measureText(str).width; ctx.restore(); return w;
+}
+function fit(str, maxW, size, weight = 900, f = FONT, ls = 0) {
+  const w = textW(str, size, weight, f, ls);
+  return w > maxW ? size * maxW / w : size;
+}
+function txt(str, x, y, o = {}) {
+  const { size = 100, weight = 900, color = C.ink, align = 'center', base = 'middle', f = FONT, ls = 0,
+    alpha = 1, glow = 0, glowColor = null, stroke = 0, rgb = 0, scale = 1, rot = 0 } = o;
+  if (alpha <= 0.001) return;
+  ctx.save();
+  ctx.translate(x, y); if (rot) ctx.rotate(rot); if (scale !== 1) ctx.scale(scale, scale);
+  ctx.globalAlpha *= alpha;
+  ctx.font = font(size, weight, f); ctx.textAlign = align; ctx.textBaseline = base; ctx.letterSpacing = ls + 'px';
+  const dx = align === 'center' ? ls / 2 : 0;
+  if (rgb > 0.5) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.85;
+    ctx.fillStyle = C.pink; ctx.fillText(str, dx - rgb, 0);
+    ctx.fillStyle = C.cyan; ctx.fillText(str, dx + rgb, rgb * 0.3);
+    ctx.restore();
+  }
+  if (glow) { ctx.shadowColor = glowColor || color; ctx.shadowBlur = glow; }
+  if (stroke) { ctx.lineWidth = stroke; ctx.strokeStyle = color; ctx.lineJoin = 'round'; ctx.strokeText(str, dx, 0); }
+  else { ctx.fillStyle = color; ctx.fillText(str, dx, 0); }
+  ctx.restore();
+}
+// word that slides up out of a mask
+function maskWord(str, x, y, t0, t, o = {}) {
+  const size = o.size || 100, dur = o.dur || 0.35;
+  const p = Ez.outExpo(prog(t, t0, t0 + dur));
+  if (p <= 0) return;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, y - size * 0.75, W, size * 1.45); ctx.clip();
+  txt(str, x, y + (1 - p) * size * 1.1, o);
+  ctx.restore();
+}
+// big word that slams in (scale down + rgb split)
+function slam(str, x, y, t0, t, o = {}) {
+  if (t < t0) return;
+  const p = prog(t, t0, t0 + 0.28);
+  const s = lerp(o.from || 1.6, 1, Ez.outExpo(p));
+  const rgb = (o.rgb ?? 16) * (1 - Ez.outCubic(prog(t, t0, t0 + 0.4)));
+  txt(str, x, y, { ...o, scale: s * (o.scale || 1), rgb, alpha: (o.alpha ?? 1) * clamp(p * 4) });
+}
+function rrect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function line(x1, y1, x2, y2, color, w = 2, alpha = 1) {
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = color; ctx.lineWidth = w;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+function ring(x, y, r, color, w, alpha = 1) {
+  if (alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = color; ctx.lineWidth = w;
+  ctx.beginPath(); ctx.arc(x, y, Math.max(0.1, r), 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+}
+function dot(x, y, r, color, glow = 0, alpha = 1) {
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.fillStyle = color;
+  if (glow) { ctx.shadowColor = color; ctx.shadowBlur = glow; }
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+}
+// deterministic particle burst
+function burst(t, t0, x, y, o = {}) {
+  const n = o.n || 60, life = o.life || 1.4, seed = o.seed || 1, speed = o.speed || 1400;
+  const age = t - t0; if (age < 0 || age > life) return;
+  ctx.save();
+  for (let i = 0; i < n; i++) {
+    const a = hash(seed * 31 + i) * Math.PI * 2, sp = speed * (0.25 + hash(seed * 17 + i * 3));
+    const d = sp * (1 - Math.exp(-age * 3)) / 3;
+    const px = x + Math.cos(a) * d, py = y + Math.sin(a) * d + 120 * age * age;
+    const fade = 1 - age / life;
+    const sz = (o.size || 9) * (0.4 + hash(seed + i * 7)) * fade;
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = (o.colors || [C.lime, C.ink])[i % (o.colors || [0, 0]).length];
+    if (o.square) { ctx.save(); ctx.translate(px, py); ctx.rotate(age * 6 + i); ctx.fillRect(-sz, -sz, sz * 2, sz * 2); ctx.restore(); }
+    else { ctx.beginPath(); ctx.arc(px, py, sz, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.restore();
+}
+function shockwave(t, t0, x, y, color, o = {}) {
+  const age = t - t0, life = o.life || 0.9;
+  if (age < 0 || age > life) return;
+  const p = age / life;
+  ring(x, y, (o.r || 900) * Ez.outCubic(p), color, (o.w || 26) * (1 - p) + 1, 1 - p);
+}
+function rays(x, y, n, rot, color, alpha, len = 1600, width = 0.09) {
+  if (alpha <= 0) return;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha *= alpha;
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, len);
+  g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  for (let i = 0; i < n; i++) {
+    const a = i / n * Math.PI * 2;
+    ctx.beginPath(); ctx.moveTo(0, 0);
+    ctx.arc(0, 0, len, a - width, a + width); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+function glow(x, y, r, color, alpha) {
+  if (alpha <= 0) return;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.restore();
+}
+function dotGrid(t, color, alpha, drift = 0) {
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.fillStyle = color;
+  const s = 60, oy = (drift * t) % s;
+  for (let y = -s; y < H + s; y += s) for (let x = 30; x < W; x += s) ctx.fillRect(x - 2, y + oy - 2, 4, 4);
+  ctx.restore();
+}
+// retro perspective floor, moving toward the viewer at `speed`
+function floorGrid(t, color, alpha, speed, horizon = 1180) {
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = color; ctx.lineWidth = 2;
+  for (let i = -14; i <= 14; i++) {
+    ctx.beginPath(); ctx.moveTo(CX + i * 18, horizon); ctx.lineTo(CX + i * 260, H + 40); ctx.stroke();
+  }
+  const ph = (t * speed) % 1;
+  for (let k = 0; k < 14; k++) {
+    const z = (k + 1 - ph);
+    const y = horizon + 900 / z - 900 / 14;
+    if (y < horizon || y > H) continue;
+    ctx.globalAlpha = alpha * clamp((y - horizon) / 300);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  ctx.restore();
+}
+function marquee(t, str, color, alpha, size, rows, speed, y0, gap) {
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.font = font(size, 900); ctx.textBaseline = 'middle';
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  const w = ctx.measureText(str).width;
+  for (let r = 0; r < rows; r++) {
+    const dir = r % 2 ? 1 : -1;
+    let x = ((t * speed * dir) % w) - w + (r * 137) % w;
+    for (; x < W; x += w) ctx.strokeText(str, x, y0 + r * gap);
+  }
+  ctx.restore();
+}
+function pin(x, y, s, color, alpha = 1) {
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.scale(s, s);
+  ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 24;
+  ctx.beginPath(); ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(-8, -20, -30, -38, -30, -62); ctx.arc(0, -62, 30, Math.PI, 0); ctx.bezierCurveTo(30, -38, 8, -20, 0, 0);
+  ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = C.bg; ctx.beginPath(); ctx.arc(0, -62, 12, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function bracketLabel(str, x, y, color, alpha = 1, size = 26) {
+  if (alpha <= 0) return;
+  const w = textW(str, size, 600, MONO, 4) + 40;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = color; ctx.lineWidth = 3;
+  const h = size + 26, x0 = x - w / 2, y0 = y - h / 2;
+  ctx.beginPath();
+  ctx.moveTo(x0 + 14, y0); ctx.lineTo(x0, y0); ctx.lineTo(x0, y0 + h); ctx.lineTo(x0 + 14, y0 + h);
+  ctx.moveTo(x0 + w - 14, y0); ctx.lineTo(x0 + w, y0); ctx.lineTo(x0 + w, y0 + h); ctx.lineTo(x0 + w - 14, y0 + h);
+  ctx.stroke(); ctx.restore();
+  txt(str, x, y + 1, { size, weight: 600, f: MONO, color, ls: 4, alpha });
+}
+function typeOn(str, x, y, t0, t, cps, o = {}) {
+  if (t < t0) return;
+  const n = Math.min(str.length, Math.floor((t - t0) * cps));
+  const cursor = n < str.length && Math.floor(t * 8) % 2 === 0 ? '▌' : '';
+  txt(str.slice(0, n) + cursor, x, y, o);
+}
+
+// ---------------------------------------------------------------- 3D helix (spiral staircase)
+const HX = { R1: 70, R2: 300, S: 14, h: 150, th0: -Math.PI / 2 };
+function makeCam({ pitch, yaw, dist, focal, ty = 0, cx = CX, cy = CY }) {
+  const sp = Math.sin(pitch), cp = Math.cos(pitch), sy = Math.sin(yaw), cyw = Math.cos(yaw);
+  return (x, y, z) => {
+    const py = y - ty;
+    const x1 = x * cyw - z * sy, z1 = x * sy + z * cyw;
+    const depth = -py * sp + z1 * cp + dist;
+    const k = focal / depth;
+    return { x: cx + x1 * k, y: cy - (py * cp + z1 * sp) * k, d: depth, k };
+  };
+}
+function helixPoint(theta, r, y) { return [r * Math.cos(theta), y, r * Math.sin(theta)]; }
+// draws steps up to height `topY` (steps appear as you climb). `lit(y)` -> 0..1 lime amount
+function drawHelix(cam, topY, o = {}) {
+  const { S, h, R1, R2, th0 } = HX;
+  const dth = Math.PI * 2 / S, rise = h / S;
+  const nSteps = Math.ceil((topY + rise) / rise);
+  const faces = [];
+  for (let k = 0; k < nSteps; k++) {
+    const a = th0 + k * dth, b = a + dth * 0.94, y = (k + 1) * rise;
+    const appear = clamp((topY + rise * 6 - y) / (rise * 6));
+    if (appear <= 0) continue;
+    const P = (th, r, yy) => cam(...helixPoint(th, r, yy));
+    const ia = P(a, R1, y), oa = P(a, R2, y), ob = P(b, R2, y), ib = P(b, R1, y);
+    const oa2 = P(a, R2, y - rise), ob2 = P(b, R2, y - rise), ia2 = P(a, R1, y - rise);
+    const c = P((a + b) / 2, (R1 + R2) / 2, y);
+    faces.push({ d: c.d, k, y, appear, mid: (a + b) / 2, top: [ia, oa, ob, ib], side: [oa, ob, ob2, oa2], riser: [ia, oa, oa2, ia2] });
+  }
+  faces.sort((p, q) => q.d - p.d);
+  const fogNear = o.fogNear ?? 1e9, fogFar = o.fogFar ?? 1e9;
+  for (const f of faces) {
+    const fog = 1 - clamp((f.d - fogNear) / (fogFar - fogNear));
+    const lit = o.lit ? o.lit(f.y) : 0;
+    const sh = 0.62 + 0.38 * (0.5 + 0.5 * Math.cos(f.mid - 0.7));
+    const al = f.appear * fog;
+    if (al <= 0.01) continue;
+    const poly = (pts, fill, stroke, lw) => {
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath();
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+    };
+    ctx.save(); ctx.globalAlpha = al; ctx.lineJoin = 'round';
+    const mix = (a, b) => `rgb(${Math.round(lerp(a[0], b[0], lit) * sh)},${Math.round(lerp(a[1], b[1], lit) * sh)},${Math.round(lerp(a[2], b[2], lit) * sh)})`;
+    poly(f.riser, mix([22, 22, 30], [70, 92, 18]), null);
+    poly(f.side, mix([30, 30, 40], [96, 124, 22]), null);
+    poly(f.top, mix([46, 46, 58], [176, 226, 40]), lit > 0.5 ? 'rgba(230,255,160,0.9)' : 'rgba(244,244,246,0.35)', 2);
+    ctx.restore();
+  }
+}
+function helixState(t) {
+  const lap0 = TL.lap0, per = TL.lap_period;
+  const laps = Math.max(0, (t - lap0) / per);
+  return { laps, theta: HX.th0 + laps * Math.PI * 2, y: laps * HX.h };
+}
+
+// ---------------------------------------------------------------- HUD state
+function xpState(t) {
+  const keys = [
+    [0, 0.18, 12480],
+    [T('higher') + 0.2, 0.30, 12880],
+    [T('xp1x') + 0.8, 0.48, 13130],
+    [T('xp2x') + 0.8, 0.66, 13630],
+    [T('xp3x') + 0.8, 0.86, 14630],
+    [TL.load_done, 0.94, 14900],
+    [TL.levelup, 1.0, 15200],
+  ];
+  let frac = keys[0][1], xp = keys[0][2];
+  for (let i = 1; i < keys.length; i++) {
+    const p = Ez.outCubic(prog(t, keys[i][0], keys[i][0] + 0.5));
+    if (p > 0) { frac = lerp(keys[i - 1][1], keys[i][1], p); xp = lerp(keys[i - 1][2], keys[i][2], p); }
+  }
+  let lvl = 7;
+  if (t >= TL.levelup) { lvl = 8; frac = lerp(1, 0.04, Ez.outCubic(prog(t, TL.levelup + 0.6, TL.levelup + 1.2))); }
+  return { frac, xp, lvl };
+}
+function altitude(t) {
+  if (t < T('side')) return 0;
+  if (t < T('punch1')) return helixState(t).y * 2;
+  if (t < T('climb')) return helixState(T('punch1')).y * 2 + (t - T('punch1')) * 60;
+  if (t < T('lookdown')) return altitude(T('climb') - 0.001) + Ez.inCubic(prog(t, T('climb'), T('lookdown'))) * 1400;
+  return altitude(T('lookdown') - 0.001) + (t - T('lookdown')) * 40;
+}
+
+function hud(t, alpha) {
+  if (alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha = alpha;
+  const st = xpState(t);
+  const pop = t >= TL.levelup ? Math.exp(-(t - TL.levelup) * 4) : 0;
+  // corner brackets
+  ctx.strokeStyle = C.whiteA(0.35); ctx.lineWidth = 3;
+  const m = 48, l = 44;
+  for (const [x, y, sx, sy] of [[m, m, 1, 1], [W - m, m, -1, 1], [m, H - m, 1, -1], [W - m, H - m, -1, -1]]) {
+    ctx.beginPath(); ctx.moveTo(x, y + sy * l); ctx.lineTo(x, y); ctx.lineTo(x + sx * l, y); ctx.stroke();
+  }
+  // level pill
+  const lvlColor = st.lvl > 7 ? C.lime : C.ink;
+  ctx.save(); ctx.translate(170, 128); ctx.scale(1 + pop * 0.4, 1 + pop * 0.4);
+  rrect(-82, -28, 164, 56, 28); ctx.strokeStyle = lvlColor; ctx.lineWidth = 3; ctx.stroke();
+  if (pop > 0.02) { ctx.fillStyle = C.limeA(pop * 0.5); ctx.fill(); }
+  ctx.restore();
+  txt(`LVL ${String(st.lvl).padStart(2, '0')}`, 170, 130, { size: 28, weight: 700, f: MONO, color: lvlColor, ls: 2, scale: 1 + pop * 0.4 });
+  // XP bar
+  const bx = 290, bw = 470, by = 128;
+  rrect(bx, by - 8, bw, 16, 8); ctx.fillStyle = C.whiteA(0.12); ctx.fill();
+  if (st.frac > 0.01) {
+    rrect(bx, by - 8, bw * st.frac, 16, 8); ctx.fillStyle = C.lime; ctx.shadowColor = C.lime; ctx.shadowBlur = 18; ctx.fill(); ctx.shadowBlur = 0;
+  }
+  txt('XP', bx, by - 34, { size: 20, weight: 600, f: MONO, color: C.dim, align: 'left', ls: 3 });
+  txt(`${Math.round(st.frac * 100)}%`, bx + bw, by - 34, { size: 20, weight: 600, f: MONO, color: C.dim, align: 'right', ls: 2 });
+  txt(fmt(st.xp), W - 82, 130, { size: 28, weight: 700, f: MONO, color: C.ink, align: 'right', ls: 1 });
+  // bottom readouts: position never changes, altitude does
+  const alt = altitude(t);
+  txt('POS  X 000.0  Y 000.0', 82, H - 132, { size: 22, weight: 600, f: MONO, color: C.dim, align: 'left', ls: 2 });
+  txt(`ALT  ${String(Math.round(alt)).padStart(5, '0')} m`, W - 82, H - 132, { size: 22, weight: 600, f: MONO, color: alt > 0 ? C.lime : C.dim, align: 'right', ls: 2 });
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- scenes
+function sceneHook(t) {
+  const hb = beatPulse(t, 7);
+  // tunnel of squares pulsing with the heartbeat
+  for (let i = 0; i < 9; i++) {
+    const z = ((i + t * 0.6) % 9) / 9;
+    const s = 120 + z * z * 1500;
+    ctx.save(); ctx.globalAlpha = (1 - z) * 0.18 * z * 3; ctx.strokeStyle = C.pink; ctx.lineWidth = 3;
+    ctx.strokeRect(CX - s / 2, CY - s / 2 - 40, s, s); ctx.restore();
+  }
+  glow(CX, CY, 700, C.pinkA(0.22), 0.4 + hb * 0.6);
+  const w = wt('hook');
+  maskWord('YOU FEEL', CX, 735, w[0].t0, t, { size: 92, weight: 800, ls: 14, color: C.dim });
+  const ts = w[2].t0 - 0.03;
+  if (t >= ts) {
+    const jit = 4 + 6 * Math.exp(-(t - ts) * 3);
+    const jx = noise1(t * 30) * jit, jy = noise1(t * 30 + 50) * jit;
+    slam('STUCK.', CX + jx, 975 + jy, ts, t, { size: fit('STUCK.', 820, 290), from: 1.8, rgb: 26 });
+    // cage closes around the word
+    const p = Ez.outExpo(prog(t, ts + 0.15, ts + 0.6));
+    const bw = 940, bh = 300, x0 = CX - bw / 2, y0 = 975 - bh / 2;
+    ctx.save(); ctx.strokeStyle = C.pink; ctx.lineWidth = 8; ctx.shadowColor = C.pink; ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0); ctx.lineTo(x0 + bw * p, y0);
+    ctx.moveTo(x0 + bw, y0 + bh); ctx.lineTo(x0 + bw - bw * p, y0 + bh);
+    ctx.stroke();
+    for (let i = 0; i < 7; i++) {
+      const bp = Ez.outExpo(prog(t, ts + 0.3 + i * 0.04, ts + 0.6 + i * 0.04));
+      const x = x0 + 40 + i * (bw - 80) / 6;
+      ctx.globalAlpha = 0.85; ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y0 + bh * bp); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  floorGrid(t, C.pink, 0.25, 1.4, 1320);
+}
+
+function sceneSame(t) {
+  marquee(t, 'SAME • SAME • SAME • ', C.ink, 0.07, 170, 11, 90, 70, 180);
+  const ids = ['same1', 'same2', 'same3'];
+  const words = ['ROOM', 'ROUTINE', 'VIEW'];
+  let k = 0; for (let i = 0; i < 3; i++) if (t >= T(ids[i])) k = i;
+  const t0 = T(ids[k]);
+  const bump = Math.exp(-(t - t0) * 10);
+  txt('SAME', CX, 650, { size: 230, stroke: 4, color: C.ink, scale: 1 + bump * 0.06 });
+  const nw = words[k];
+  slam(nw, CX, 870, t0, t, { size: fit(nw, 960, 230), from: 1.5, rgb: 18 });
+  // icons
+  const iy = 1250, lt = t - t0, ia = clamp(lt * 5);
+  ctx.save(); ctx.globalAlpha = ia; ctx.strokeStyle = C.pink; ctx.lineWidth = 5; ctx.shadowColor = C.pink; ctx.shadowBlur = 16;
+  if (k === 0) { // wireframe room (cube)
+    const a = t * 0.9, s = 150;
+    const V = [];
+    for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) {
+      const x1 = x * Math.cos(a) - z * Math.sin(a), z1 = x * Math.sin(a) + z * Math.cos(a);
+      const y1 = y * Math.cos(0.5) - z1 * Math.sin(0.5), z2 = y * Math.sin(0.5) + z1 * Math.cos(0.5);
+      const kk = 4 / (4 + z2); V.push([CX + x1 * s * kk, iy + y1 * s * kk]);
+    }
+    const E = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+    ctx.beginPath(); for (const [p, q] of E) { ctx.moveTo(...V[p]); ctx.lineTo(...V[q]); } ctx.stroke();
+  } else if (k === 1) { // clock spinning
+    ctx.beginPath(); ctx.arc(CX, iy, 150, 0, Math.PI * 2); ctx.stroke();
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; ctx.beginPath(); ctx.moveTo(CX + Math.cos(a) * 125, iy + Math.sin(a) * 125); ctx.lineTo(CX + Math.cos(a) * 145, iy + Math.sin(a) * 145); ctx.stroke(); }
+    const ha = t * 3, ma = t * 18;
+    ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(CX, iy); ctx.lineTo(CX + Math.cos(ha) * 75, iy + Math.sin(ha) * 75); ctx.stroke();
+    ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(CX, iy); ctx.lineTo(CX + Math.cos(ma) * 115, iy + Math.sin(ma) * 115); ctx.stroke();
+  } else { // the same window, the same view
+    ctx.strokeRect(CX - 140, iy - 170, 280, 340);
+    ctx.beginPath(); ctx.moveTo(CX, iy - 170); ctx.lineTo(CX, iy + 170); ctx.moveTo(CX - 140, iy); ctx.lineTo(CX + 140, iy); ctx.stroke();
+    ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(CX + 60, iy - 80, 32, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(CX - 140, iy + 90); ctx.lineTo(CX - 40, iy + 40); ctx.lineTo(CX + 40, iy + 100); ctx.lineTo(CX + 140, iy + 60); ctx.stroke();
+  }
+  ctx.restore();
+  // day counter: time passes, position doesn't
+  const day = 212 + Math.floor((t - T('same1')) / 0.07);
+  txt(`DAY ${day}`, CX, 1530, { size: 64, weight: 700, f: MONO, color: C.ink, ls: 6 });
+  txt('POSITION: UNCHANGED', CX, 1610, { size: 26, weight: 600, f: MONO, color: C.pink, ls: 8, alpha: 0.6 + 0.4 * Math.sin(t * 12) });
+}
+
+function sceneRun(t) {
+  // speed lines
+  ctx.save();
+  for (let i = 0; i < 26; i++) {
+    const y = 200 + hash(i * 3.1) * 1500, sp = 900 + hash(i) * 1800, len = 80 + hash(i * 7) * 260;
+    const x = W - ((t * sp + hash(i * 9) * 3000) % (W + len + 400)) + 200;
+    ctx.globalAlpha = 0.08 + hash(i * 5) * 0.12; ctx.fillStyle = C.ink; ctx.fillRect(x, y, len, 3);
+  }
+  ctx.restore();
+  // hamster wheel
+  const wx = CX, wy = 690, R = 290, rot = -t * 5.5;
+  ctx.save(); ctx.strokeStyle = C.whiteA(0.85); ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(wx, wy, R, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 3; ctx.strokeStyle = C.whiteA(0.35);
+  ctx.beginPath(); ctx.arc(wx, wy, R - 26, 0, Math.PI * 2); ctx.stroke();
+  for (let i = 0; i < 24; i++) {
+    const a = rot + i / 24 * Math.PI * 2;
+    ctx.beginPath(); ctx.moveTo(wx + Math.cos(a) * (R - 26), wy + Math.sin(a) * (R - 26)); ctx.lineTo(wx + Math.cos(a) * R, wy + Math.sin(a) * R); ctx.stroke();
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = rot + i / 6 * Math.PI * 2;
+    ctx.beginPath(); ctx.moveTo(wx, wy); ctx.lineTo(wx + Math.cos(a) * (R - 26), wy + Math.sin(a) * (R - 26)); ctx.stroke();
+  }
+  ctx.restore();
+  dot(wx, wy, 14, C.ink);
+  // runner: a bouncing capsule at the bottom of the wheel, going nowhere
+  const bounce = Math.abs(Math.sin(t * 16)) * 26;
+  const ry = wy + R - 60 - bounce;
+  ctx.save(); ctx.fillStyle = C.pink; ctx.shadowColor = C.pink; ctx.shadowBlur = 30;
+  rrect(wx - 26, ry - 58, 52, 92, 26); ctx.fill(); ctx.restore();
+  for (let i = 0; i < 4; i++) line(wx - 60 - i * 26, ry - 40 + i * 22, wx - 110 - i * 40, ry - 40 + i * 22, C.pink, 4, 0.6);
+  // words
+  const w = wt('run');
+  if (t < T('nowhere')) {
+    maskWord('RUNNING', CX, 1170, w[3].t0 - 0.05, t, { size: 190 });
+    maskWord('FOR MONTHS...', CX, 1310, w[4].t0, t, { size: 74, weight: 800, ls: 10, color: C.dim });
+  } else {
+    const n0 = T('nowhere');
+    maskWord('GOING', CX, 1140, wt('nowhere')[1].t0 - 0.05, t, { size: 84, weight: 800, ls: 18, color: C.dim });
+    const tn = wt('nowhere')[2].t0 - 0.03;
+    const glitchy = t > tn ? noise1(t * 40) * 8 * Math.exp(-(t - tn) * 2) : 0;
+    slam('NOWHERE.', CX + glitchy, 1290, tn, t, { size: fit('NOWHERE.', 980, 200), color: C.pink, glow: 30, rgb: 22 });
+  }
+  // progress bar that keeps resetting
+  const r0 = T('run'), [rs1, rs2] = TL.resets;
+  let pct;
+  if (t < rs1) pct = 0.97 * Ez.outCubic(prog(t, r0, rs1));
+  else if (t < rs2) pct = 0.98 * Ez.outCubic(prog(t, rs1 + 0.1, rs2));
+  else pct = 0;
+  const bx = 140, bw = 800, by = 1490;
+  txt('PROGRESS', bx, by - 40, { size: 24, weight: 600, f: MONO, color: C.dim, align: 'left', ls: 6 });
+  txt(`${Math.floor(pct * 100)}%`, bx + bw, by - 40, { size: 24, weight: 700, f: MONO, color: C.ink, align: 'right', ls: 2 });
+  ctx.save(); ctx.strokeStyle = C.whiteA(0.6); ctx.lineWidth = 3; ctx.strokeRect(bx, by - 18, bw, 36);
+  const segs = 25, filled = Math.floor(pct * segs);
+  for (let i = 0; i < filled; i++) { ctx.fillStyle = C.ink; ctx.fillRect(bx + 6 + i * (bw - 12) / segs, by - 12, (bw - 12) / segs - 5, 24); }
+  ctx.restore();
+  for (const rs of TL.resets) {
+    const a = 1 - prog(t, rs, rs + 0.5);
+    if (t >= rs && a > 0) txt('ERROR · RESET TO 0%', CX, by + 62, { size: 26, weight: 700, f: MONO, color: C.pink, ls: 6, alpha: a * (Math.floor(t * 20) % 2 ? 1 : 0.4) });
+  }
+  const steps = 48213 + Math.floor((t - r0) * 37);
+  txt(`STEPS ${fmt(steps)}`, bx, by + 120, { size: 24, weight: 600, f: MONO, color: C.dim, align: 'left', ls: 4 });
+  txt('DISTANCE 0.00 km', bx + bw, by + 120, { size: 24, weight: 600, f: MONO, color: C.pink, align: 'right', ls: 4 });
+}
+
+function sceneBut(t) {
+  const t0 = T('but'), lt = t - t0;
+  const p = Ez.outExpo(prog(t, t0, t0 + 0.6));
+  line(CX - 460 * p, 1090, CX + 460 * p, 1090, C.whiteA(0.4), 2);
+  txt('BUT', CX, 900, { size: 300, scale: 1.25 - 0.25 * p + lt * 0.03, alpha: clamp(lt * 8) });
+  const w = wt('but');
+  typeOn("HERE'S THE THING.", CX, 1170, w[1].t0, t, 30, { size: 46, weight: 700, f: MONO, ls: 10, color: C.lime });
+}
+
+function sceneSpiral(t) {
+  const hs = helixState(t);
+  const tSide = T('side');
+  const rev = Ez.inOutCubic(prog(t, tSide + 0.1, tSide + 1.5));
+  const pitch = lerp(Math.PI / 2 - 0.0001, 0.42, rev);
+  const fitScale = Math.min(1, 1250 / (hs.y + 380));
+  const scale = lerp(1, fitScale, rev);
+  const yaw = rev * Math.sin((t - tSide) * 0.6) * 0.5;
+  const cy = 880;
+  const cam = makeCam({ pitch, yaw, dist: 9000, focal: 9000 * scale, ty: hs.y * 0.5 * rev + 20, cy });
+  // backdrop
+  glow(CX, cy, 650, rev > 0 ? C.limeA(0.18) : C.whiteA(0.08), 0.5 + rev * 0.5);
+  dotGrid(t, C.ink, 0.07, rev * 120);
+  const intro = Ez.outExpo(prog(t, T('above') - 0.05, T('above') + 0.7));
+  ctx.save(); ctx.globalAlpha = intro;
+  ctx.translate(CX, cy); ctx.scale(lerp(0.6, 1, intro), lerp(0.6, 1, intro)); ctx.rotate((1 - intro) * -1.2); ctx.translate(-CX, -cy);
+  // "going in circles" ring text
+  const ringA = clamp(prog(t, T('circles'), T('circles') + 0.4)) * (1 - rev);
+  if (ringA > 0) {
+    const str = 'GOING IN CIRCLES • GOING IN CIRCLES • GOING IN CIRCLES • ';
+    ctx.save(); ctx.globalAlpha *= ringA; ctx.translate(CX, cy); ctx.rotate(-t * 0.5);
+    ctx.font = font(34, 700, MONO); ctx.fillStyle = C.whiteA(0.55); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let i = 0; i < str.length; i++) {
+      ctx.save(); ctx.rotate(i / str.length * Math.PI * 2); ctx.fillText(str[i], 0, -390); ctx.restore();
+    }
+    ctx.restore();
+  }
+  drawHelix(cam, hs.y + 1, { lit: y => rev * clamp((hs.y - y) / 60 + 1) * clamp((t - tSide - 0.6) * 2 - (y / Math.max(1, hs.y)) * 0.8) });
+  // the pin at the starting spot + lap pings
+  const pp = cam(...helixPoint(HX.th0, (HX.R1 + HX.R2) / 2, 0));
+  for (let k = 1; k < 12; k++) {
+    const tp = TL.lap0 + k * TL.lap_period;
+    if (t >= tp && t < tp + 0.9 && t < tSide + 0.3) shockwave(t, tp, pp.x, pp.y, C.pink, { r: 160, w: 10, life: 0.9 });
+  }
+  // dot + trail
+  const trailN = 14;
+  for (let i = trailN; i >= 0; i--) {
+    const tt = t - i * 0.025;
+    const s = helixState(tt);
+    const p = cam(...helixPoint(s.theta, (HX.R1 + HX.R2) / 2, s.y + 8));
+    dot(p.x, p.y, 20 * (1 - i / trailN * 0.7), i ? (rev > 0.5 ? C.lime : C.ink) : C.ink, i ? 0 : 40, i ? 0.25 * (1 - i / trailN) : 1);
+  }
+  const dp = cam(...helixPoint(hs.theta, (HX.R1 + HX.R2) / 2, hs.y + 8));
+  glow(dp.x, dp.y, 90, rev > 0.5 ? C.limeA(0.6) : C.whiteA(0.5), 0.8);
+  pin(pp.x, pp.y + 4, 0.9, C.pink, 1 - rev * 0.6);
+  txt('YOU ARE HERE', pp.x, pp.y + 50, { size: 22, weight: 700, f: MONO, color: C.pink, ls: 4, alpha: 1 - rev });
+  // lap labels on the side view
+  if (rev > 0.05) {
+    const laps = Math.floor(hs.laps);
+    for (let k = 1; k <= laps; k++) {
+      const p = cam(0, k * HX.h, 0);
+      const edge = cam(HX.R2, k * HX.h, 0);
+      const lx = CX + 330;
+      const a = rev * clamp((t - (TL.lap0 + k * TL.lap_period)) * 4 + (t > tSide + 1.3 ? 1 : 0));
+      line(Math.max(edge.x, CX + 40) + 10, p.y, lx - 14, p.y, C.limeA(0.6), 2, a);
+      txt(`LAP ${String(k).padStart(2, '0')}`, lx, p.y, { size: 26, weight: 700, f: MONO, color: C.lime, align: 'left', ls: 3, alpha: a });
+    }
+  }
+  ctx.restore();
+  // labels & headlines
+  bracketLabel(rev < 0.5 ? 'TOP VIEW' : 'SIDE VIEW', CX, 300, rev < 0.5 ? C.ink : C.lime, intro);
+  const lapCount = Math.max(0, Math.floor(hs.laps));
+  if (t < tSide + 0.3) {
+    txt(`LAP ${String(lapCount).padStart(2, '0')}`, CX, 390, { size: 30, weight: 700, f: MONO, color: C.dim, ls: 6, alpha: intro * (1 - rev) });
+  }
+  const hy = 1520;
+  if (t < T('circles')) {
+    const w = wt('above');
+    maskWord('FROM ABOVE', CX, hy, w[5].t0 - 0.1, t, { size: 130 });
+  } else if (t < T('spot')) {
+    const w = wt('circles');
+    maskWord('IN CIRCLES.', CX, hy, w[6].t0 - 0.05, t, { size: 140 });
+    maskWord('IT LOOKS LIKE YOU\'RE WALKING', CX, hy - 120, w[1].t0, t, { size: 34, weight: 700, f: MONO, ls: 6, color: C.dim });
+  } else if (t < tSide) {
+    slam('SAME SPOT.', CX, hy - 40, T('spot'), t, { size: 140, color: C.pink, glow: 24 });
+    const w = wt('lap');
+    ['EVERY.', 'SINGLE.', 'LAP.'].forEach((s, i) => maskWord(s, CX - 300 + i * 300, hy + 110, w[i].t0, t, { size: 56, weight: 800, ls: 6 }));
+  } else if (t < T('higher')) {
+    const w = wt('side');
+    maskWord('NOW LOOK', CX, hy - 60, w[0].t0, t, { size: 90, weight: 800, color: C.dim });
+    maskWord('FROM THE SIDE', CX, hy + 50, w[3].t0 - 0.05, t, { size: 110 });
+  } else {
+    const w = wt('higher');
+    maskWord('EVERY LAP...', CX, hy - 70, w[0].t0, t, { size: 80, weight: 800, ls: 6, color: C.dim });
+    slam("YOU'RE HIGHER.", CX, hy + 60, w[2].t0 - 0.05, t, { size: fit("YOU'RE HIGHER.", 980, 150), color: C.lime, glow: 30 });
+  }
+}
+
+function scenePunch(t) {
+  const t1 = T('punch1'), t2 = TL.drop;
+  if (t < t2) {
+    const z = 1 + (t - t1) * 0.04;
+    ctx.save(); ctx.translate(CX, CY); ctx.scale(z, z); ctx.translate(-CX, -CY);
+    const w = wt('punch1');
+    slam('SAME', CX, 800, w[0].t0, t, { size: 220, from: 1.3, rgb: 10 });
+    slam('POSITION.', CX, 1000, w[1].t0 - 0.04, t, { size: fit('POSITION.', 960, 220), from: 1.3, rgb: 10 });
+    const p = clamp((t - w[1].t0) * 3);
+    txt('X 000.0 · Y 000.0', CX, 1170, { size: 34, weight: 600, f: MONO, ls: 8, color: C.dim, alpha: p });
+    ctx.restore();
+    return;
+  }
+  const lt = t - t2;
+  const pulse = beatPulse(t, 8);
+  rays(CX, 1000, 18, t * 0.25, C.limeA(0.35), clamp(lt * 4) * (0.6 + pulse * 0.4));
+  glow(CX, 1000, 800, C.limeA(0.35), 0.7 + pulse * 0.3);
+  shockwave(t, t2, CX, 1000, C.lime, { r: 1200, w: 40, life: 1.0 });
+  shockwave(t, t2 + 0.12, CX, 1000, C.ink, { r: 900, w: 16, life: 0.9 });
+  burst(t, t2, CX, 1000, { n: 90, speed: 2200, life: 1.6, seed: 3, size: 10 });
+  // stacked equaliser bars rising on the beat
+  for (let i = 0; i < 18; i++) {
+    const hgt = 80 + 360 * Math.abs(noise1(t * 3 + i * 1.7)) * (0.5 + pulse * 0.5);
+    ctx.fillStyle = C.limeA(0.12); ctx.fillRect(30 + i * 58, H - 220 - hgt, 40, hgt);
+  }
+  const sp = Ez.outExpo(prog(t, t2, t2 + 0.4));
+  txt('SAME POSITION.', CX, lerp(900, 560, sp), { size: lerp(150, 64, sp), stroke: lerp(0, 2.5, sp) || 0, weight: 900, ls: lerp(0, 6, sp), color: C.ink, alpha: 0.9 });
+  const w = wt('punch2');
+  slam('DIFFERENT', CX, 860, t2, t, { size: fit('DIFFERENT', 960, 200), from: 2.2, rgb: 30, scale: 1 + pulse * 0.03 });
+  slam('LEVEL.', CX, 1110, w[1].t0 - 0.05, t, { size: fit('LEVEL.', 920, 330), color: C.lime, glow: 50, from: 2.4, rgb: 30, scale: 1 + pulse * 0.04 });
+}
+
+const XP_LINES = [
+  { id: 'xp1', x: 'xp1x', lines: ['EVERY REP', 'NOBODY SAW'], amt: 250, card: 'REP NOBODY SAW' },
+  { id: 'xp2', x: 'xp2x', lines: ['EVERY EARLY', 'MORNING', "YOU DIDN'T FEEL LIKE IT"], amt: 500, card: 'SHOWED UP ANYWAY' },
+  { id: 'xp3', x: 'xp3x', lines: ['EVERY', 'REJECTION', 'THAT STUNG'], amt: 1000, card: 'REJECTION SURVIVED' },
+];
+function sceneXP(t) {
+  const pulse = beatPulse(t, 8);
+  floorGrid(t, C.lime, 0.18, 2.2, 1250);
+  txt('XP', CX, 900, { size: 900, stroke: 3, color: C.limeA(0.08 + pulse * 0.06), scale: 1 + pulse * 0.02 });
+  let cur = 0; XP_LINES.forEach((l, i) => { if (t >= T(l.id) - 0.3) cur = i; });
+  const intro = Ez.outExpo(prog(t, T('xp1') - 0.08, T('xp1') + 0.4));
+  rays(CX, 1000, 12, -t * 0.2, C.limeA(0.12), 1 - intro * 0.6);
+  const L0 = XP_LINES[cur];
+  const w = wt(L0.id);
+  // headline words, timed against the spoken words
+  const startIdx = cur === 0 ? [0, 2] : cur === 1 ? [0, 2, 3] : [0, 1, 2];
+  const out = cur < 2 ? Ez.inCubic(prog(t, T(XP_LINES[cur + 1].id) - 0.3, T(XP_LINES[cur + 1].id) - 0.05)) : 0;
+  ctx.save(); ctx.globalAlpha = 1 - out; ctx.translate(0, -out * 120);
+  L0.lines.forEach((s, i) => {
+    const small = i === 2 && cur === 1;
+    const size = small ? 54 : fit(s, 960, 170);
+    const y = (cur === 1 ? 420 : 460) + i * (cur === 1 ? 165 : 180) + (small ? -20 : 0);
+    maskWord(s, CX, y, w[Math.min(startIdx[i], w.length - 1)].t0 - 0.04, t, { size, weight: small ? 800 : 900, ls: small ? 6 : 0, color: small ? C.dim : C.ink });
+  });
+  ctx.restore();
+  // "+XP" slam that flies into the HUD bar
+  XP_LINES.forEach((l, i) => {
+    const tx = T(l.x), land = tx + 0.8;
+    if (t < tx || t > land + 0.1) return;
+    const fly = Ez.inCubic(prog(t, tx + 0.45, land));
+    const x = lerp(CX, 525, fly), y = lerp(1010, 128, fly), s = lerp(1, 0.18, fly);
+    slam(`+${l.amt} XP`, x, y, tx, t, { size: fit(`+${l.amt} XP`, 940, 190), color: C.lime, glow: 40, scale: s, from: 1.8, rgb: 24 });
+    burst(t, tx, CX, 1010, { n: 40, speed: 1300, life: 0.9, seed: 11 + i, size: 8, square: true });
+  });
+  XP_LINES.forEach((l, i) => { if (t > T(l.x) + 0.78) shockwave(t, T(l.x) + 0.8, 525, 128, C.lime, { r: 260, w: 10, life: 0.6 }); });
+  // achievement cards stack up
+  XP_LINES.forEach((l, i) => {
+    const tc = T(l.x) + 0.1;
+    if (t < tc) return;
+    const p = Ez.outExpo(prog(t, tc, tc + 0.45));
+    const y = 1200 + i * 136, x = 90 + (1 - p) * 1000;
+    ctx.save(); ctx.globalAlpha = p;
+    rrect(x, y, 900, 112, 18); ctx.fillStyle = 'rgba(20,22,28,0.92)'; ctx.fill();
+    ctx.strokeStyle = C.limeA(0.5); ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = C.lime; ctx.fillRect(x, y + 18, 8, 76);
+    rrect(x + 32, y + 22, 68, 68, 12); ctx.fillStyle = C.limeA(0.15); ctx.fill(); ctx.strokeStyle = C.lime; ctx.stroke();
+    ctx.restore();
+    txt('XP', x + 66, y + 58, { size: 26, weight: 800, f: MONO, color: C.lime, alpha: p });
+    txt('ACHIEVEMENT UNLOCKED', x + 128, y + 38, { size: 18, weight: 600, f: MONO, color: C.dim, align: 'left', ls: 4, alpha: p });
+    txt(l.card, x + 128, y + 74, { size: 32, weight: 800, align: 'left', ls: 1, alpha: p });
+    txt(`+${l.amt}`, x + 870, y + 58, { size: 34, weight: 800, f: MONO, color: C.lime, align: 'right', alpha: p });
+  });
+}
+
+function sceneLoading(t) {
+  const t0 = T('notstuck'), tl = T('loading'), done = TL.load_done;
+  dotGrid(t, C.ink, 0.06, 0);
+  const w = wt('notstuck');
+  const strike = Ez.outExpo(prog(t, w[2].t0, w[2].t0 + 0.3));
+  if (t < tl) {
+    maskWord("YOU'RE NOT", CX, 760, w[0].t0, t, { size: 110, weight: 800, color: C.dim });
+    const gl = strike > 0 ? noise1(t * 50) * 10 : 0;
+    slam('STUCK.', CX + gl, 960, w[2].t0 - 0.05, t, { size: fit('STUCK.', 860, 280), color: strike > 0.5 ? C.whiteA(0.35) : C.pink, rgb: 20 + strike * 20 });
+    if (strike > 0) {
+      ctx.save(); ctx.strokeStyle = C.lime; ctx.lineWidth = 18; ctx.shadowColor = C.lime; ctx.shadowBlur = 24; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(CX - 450, 975); ctx.lineTo(CX - 450 + 900 * strike, 955); ctx.stroke(); ctx.restore();
+    }
+  } else {
+    const wl = wt('loading');
+    maskWord("YOU'RE", CX, 760, wl[0].t0 - 0.05, t, { size: 110, weight: 800, color: C.dim });
+    const dots = '.'.repeat(1 + Math.floor(t * 6) % 3);
+    const ls_ = fit('LOADING', 800, 230);
+    slam('LOADING', CX - 50, 960, wl[1].t0 - 0.05, t, { size: ls_, color: C.lime, glow: 36, rgb: 18 });
+    txt(dots, CX - 50 + textW('LOADING', ls_) / 2 + 8, 990, { size: 120, color: C.lime, align: 'left', alpha: clamp((t - wl[1].t0) * 5) });
+  }
+  // loading bar
+  const pct = t < tl ? 0 : Ez.inOutCubic(prog(t, tl, done));
+  const bx = 140, bw = 800, by = 1220, segs = 20;
+  ctx.save(); ctx.strokeStyle = C.limeA(0.7); ctx.lineWidth = 3; rrect(bx, by - 26, bw, 52, 10); ctx.stroke();
+  for (let i = 0; i < Math.floor(pct * segs); i++) {
+    ctx.fillStyle = C.lime; ctx.shadowColor = C.lime; ctx.shadowBlur = 12;
+    ctx.fillRect(bx + 8 + i * (bw - 16) / segs, by - 18, (bw - 16) / segs - 6, 36);
+  }
+  ctx.restore();
+  txt(`${String(Math.floor(pct * 100)).padStart(2, '0')}%`, CX, 1400, { size: 150, weight: 700, f: MONO, color: pct >= 1 ? C.lime : C.ink, glow: pct >= 1 ? 30 : 0 });
+  txt(pct >= 1 ? 'COMPLETE' : 'BUILDING NEXT LEVEL', CX, 1510, { size: 26, weight: 600, f: MONO, color: pct >= 1 ? C.lime : C.dim, ls: 8 });
+  // spinner arcs
+  ctx.save(); ctx.translate(CX, 1400); ctx.strokeStyle = C.limeA(0.5); ctx.lineWidth = 6; ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(0, 0, 200 + i * 22, t * (3 + i) + i, t * (3 + i) + i + 1.2); ctx.stroke(); }
+  ctx.restore();
+  shockwave(t, done, CX, 1220, C.lime, { r: 700, w: 24, life: 0.7 });
+  burst(t, done, CX, 1220, { n: 50, speed: 1400, life: 0.9, seed: 21, size: 8, square: true });
+}
+
+function sceneClimb(t) {
+  const t0 = T('climb'), lt = t - t0;
+  const stepT = 0.25;
+  const idx = lt / stepT;
+  const dx = 150, dy = 118, cube = 150;
+  const camX = idx * dx, camY = idx * dy;
+  const ox = 330 - camX, oy = 1350 + camY;
+  const pulse = beatPulse(t, 8);
+  glow(CX, 900, 900, C.limeA(0.2), 0.6 + pulse * 0.4);
+  for (let i = Math.floor(idx) - 6; i < Math.floor(idx) + 8; i++) {
+    const x = ox + i * dx, y = oy - i * dy;
+    const climbed = i <= idx;
+    const top = climbed ? '#b4e828' : '#2e2e3a', left = climbed ? '#6c8c18' : '#1c1c26', right = climbed ? '#4a6010' : '#14141c';
+    const hw = cube / 2, q = cube * 0.28;
+    ctx.save();
+    ctx.fillStyle = left; ctx.beginPath(); ctx.moveTo(x - hw, y); ctx.lineTo(x, y + q); ctx.lineTo(x, H + 400); ctx.lineTo(x - hw, H + 400); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = right; ctx.beginPath(); ctx.moveTo(x + hw, y); ctx.lineTo(x, y + q); ctx.lineTo(x, H + 400); ctx.lineTo(x + hw, H + 400); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = top; ctx.strokeStyle = climbed ? 'rgba(235,255,170,0.9)' : 'rgba(244,244,246,0.25)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - hw, y); ctx.lineTo(x, y - q); ctx.lineTo(x + hw, y); ctx.lineTo(x, y + q); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  // the player cube hopping step to step
+  const i0 = Math.floor(idx), f = idx - i0;
+  const hop = Math.sin(Math.min(1, f / 0.7) * Math.PI) * 70;
+  const px = ox + (i0 + Ez.inOutCubic(Math.min(1, f / 0.7))) * dx;
+  const py = oy - (i0 + Ez.inOutCubic(Math.min(1, f / 0.7))) * dy - 70 - hop;
+  glow(px, py, 140, C.limeA(0.8), 0.9);
+  ctx.save(); ctx.translate(px, py); ctx.rotate(Math.min(1, f / 0.7) * Math.PI / 2);
+  ctx.fillStyle = C.ink; ctx.shadowColor = C.lime; ctx.shadowBlur = 40; ctx.fillRect(-34, -34, 68, 68); ctx.restore();
+  const w = wt('climb');
+  maskWord('SO', CX, 330, w[0].t0, t, { size: 70, weight: 800, ls: 20, color: C.dim });
+  slam('KEEP', CX, 480, w[1].t0 - 0.03, t, { size: 220 });
+  slam('CLIMBING.', CX, 680, w[2].t0 - 0.03, t, { size: fit('CLIMBING.', 980, 220), color: C.lime, glow: 36 });
+}
+
+function sceneLookdown(t) {
+  const t0 = T('lookdown'), t1 = T('levelup');
+  const p = Ez.inOutCubic(prog(t, t0, t1 - 0.3));
+  const topY = 2700;
+  const cam = makeCam({ pitch: lerp(0.55, 1.25, p), yaw: t * 0.35, dist: lerp(1500, 3300, p), focal: 1250, ty: topY - lerp(250, 900, p), cy: lerp(1150, 1050, p) });
+  glow(CX, 1000, 900, C.limeA(0.12), 1);
+  drawHelix(cam, topY, { lit: y => 1, fogNear: lerp(1500, 3200, p) - 200, fogFar: lerp(1500, 3200, p) + 2600 });
+  // start pin far below
+  const sp = cam(...helixPoint(HX.th0, (HX.R1 + HX.R2) / 2, 0));
+  pin(sp.x, sp.y, 0.7, C.pink, clamp((t - t0) * 2));
+  txt('START', sp.x, sp.y + 34, { size: 24, weight: 700, f: MONO, color: C.pink, ls: 6, alpha: clamp((t - t0) * 2) });
+  // the climber at the top
+  const th = HX.th0 + topY / HX.h * Math.PI * 2;
+  const dp = cam(...helixPoint(th, (HX.R1 + HX.R2) / 2, topY + 10));
+  glow(dp.x, dp.y, 120, C.limeA(0.8), 1);
+  dot(dp.x, dp.y, 20, C.ink, 40);
+  // headlines
+  const w = wt('lookdown');
+  maskWord('ONE DAY', CX, 300, w[1].t0 - 0.05, t, { size: 70, weight: 800, ls: 18, color: C.dim });
+  maskWord("YOU'LL LOOK DOWN", CX, 410, w[3].t0 - 0.05, t, { size: fit("YOU'LL LOOK DOWN", 980, 120) });
+  const wr = wt('recognize');
+  if (t >= T('recognize')) {
+    maskWord("AND WON'T RECOGNIZE", CX, 560, wr[3].t0 - 0.05, t, { size: fit("AND WON'T RECOGNIZE", 960, 80), weight: 800, color: C.dim });
+    slam('WHERE YOU STARTED.', CX, 1620, wr[5].t0 - 0.05, t, { size: fit('WHERE YOU STARTED.', 980, 110), color: C.pink, glow: 20 });
+    // dashed pointer to the start pin
+    const a = clamp((t - wr[5].t0) * 3);
+    if (a > 0) {
+      ctx.save(); ctx.setLineDash([10, 12]); ctx.lineDashOffset = -t * 60; ctx.strokeStyle = C.pinkA(0.7 * a); ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(CX, 1560); ctx.lineTo(sp.x, sp.y + 60); ctx.stroke(); ctx.restore();
+    }
+  }
+  // dip to black before the level up line
+  const fade = prog(t, t1 - 0.35, t1);
+  if (fade > 0) { ctx.save(); ctx.globalAlpha = fade; ctx.fillStyle = C.bg; ctx.fillRect(-100, -100, W + 200, H + 200); ctx.restore(); }
+}
+
+function sceneLevelUp(t) {
+  const t0 = T('levelup'), hit = TL.levelup, end = TL.duration;
+  const w = wt('levelup');
+  if (t < hit) {
+    // charging: particles get pulled into the bar
+    const c = prog(t, t0, hit);
+    for (let i = 0; i < 70; i++) {
+      const a = hash(i * 4.3) * Math.PI * 2, r0 = 500 + hash(i) * 600;
+      const ph = ((t - t0) * (0.9 + hash(i * 2) * 0.8) + hash(i * 7)) % 1;
+      const r = r0 * (1 - ph);
+      dot(CX + Math.cos(a) * r, 1000 + Math.sin(a) * r * 0.8, 3 + 4 * ph, C.lime, 0, ph);
+    }
+    glow(CX, 1000, 400 + c * 300, C.limeA(0.4), c);
+    const bx = 140, bw = 800, by = 1000;
+    const frac = lerp(0.94, 1, Ez.inCubic(c));
+    rrect(bx, by - 22, bw, 44, 22); ctx.fillStyle = C.whiteA(0.1); ctx.fill();
+    rrect(bx, by - 22, bw * frac, 44, 22); ctx.fillStyle = C.lime; ctx.shadowColor = C.lime; ctx.shadowBlur = 30 + c * 40; ctx.fill(); ctx.shadowBlur = 0;
+    txt('LVL 07', bx, by - 70, { size: 30, weight: 700, f: MONO, align: 'left', ls: 4, color: C.dim });
+    txt('LVL 08', bx + bw, by - 70, { size: 30, weight: 700, f: MONO, align: 'right', ls: 4, color: C.lime });
+    maskWord('LEVEL', CX - 170, 800, w[0].t0, t, { size: 110, weight: 800, color: C.dim });
+    maskWord('UP', CX + 210, 800, w[1].t0, t, { size: 110, weight: 800, color: C.dim });
+    return;
+  }
+  const lt = t - hit;
+  const pulse = beatPulse(t, 6);
+  rays(CX, 900, 24, lt * 0.35, C.limeA(0.4), clamp(lt * 3));
+  glow(CX, 900, 900, C.limeA(0.45), 1);
+  shockwave(t, hit, CX, 900, C.ink, { r: 1300, w: 50, life: 1.1 });
+  shockwave(t, hit + 0.1, CX, 900, C.lime, { r: 1100, w: 30, life: 1.2 });
+  burst(t, hit, CX, 1000, { n: 140, speed: 2600, life: 2.4, seed: 5, size: 12, square: true, colors: [C.lime, C.ink, C.lime, C.cyan] });
+  burst(t, hit + 0.15, CX, 900, { n: 60, speed: 1500, life: 2.0, seed: 9, size: 7 });
+  const sz = fit('LEVEL UP', 980, 260);
+  slam('LEVEL', CX, 800, hit, t, { size: sz * 1.12, from: 2.6, rgb: 34, glow: 30, glowColor: C.lime, scale: 1 + 0.02 * Math.sin(lt * 4) });
+  slam('UP', CX, 1030, hit + 0.06, t, { size: 300, color: C.lime, glow: 60, from: 2.6, rgb: 34, scale: 1 + 0.02 * Math.sin(lt * 4 + 1) });
+  // level odometer 07 -> 08
+  const flip = Ez.outBack(prog(t, hit + 0.3, hit + 0.8));
+  const by = 1300;
+  ctx.save(); ctx.globalAlpha = clamp((lt - 0.2) * 4);
+  rrect(CX - 170, by - 70, 340, 140, 24); ctx.fillStyle = 'rgba(20,22,28,0.9)'; ctx.fill(); ctx.strokeStyle = C.lime; ctx.lineWidth = 4; ctx.stroke();
+  ctx.beginPath(); ctx.rect(CX - 170, by - 70, 340, 140); ctx.clip();
+  txt('LVL', CX - 70, by + 2, { size: 44, weight: 700, f: MONO, color: C.dim });
+  txt('07', CX + 70, by + 2 - flip * 140, { size: 80, weight: 800, f: MONO, color: C.dim });
+  txt('08', CX + 70, by + 2 + (1 - flip) * 140, { size: 80, weight: 800, f: MONO, color: C.lime, glow: 20 });
+  ctx.restore();
+  typeOn('SAME POSITION. DIFFERENT LEVEL.', CX, 1480, hit + 1.0, t, 28, { size: 32, weight: 700, f: MONO, ls: 5, color: C.ink });
+  const fade = prog(t, end - 0.7, end);
+  if (fade > 0) { ctx.save(); ctx.globalAlpha = fade; ctx.fillStyle = '#000'; ctx.fillRect(-200, -200, W + 400, H + 400); ctx.restore(); }
+}
+
+// ---------------------------------------------------------------- post effects
+let grainTiles = [];
+function makeGrain() {
+  let s = 12345; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for (let k = 0; k < 6; k++) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+    const g = c.getContext('2d'); const im = g.createImageData(256, 256);
+    for (let i = 0; i < im.data.length; i += 4) { const v = rnd() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+    g.putImageData(im, 0, 0); grainTiles.push(c);
+  }
+}
+function glitchFX(t, amount) {
+  if (amount <= 0.01) return;
+  bctx.clearRect(0, 0, W, H); bctx.drawImage(cv, 0, 0);
+  const seed = Math.floor(t * 30);
+  for (let i = 0; i < 14; i++) {
+    const y = hash(seed * 7 + i) * H, h = 10 + hash(seed * 3 + i) * 90;
+    const dx = (hash(seed * 11 + i) - 0.5) * 220 * amount;
+    ctx.drawImage(buf, 0, y, W, h, dx, y, W, h);
+  }
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 5; i++) {
+    ctx.fillStyle = i % 2 ? C.pinkA(0.25 * amount) : `rgba(46,230,255,${0.2 * amount})`;
+    ctx.fillRect(hash(seed + i * 5) * W, hash(seed * 2 + i) * H, 80 + hash(i + seed) * 400, 6 + hash(i * 3 + seed) * 30);
+  }
+  ctx.restore();
+}
+function glitchAmount(t) {
+  let g = 0;
+  const pulseAt = (t0, d, a) => { if (t >= t0 && t < t0 + d) g = Math.max(g, a * (1 - (t - t0) / d)); };
+  pulseAt(0, 0.35, 1);
+  for (const id of ['same1', 'same2', 'same3', 'run', 'above', 'xp1', 'notstuck', 'climb', 'lookdown']) pulseAt(T(id) - 0.02, 0.14, 0.8);
+  for (const r of TL.resets) pulseAt(r, 0.2, 0.9);
+  pulseAt(wt('notstuck')[2].t0, 0.3, 0.9);
+  pulseAt(wt('nowhere')[2].t0, 0.18, 0.7);
+  pulseAt(TL.drop, 0.2, 0.8);
+  return g;
+}
+
+// ---------------------------------------------------------------- frame
+function scene(t) {
+  if (t < T('same1') - 0.02) return sceneHook(t);
+  if (t < T('run') - 0.02) return sceneSame(t);
+  if (t < T('but')) {
+    // tape-stop: the visuals slow down and drain of colour with the audio
+    const ts = TL.tapestop - 0.65;
+    if (t > ts) {
+      const u = prog(t, ts, TL.tapestop - 0.05);
+      const warped = ts + (TL.tapestop - 0.05 - ts) * (1 - Math.pow(1 - u, 2.6)) / 2.6;
+      sceneRun(warped);
+      ctx.save(); ctx.globalAlpha = u * 0.85; ctx.fillStyle = C.bg; ctx.fillRect(-100, -100, W + 200, H + 200); ctx.restore();
+      return;
+    }
+    return sceneRun(t);
+  }
+  if (t < T('above') - 0.1) return sceneBut(t);
+  if (t < T('punch1')) return sceneSpiral(t);
+  if (t < T('xp1') - 0.08) return scenePunch(t);
+  if (t < T('notstuck') - 0.02) return sceneXP(t);
+  if (t < T('climb') - 0.02) return sceneLoading(t);
+  if (t < T('lookdown') - 0.02) return sceneClimb(t);
+  if (t < T('levelup')) return sceneLookdown(t);
+  return sceneLevelUp(t);
+}
+
+function render(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+  const sh = impactSum(t, 7) * 26;
+  const sx = noise1(t * 38) * sh, sy = noise1(t * 38 + 77) * sh;
+  const z = 1 + impactSum(t, 9) * 0.035 + (t > TL.drop && t < T('lookdown') ? beatPulse(t, 10) * 0.012 : 0);
+  ctx.save();
+  ctx.translate(CX + sx, CY + sy); ctx.scale(z, z); ctx.translate(-CX, -CY);
+  scene(t);
+  ctx.restore();
+  const hudA = (t < T('but') || t >= T('above') - 0.1 ? 1 : 0.25) * clamp((t - 0.15) * 4) * (1 - prog(t, TL.duration - 0.7, TL.duration));
+  hud(t, hudA * 0.9);
+  glitchFX(t, glitchAmount(t));
+  // flash on big hits
+  let fl = 0;
+  for (const [ti, a] of TL.impacts) if (a >= 0.5 && t >= ti && t - ti < 0.5) fl = Math.max(fl, (a - 0.35) * Math.exp(-(t - ti) * 9));
+  if (fl > 0.01) { ctx.save(); ctx.globalAlpha = Math.min(0.85, fl); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+  // grain, scanlines, vignette
+  // grain refreshes at 12 fps and stays light: per-frame noise balloons the file size
+  const gf = Math.floor(t * 12);
+  ctx.save(); ctx.globalAlpha = 0.03; ctx.globalCompositeOperation = 'screen';
+  const tile = grainTiles[gf % grainTiles.length];
+  ctx.fillStyle = ctx.createPattern(tile, 'repeat'); ctx.translate(hash(gf) * 256, hash(gf + 1) * 256); ctx.fillRect(-256, -256, W + 512, H + 512);
+  ctx.restore();
+  ctx.save(); ctx.globalAlpha = 0.05; ctx.fillStyle = '#000';
+  for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 2);
+  ctx.restore();
+  const vg = ctx.createRadialGradient(CX, CY, 500, CX, CY, 1250);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.65)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+}
+
+window.setTimeline = async tl => {
+  TL = tl; L = tl.lines;
+  makeGrain();
+  await Promise.all([
+    document.fonts.load('900 100px "Inter Display"'), document.fonts.load('800 100px "Inter Display"'),
+    document.fonts.load('700 40px "JetBrains Mono"'), document.fonts.load('600 40px "JetBrains Mono"'),
+  ]);
+  return true;
+};
+window.frame = (t, q = 0.93) => { render(t); return cv.toDataURL('image/jpeg', q).split(',')[1]; };
+window.still = t => { render(t); return cv.toDataURL('image/png').split(',')[1]; };
+</script>
+</body>
+</html>
