@@ -44,7 +44,7 @@ Everything is generated from code:
 | 0:15 | "0–62 in 3.5 seconds." | Speedometer and stopwatch with the car flat out. |
 | 0:19 | "But here's the clever bit: it plugs in." | Charge flap opens and the cable plugs in at home. |
 | 0:22 | "Up to 43 miles on electric alone. Most commutes, there and back, with no petrol." | Home-to-work route with the electric range draining. |
-| 0:27 | "Lower company-car tax. All-wheel drive for British weather." | 37 g/km CO₂ against a petrol-only rival's top tax band, then the car in rain past dry-stone walls with an all-wheel-drive torque display. |
+| 0:27 | "Lower company-car tax. Four-wheel drive for British weather." | 37 g/km CO₂ against a petrol-only rival's top tax band, then the car in rain past dry-stone walls, a lightning strike and a four-wheel-drive torque display. |
 | 0:32 | "Saloon, or Touring." | The saloon morphs into the Touring. |
 | 0:34 | "Electric on Monday. V8 on Saturday." | Rear view: silent in EV mode, then the tail lights flare and it launches into the night. |
 | 0:37 | "The BMW M5." | End card. |

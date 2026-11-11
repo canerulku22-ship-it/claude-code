@@ -28,6 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, 'out', 'vo')
 REF = os.path.join(HERE, 'out', 'vo_ref')
 TAKES = int(os.environ.get('TAKES', 3))
+ONLY = set(filter(None, os.environ.get('ONLY', '').split(',')))   # e.g. ONLY=08 regenerates just that line
 EXAGGERATION, CFG, TEMPERATURE = 0.65, 0.45, 0.8   # lively ad read
 LEAD = 0.25                                        # silence before each line, seconds
 
@@ -62,13 +63,17 @@ def expressiveness(y, sr):
 
 lines = TL['vo']
 durations = {}
+if ONLY and os.path.exists(os.path.join(OUT, 'durations.json')):
+    durations = json.load(open(os.path.join(OUT, 'durations.json')))
 for n, line in enumerate(lines):
+    if ONLY and line['id'] not in ONLY:
+        continue
     end = lines[n + 1]['at'] if n + 1 < len(lines) else TL['duration'] - 0.6
     slot = end - line['at'] - LEAD - 0.2        # speech must finish before the next line
     text = line['say'].replace('B M W', 'BMW')
     best = None
     for k in range(TAKES):
-        torch.manual_seed(1000 * n + k)
+        torch.manual_seed(1000 * n + k + (100 if ONLY else 0))
         y = tts.generate(text, audio_prompt_path=ref_path, exaggeration=EXAGGERATION,
                          cfg_weight=CFG, temperature=TEMPERATURE).squeeze().numpy()
         y, _ = librosa.effects.trim(y, top_db=38)
@@ -87,8 +92,8 @@ for n, line in enumerate(lines):
     sf.write(os.path.join(OUT, f"{line['id']}.wav"), y, tts.sr)
     speech = len(y) / tts.sr - 0.3
     durations[line['id']] = {'dur': len(y) / tts.sr, 'on': LEAD, 'off': round(speech, 3), 'take': k}
+    json.dump(durations, open(os.path.join(OUT, 'durations.json'), 'w'), indent=2)
     print(f"  -> {line['id']} kept take {k}, speech {LEAD:.2f}-{speech:.2f}s", flush=True)
 
-json.dump(durations, open(os.path.join(OUT, 'durations.json'), 'w'), indent=2)
 with open(os.path.join(OUT, 'timing.js'), 'w') as f:
     f.write(f'window.VO_TIMING = {json.dumps(durations)};\n')

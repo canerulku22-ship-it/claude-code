@@ -13,7 +13,7 @@ window.TIMELINE = {
     { "id": "05", "cap": false, "at": 15.6, "text": "0–62 in 3.5 seconds.", "say": "Nought to sixty-two, in three and a half seconds." },
     { "id": "06", "at": 18.9, "text": "But here’s the clever bit: it plugs in.", "say": "But here's the clever bit. It plugs in." },
     { "id": "07", "at": 21.7, "text": "Up to 43 miles on electric alone. Most commutes, there and back, with no petrol.", "say": "Up to forty-three miles on electric alone. Most commutes, there and back, with no petrol." },
-    { "id": "08", "at": 27.4, "text": "Lower company-car tax. All-wheel drive for British weather.", "say": "Lower company car tax. All-wheel drive, for British weather." },
+    { "id": "08", "at": 27.4, "text": "Lower company-car tax. Four-wheel drive for British weather.", "say": "Lower company car tax. Four wheel drive, for British weather." },
     { "id": "09", "cap": false, "at": 31.7, "text": "Saloon, or Touring.", "say": "Saloon, or Touring." },
     { "id": "10", "cap": false, "at": 34.0, "text": "Electric on Monday. V8 on Saturday.", "say": "Electric on Monday. V eight on Saturday." },
     { "id": "11", "cap": false, "at": 37.6, "text": "The BMW M5.", "say": "The B M W M five." }
