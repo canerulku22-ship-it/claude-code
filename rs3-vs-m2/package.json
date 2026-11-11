@@ -1,0 +1,9 @@
+{
+  "name": "rs3-vs-m2",
+  "private": true,
+  "type": "module",
+  "description": "Builds the Audi RS3 vs BMW M2 film (see README.md)",
+  "dependencies": {
+    "three": "0.187.0"
+  }
+}

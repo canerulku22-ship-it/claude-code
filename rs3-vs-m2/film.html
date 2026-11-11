@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Audi RS3 vs BMW M2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  canvas { display: block; position: absolute; inset: 0; margin: auto;
+           width: min(100vw, 177.78vh); height: min(56.25vw, 100vh); }
+</style>
+<script src="timeline.js"></script>
+<script src="out/vo/timing.js" onerror="window.VO_TIMING = {}"></script>
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js" } }</script>
+<script type="module" src="stage3d.js"></script>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+'use strict';
+/* =====================================================================
+   Audi RS3 vs BMW M2 — narrated comparison built from the manufacturers'
+   own press photos plus real-time 3D renders of both cars (stage3d.js),
+   with motion graphics drawn frame by frame on a canvas. drawFrame(t) is a
+   pure function of time t. Every scene cut and beat is keyed to the measured
+   voiceover (out/vo/timing.js), so re-recording a line re-times the film.
+   Run ./fetch_photos.sh first; serve the folder over HTTP to preview
+   (?t=12 starts at 12 s).
+   ===================================================================== */
+const TL = window.TIMELINE, VOT = window.VO_TIMING || {};
+const W = 1920, H = 1080;
+const cv = document.getElementById('c');
+const main = cv.getContext('2d');
+let ctx = main; // scenes draw into whichever context this points at
+const C = {
+  ink: '#f3f5f8', mute: '#9aa3b2', dim: '#5a6476',
+  mBlue: '#3fa9f5', mNavy: '#3a5fc8', mRed: '#e5322d', ev: '#38d6ff', amber: '#ffb24a', warm: '#ffd38a', go: '#5ef08a',
+  rs3: '#7ddc2f', m2: '#3fa9f5',
+};
+
+
+/* ---------- maths & easing ---------- */
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const eOC = t => 1 - Math.pow(1 - t, 3);
+const eIC = t => t * t * t;
+const eIOC = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const eIOS = t => -(Math.cos(Math.PI * t) - 1) / 2;
+const eOB = t => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+function rng(seed) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let r = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const env = (t, a, b, fi = 0.3, fo = 0.3) => Math.min(prog(t, a, a + fi), 1 - prog(t, b - fo, b));
+
+/* ---------- voiceover timing (laid out by voiceover.py; estimated when previewing without a build) ---------- */
+const VO = {};
+{
+  let t = 0;
+  for (const l of TL.vo) {
+    const tm = VOT[l.id], d = tm || { on: 0.25, off: 0.25 + l.text.split(' ').length * 0.34 };
+    const at = tm ? tm.at : t + l.gap - d.on;
+    VO[l.id] = { ...l, at, on: at + d.on, off: at + d.off };
+    t = at + d.off;
+  }
+}
+const DURATION = window.VO_DURATION || (VO[TL.vo[TL.vo.length - 1].id].off + TL.tail);
+const SPOKEN = { 'RS3': 10, 'BMW': 8, 'M2': 5, 'M2’s': 6, 'RS': 4, '400': 12, '480': 22, '0–62': 18, '3.8': 16, '4.0': 12, '£60k': 12, '£69k': 10, 'coupé': 6 };
+function wordTimes(l) {
+  const words = l.text.split(' ');
+  const wts = words.map(w => (SPOKEN[w.replace(/[.,?:!]+$/, '')] ?? w.replace(/[^\p{L}\p{N}’']/gu, '').length + 2) + (/[.,?:]$/.test(w) ? 6 : 0));
+  const total = wts.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  return words.map((w, i) => { const s = l.on + (l.off - l.on) * acc / total; acc += wts[i]; return { w, s, e: l.on + (l.off - l.on) * acc / total }; });
+}
+
+/* ---------- text ---------- */
+const font = (w, s, f = 'Inter Display') => `${w} ${s}px '${f}'`;
+function text(str, x, y, o = {}) {
+  ctx.save();
+  ctx.font = font(o.w || 600, o.s || 48, o.f);
+  ctx.fillStyle = o.c || C.ink;
+  ctx.textAlign = o.a || 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.letterSpacing = (o.ls || 0) + 'px';
+  ctx.globalAlpha *= (o.al ?? 1);
+  if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.gb || 30; }
+  ctx.fillText(str, x, y);
+  ctx.restore();
+}
+function measure(str, o = {}) {
+  ctx.save(); ctx.font = font(o.w || 600, o.s || 48, o.f); ctx.letterSpacing = (o.ls || 0) + 'px';
+  const m = ctx.measureText(str).width; ctx.restore(); return m;
+}
+// Kinetic line: words rise in with a stagger from t0, leave from t1.
+function line(str, x, y, t, t0, t1, o = {}) {
+  const out = o.out ?? 0.22;
+  if (t < t0 || t > t1 + out) return;
+  ctx.save();
+  ctx.font = font(o.w || 600, o.s || 48, o.f);
+  ctx.letterSpacing = (o.ls || 0) + 'px';
+  const words = str.split(' ');
+  const space = ctx.measureText(' ').width;
+  const widths = words.map(w => ctx.measureText(w).width);
+  const total = widths.reduce((a, b) => a + b, 0) + space * (words.length - 1);
+  let cx = o.a === 'center' ? x - total / 2 : o.a === 'right' ? x - total : x;
+  const st = o.st ?? 0.03, d = o.d ?? 0.3, size = o.s || 48;
+  const ex = eIC(prog(t, t1, t1 + out));
+  const base = ctx.globalAlpha;
+  words.forEach((wd, i) => {
+    const p = eOC(prog(t, t0 + i * st, t0 + i * st + d));
+    ctx.fillStyle = (o.hl && o.hl[wd.replace(/[.,!?:;]/g, '')]) || o.c || C.ink;
+    ctx.globalAlpha = base * p * (1 - ex) * (o.al ?? 1);
+    if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.gb || 24; }
+    ctx.fillText(wd, cx, y + (1 - p) * size * 0.5 - ex * size * 0.3);
+    cx += widths[i] + space;
+  });
+  ctx.restore();
+}
+function tri(x, y, w, h, p, alpha = 1) {
+  const cols = [C.rs3, '#e8ebf0', C.m2];
+  ctx.save(); ctx.globalAlpha *= alpha;
+  cols.forEach((c, i) => {
+    const pp = eOC(prog(p, i * 0.15, 0.55 + i * 0.15));
+    const x0 = x + i * (w + 8);
+    ctx.fillStyle = c; ctx.beginPath();
+    ctx.moveTo(x0 + h * 0.6, y); ctx.lineTo(x0 + h * 0.6 + w * pp, y); ctx.lineTo(x0 + w * pp, y + h); ctx.lineTo(x0, y + h); ctx.closePath(); ctx.fill();
+  });
+  ctx.restore();
+}
+
+/* ---------- captions (spoken words pop in as they are said) ---------- */
+const CAP_HL = { Audi: C.rs3, 'Audi’s': C.rs3, RS3: C.rs3, 'five-door': C.rs3, 'five-cylinder': C.rs3, 'four-wheel': C.rs3, '3.8': C.rs3, Drift: C.rs3, 'all-weather': C.rs3, BMW: C.m2, M2: C.m2, 'M2’s': C.m2, 'two-door': C.m2, 'straight-six': C.m2, rear: C.m2, '4.0': C.m2, manual: C.m2, 'rear-drive': C.m2, hooligan: C.m2, '400': C.amber, '480': C.amber, '£60k': C.go, '£69k': C.go, weapons: C.amber, comments: C.go };
+function layoutWords(words, s, w, maxW) {
+  ctx.save(); ctx.font = font(w, s); const sp = ctx.measureText(' ').width;
+  const lines = [[]]; let lw = 0;
+  for (const it of words) {
+    const ww = ctx.measureText(it.w).width;
+    if (lw > 0 && lw + sp + ww > maxW) { lines.push([]); lw = 0; }
+    lines[lines.length - 1].push({ ...it, ww }); lw += (lw > 0 ? sp : 0) + ww;
+  }
+  ctx.restore();
+  return { lines, sp };
+}
+function speak(l, t, cx, cy, o = {}) {
+  const s = o.s || 50, wgt = o.w || 800, hold = o.hold ?? 0.35;
+  const fade = 1 - prog(t, l.off + hold, l.off + hold + 0.25);
+  if (fade <= 0 || t < l.on - 0.1) return;
+  const { lines, sp } = layoutWords(wordTimes(l), s, wgt, o.maxW || 1500);
+  const lh = s * 1.22;
+  ctx.save();
+  ctx.font = font(wgt, s); ctx.textBaseline = 'alphabetic';
+  lines.forEach((ln, li) => {
+    const total = ln.reduce((a, b) => a + b.ww, 0) + sp * (ln.length - 1);
+    let x = cx - total / 2;
+    const y = cy - (lines.length - 1 - li) * lh;
+    for (const it of ln) {
+      const p = eOB(prog(t, it.s - 0.05, it.s + 0.08));
+      const now = t >= it.s && t < it.e + 0.05;
+      const key = it.w.replace(/[.,!?:;]/g, '');
+      const hl = (o.hl && o.hl[key]) || CAP_HL[key];
+      ctx.globalAlpha = clamp(prog(t, it.s - 0.05, it.s + 0.02)) * fade;
+      ctx.save();
+      ctx.translate(x + it.ww / 2, y + (1 - clamp(p)) * 14);
+      const sc = 0.8 + 0.2 * p;
+      ctx.scale(sc, sc);
+      ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 3;
+      ctx.fillStyle = hl || (now && !o.noCurrent ? '#9fd8ff' : (o.c || 'rgba(240,243,248,0.95)'));
+      ctx.fillText(it.w, -it.ww / 2, 0);
+      ctx.restore();
+      if (o.ul && o.ul[key]) { // underline swipe under a key word
+        ctx.fillStyle = o.ul[key];
+        ctx.fillRect(x, y + s * 0.15, it.ww * eOC(prog(t, it.s + 0.08, it.s + 0.3)), s * 0.08);
+      }
+      x += it.ww + sp;
+    }
+  });
+  ctx.restore();
+}
+function captions(t) {
+  const lines = Object.values(VO);
+  lines.forEach((l, i) => {
+    const next = lines[i + 1], hold = next ? clamp(next.on - l.off - 0.3, -0.25, 0.35) : 0.35; // clear before the next line
+    if (l.cap === false || t < l.on - 0.1 || t > l.off + hold + 0.25) return;
+    const g = ctx.createLinearGradient(0, 860, 0, H);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.6)');
+    ctx.save(); ctx.globalAlpha = env(t, l.on - 0.1, l.off + hold + 0.25, 0.2, 0.25); ctx.fillStyle = g; ctx.fillRect(0, 860, W, 220); ctx.restore();
+    speak(l, t, 960, 1012, { s: 52, hold });
+  });
+}
+
+/* ---------- overlays ---------- */
+const grainCv = document.createElement('canvas');
+grainCv.width = grainCv.height = 256;
+{
+  const g = grainCv.getContext('2d'), id = g.createImageData(256, 256), r = rng(99);
+  for (let i = 0; i < id.data.length; i += 4) { const v = Math.floor(r() * 255); id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
+  g.putImageData(id, 0, 0);
+}
+function grain(t, a = 0.045) {
+  const r = rng(Math.floor(t * 30) + 1);
+  ctx.save(); ctx.globalAlpha = a; ctx.globalCompositeOperation = 'overlay';
+  ctx.translate(-Math.floor(r() * 256), -Math.floor(r() * 256));
+  ctx.fillStyle = ctx.createPattern(grainCv, 'repeat'); ctx.fillRect(0, 0, W + 256, H + 256);
+  ctx.restore();
+}
+function vignette(a = 0.6) {
+  const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.05);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${a})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function black(a) { if (a <= 0) return; ctx.fillStyle = `rgba(0,0,0,${clamp(a)})`; ctx.fillRect(0, 0, W, H); }
+function flash(t, t0, d = 0.35, a = 0.8, col = '255,255,255') {
+  const p = prog(t, t0, t0 + d); if (p <= 0 || p >= 1) return;
+  ctx.fillStyle = `rgba(${col},${a * (1 - eOC(p))})`; ctx.fillRect(0, 0, W, H);
+}
+function glowDot(x, y, r, col, a) {
+  if (a <= 0 || r <= 0) return;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`);
+  ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+}
+function streak(x, y, len, col, a) { // anamorphic lens streak
+  if (a <= 0) return;
+  const g = ctx.createLinearGradient(x - len, 0, x + len, 0);
+  g.addColorStop(0, `rgba(${col},0)`); g.addColorStop(0.5, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`);
+  ctx.fillStyle = g; ctx.fillRect(x - len, y - 2, len * 2, 4);
+  ctx.save(); ctx.globalAlpha *= 0.4; ctx.fillRect(x - len * 0.6, y - 7, len * 1.2, 14); ctx.restore();
+}
+
+/* ---------- motion-graphics kit ---------- */
+function ringBurst(x, y, t, t0, col = '255,255,255', maxR = 420, n = 3, lines = 24) {
+  for (let k = 0; k < n; k++) {
+    const p = prog(t, t0 + k * 0.07, t0 + k * 0.07 + 0.75);
+    if (p <= 0 || p >= 1) continue;
+    ctx.save(); ctx.strokeStyle = `rgba(${col},${0.7 * (1 - p)})`; ctx.lineWidth = 1 + 5 * (1 - p);
+    ctx.beginPath(); ctx.arc(x, y, eOC(p) * maxR * (1 - k * 0.18), 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  const p = prog(t, t0, t0 + 0.55);
+  if (p > 0 && p < 1 && lines) {
+    ctx.save(); ctx.strokeStyle = `rgba(${col},${0.8 * (1 - p)})`; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    for (let i = 0; i < lines; i++) {
+      const a = i / lines * Math.PI * 2 + 0.13, r1 = maxR * (0.25 + 0.55 * eOC(p)), r2 = maxR * (0.35 + 0.75 * eOC(p));
+      ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); ctx.lineTo(x + Math.cos(a) * r2, y + Math.sin(a) * r2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+function bgType(str, y, t, speed, a = 0.05, s = 300) { // giant outlined type drifting behind a scene
+  ctx.save(); ctx.font = font(900, s); ctx.textBaseline = 'alphabetic';
+  const w = ctx.measureText(str + '  ').width;
+  let x = -((t * speed) % w);
+  ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = 2;
+  for (; x < W; x += w) ctx.strokeText(str, x, y);
+  ctx.restore();
+}
+function slot(str, x, y, t, t0, o = {}) { // rolling-digit counter; returns its width
+  const s = o.s || 200, dur = o.dur ?? 0.7, lh = s * 1.05, ls = o.ls || 0;
+  ctx.save(); ctx.font = font(o.w || 900, s); ctx.textBaseline = 'alphabetic';
+  const chars = [...str], ws = chars.map(ch => ctx.measureText(ch).width + ls);
+  const total = ws.reduce((a, b) => a + b, 0);
+  let cx = o.a === 'center' ? x - total / 2 : o.a === 'right' ? x - total : x;
+  ctx.beginPath(); ctx.rect(cx - 30, y - s * 0.9, total + 60, s * 1.12); ctx.clip();
+  ctx.fillStyle = o.c || C.ink;
+  if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.gb || 40; }
+  ctx.globalAlpha *= clamp(prog(t, t0 - 0.02, t0 + 0.1));
+  chars.forEach((ch, i) => {
+    if (/\d/.test(ch)) {
+      const e = eOC(prog(t, t0 + i * 0.05, t0 + i * 0.05 + dur));
+      let start = +ch + 10 + i * 4; // spin in from far away...
+      if (o.from && /\d/.test(o.from[i] || '')) { start = +o.from[i]; if (start > +ch) start -= 10; } // ...or roll on from the previous value
+      const pos = lerp(start, +ch, e), n = Math.floor(pos), f = pos - n;
+      ctx.fillText(String(((n % 10) + 10) % 10), cx, y + f * lh);
+      ctx.fillText(String((((n + 1) % 10) + 10) % 10), cx, y + (f - 1) * lh);
+    } else ctx.fillText(ch, cx, y);
+    cx += ws[i];
+  });
+  ctx.restore();
+  return total;
+}
+function scanBar(x, y0, y1, a, col = '120,200,255') {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createLinearGradient(x - 140, 0, x + 6, 0);
+  g.addColorStop(0, `rgba(${col},0)`); g.addColorStop(0.85, `rgba(${col},${0.22 * a})`); g.addColorStop(1, `rgba(${col},${0.95 * a})`);
+  ctx.fillStyle = g; ctx.fillRect(x - 140, y0, 146, y1 - y0);
+  ctx.restore();
+}
+function zoomLines(cx, cy, t, a, n = 60, seed = 9) { // radial speed burst
+  if (a <= 0) return;
+  const r = rng(seed);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const ang = r() * Math.PI * 2, sp = 0.8 + r() * 1.4, f = (t * sp + r()) % 1;
+    const r1 = 140 + f * 1100, r2 = r1 + 60 + f * 300;
+    ctx.strokeStyle = `rgba(225,235,255,${a * 0.4 * f})`; ctx.lineWidth = 1 + 2.5 * f;
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1); ctx.lineTo(cx + Math.cos(ang) * r2, cy + Math.sin(ang) * r2); ctx.stroke();
+  }
+  ctx.restore();
+}
+function stripes(t, t0, dur = 0.55, y = 540, ang = -0.32, a = 1) { // M-tricolour bars shoot across
+  const p = prog(t, t0, t0 + dur); if (p <= 0 || p >= 1) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.translate(960, y); ctx.rotate(ang);
+  [C.rs3, '#e8ebf0', C.m2].forEach((c, i) => {
+    const x = lerp(-2600, 2600, eIOC(clamp(p * 1.25 - i * 0.1)));
+    ctx.fillStyle = c; ctx.fillRect(x - 900, -62 + i * 42, 1800, 30);
+  });
+  ctx.restore();
+}
+function sparks(x, y, t, t0, n = 28, col = '120,230,255') {
+  const lt = t - t0; if (lt < 0 || lt > 0.9) return;
+  const r = rng(Math.round(t0 * 100));
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const a = r() * Math.PI * 2, v = 200 + r() * 650;
+    const px = x + Math.cos(a) * v * lt, py = y + Math.sin(a) * v * lt + 600 * lt * lt;
+    ctx.strokeStyle = `rgba(${col},${1 - lt / 0.9})`;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - Math.cos(a) * 20, py - Math.sin(a) * 20 - 14 * lt); ctx.stroke();
+  }
+  ctx.restore();
+}
+function hudCorners(a, inset = 46, arm = 44) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+  const k = inset + (1 - a) * 30;
+  for (const [x, y, dx, dy] of [[k, k, 1, 1], [W - k, k, -1, 1], [k, H - k, 1, -1], [W - k, H - k, -1, -1]]) {
+    ctx.beginPath(); ctx.moveTo(x, y + dy * arm); ctx.lineTo(x, y); ctx.lineTo(x + dx * arm, y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---------- path helpers ---------- */
+function smoothClosed(P, k = 1) { // closed Catmull-Rom spline through the points
+  const p = new Path2D(), n = P.length;
+  p.moveTo(...P[0]);
+  for (let i = 0; i < n; i++) {
+    const p0 = P[(i - 1 + n) % n], p1 = P[i], p2 = P[(i + 1) % n], p3 = P[(i + 2) % n];
+    p.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6 * k, p1[1] + (p2[1] - p0[1]) / 6 * k,
+                    p2[0] - (p3[0] - p1[0]) / 6 * k, p2[1] - (p3[1] - p1[1]) / 6 * k, p2[0], p2[1]);
+  }
+  p.closePath(); return p;
+}
+function roundPoly(P, r) {
+  const p = new Path2D(), n = P.length;
+  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  p.moveTo(...mid(P[n - 1], P[0]));
+  for (let i = 0; i < n; i++) { const m = mid(P[i], P[(i + 1) % n]); p.arcTo(P[i][0], P[i][1], m[0], m[1], Array.isArray(r) ? r[i] : r); }
+  p.closePath(); return p;
+}
+// right half from top-centre clockwise to bottom-centre -> full symmetric loop
+const sym = half => [...half, ...half.slice(1, -1).reverse().map(([x, y]) => [-x, y])];
+function both(fn) { fn(1); ctx.save(); ctx.scale(-1, 1); fn(-1); ctx.restore(); }
+C.rs3 = '#7ddc2f'; C.m2 = '#3fa9f5';
+function contactShadow(cx, w) {
+  ctx.save(); ctx.scale(1, 0.06);
+  const sg = ctx.createRadialGradient(cx, 0, 50, cx, 0, w); sg.addColorStop(0, 'rgba(0,0,0,0.9)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(cx, 0, w, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+}
+function floorReflect(draw, gy, a = 0.2, fadeH = 300) {
+  ctx.save(); ctx.translate(0, 2 * gy); ctx.scale(1, -1); ctx.globalAlpha = a; draw(); ctx.restore();
+  const g = ctx.createLinearGradient(0, gy, 0, gy + fadeH);
+  g.addColorStop(0, 'rgba(4,6,9,0.2)'); g.addColorStop(1, 'rgba(4,6,9,1)');
+  ctx.fillStyle = g; ctx.fillRect(0, gy, W, H - gy);
+}
+function speedLines(t, a, seed = 3, y0 = 200, y1 = 900, dir = -1) {
+  if (a <= 0) return;
+  const r = rng(seed);
+  ctx.save(); ctx.globalAlpha = a;
+  for (let i = 0; i < 46; i++) {
+    const y = y0 + r() * (y1 - y0), len = 200 + r() * 600, sp = 2600 + r() * 2600, ph = r() * 3000;
+    let x = ((ph + t * sp) % (W + len * 2)) - len;
+    if (dir < 0) x = W - x;
+    const g = ctx.createLinearGradient(x, 0, x + len * -dir, 0);
+    g.addColorStop(0, 'rgba(200,225,255,0.35)'); g.addColorStop(1, 'rgba(200,225,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(Math.min(x, x - len * dir), y, len, 1.5 + r() * 1.5);
+  }
+  ctx.restore();
+}
+function header(t, a, b, label) {
+  const al = env(t, a, b, 0.3, 0.25); if (al <= 0) return;
+  ctx.save(); ctx.globalAlpha = al;
+  tri(120, 84, 22, 6, prog(t, a, a + 0.6));
+  text(label.toUpperCase(), 222, 96, { s: 22, w: 700, c: C.mute, ls: 5 });
+  ctx.restore();
+}
+function blueprintBg(t) {
+  ctx.fillStyle = '#040a14'; ctx.fillRect(0, 0, W, H);
+  const off = (t * 12) % 40;
+  ctx.strokeStyle = 'rgba(90,150,220,0.07)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let x = -off; x < W; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = 0; y < H; y += 40) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+  const g = ctx.createRadialGradient(960, 560, 0, 960, 560, 900);
+  g.addColorStop(0, 'rgba(40,110,200,0.16)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function polyPoint(pts, f) {
+  let total = 0; const seg = [];
+  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
+  let d = f * total;
+  for (let i = 0; i < seg.length; i++) { if (d <= seg[i]) { const k = d / seg[i]; return [lerp(pts[i][0], pts[i + 1][0], k), lerp(pts[i][1], pts[i + 1][1], k)]; } d -= seg[i]; }
+  return pts[pts.length - 1];
+}
+function flow(pts, t, col, n = 10, speed = 0.6, size = 5, a = 1) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = col.replace('A', '0.25'); ctx.lineWidth = 3;
+  ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+  for (let i = 0; i < n; i++) {
+    const [x, y] = polyPoint(pts, (t * speed + i / n) % 1);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, size * 3);
+    g.addColorStop(0, col.replace('A', '1')); g.addColorStop(1, col.replace('A', '0'));
+    ctx.fillStyle = g; ctx.fillRect(x - size * 3, y - size * 3, size * 6, size * 6);
+  }
+  ctx.restore();
+}
+
+function particles(t, n, seed, col, a, y0 = 0, y1 = H) { // drifting motes catching the light
+  if (a <= 0) return;
+  const r = rng(seed);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < n; i++) {
+    const sp = 0.4 + r(), x = ((r() * W + t * 14 * sp) % W + W) % W, y = y0 + ((r() * (y1 - y0) - t * 9 * sp) % (y1 - y0) + (y1 - y0)) % (y1 - y0);
+    glowDot(x, y, 2 + r() * 5, col, a * (0.3 + 0.7 * r()) * (0.6 + 0.4 * Math.sin(t * 3 + i)));
+  }
+  ctx.restore();
+}
+
+/* =====================================================================
+   PHOTOS — official AUDI AG and BMW AG press images, downloaded by
+   fetch_photos.sh into out/photos/ (editorial use; never committed).
+   `f` is where the car sits in each photo, as fractions of width/height.
+   ===================================================================== */
+const PHOTOS = {
+  rs3_front34: [0.49, 0.53], rs3_head: [0.5, 0.6], rs3_front_drive: [0.6, 0.3], rs3_rear_drive: [0.43, 0.68], rs3_rear34: [0.64, 0.62],
+  rs3_rear: [0.53, 0.6], rs3_garage: [0.42, 0.58], rs3_sunset: [0.5, 0.6], rs3_drift_side: [0.6, 0.55], rs3_drift_rear: [0.42, 0.52], rs3_snow_front: [0.5, 0.62],
+  m2_front34: [0.6, 0.66], m2_coast_drive: [0.58, 0.55], m2_rear34_drive: [0.5, 0.62], m2_head_drive: [0.5, 0.5], m2_rear_drive: [0.5, 0.58],
+  m2_head: [0.5, 0.64], m2_rear: [0.5, 0.6], m2_side: [0.6, 0.72], m2_grille: [0.4, 0.55], m2_exhaust: [0.5, 0.5], m2_manual: [0.47, 0.4],
+  m2_garage: [0.5, 0.55], m2_caliper: [0.5, 0.65],
+};
+const PH = {};
+const r3dReady = new Promise(res => (window.R3D ? res() : addEventListener('r3d-ready', res, { once: true })));
+window.ready = Promise.all([r3dReady, ...Object.keys(PHOTOS).map(n => new Promise(res => {
+  const im = new Image(); im.onload = () => im.decode().then(res, res); im.onerror = res; im.src = `out/photos/${n}.jpg`; PH[n] = im;
+}))]);
+// Draw a photo to cover a rectangle, centred on the car, with zoom/pan and grading.
+function photo(name, x = 0, y = 0, w = W, h = H, o = {}) {
+  const im = PH[name];
+  if (!im || !im.naturalWidth) { ctx.fillStyle = '#111'; ctx.fillRect(x, y, w, h); return { at: () => [x + w / 2, y + h / 2] }; }
+  const iw = im.naturalWidth, ih = im.naturalHeight;
+  const s = Math.max(w / iw, h / ih) * (o.z || 1);
+  const [fx, fy] = o.f || PHOTOS[name];
+  let dx = x + w / 2 - fx * iw * s + (o.dx || 0), dy = y + h / 2 - fy * ih * s + (o.dy || 0);
+  dx = Math.min(x, Math.max(x + w - iw * s, dx)); dy = Math.min(y, Math.max(y + h - ih * s, dy));
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  if (o.filter) ctx.filter = o.filter;
+  if (o.blur) { // directional motion blur: ghost copies along the travel direction
+    ctx.drawImage(im, dx, dy, iw * s, ih * s);
+    ctx.globalAlpha = 0.18;
+    for (let k = 1; k <= 4; k++) ctx.drawImage(im, dx + o.blur[0] * k, dy + o.blur[1] * k, iw * s, ih * s);
+    ctx.globalAlpha = 1;
+  } else ctx.drawImage(im, dx, dy, iw * s, ih * s);
+  ctx.filter = 'none';
+  if (o.dark) { ctx.fillStyle = `rgba(0,0,0,${o.dark})`; ctx.fillRect(x, y, w, h); }
+  if (o.tint) { ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = o.tint; ctx.fillRect(x, y, w, h); }
+  ctx.restore();
+  return { at: (px, py) => [dx + px * iw * s, dy + py * ih * s] };
+}
+// Ken Burns: zoom from z0 to z1 across [t0, t1]
+const kb = (t, t0, t1, z0 = 1.04, z1 = 1.14) => lerp(z0, z1, eIOS(prog(t, t0, t1)));
+// Pick the current shot from a list of [start, drawFn]; quick flash at each change.
+function shots(t, list) {
+  let i = 0;
+  for (let k = 0; k < list.length; k++) if (t >= list[k][0]) i = k;
+  list[i][1](t, list[i][0]);
+  if (i > 0) flash(t, list[i][0], 0.22, 0.45);
+}
+function snow(t, a, seed = 3, n = 160) { // flying snow / spray
+  if (a <= 0) return;
+  const r = rng(seed);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < n; i++) {
+    const sp = 0.5 + r(), x = ((r() * W - t * 900 * sp) % W + W) % W, y = ((r() * H + t * 260 * sp) % H + H) % H;
+    glowDot(x, y, 2 + r() * 6, '235,240,255', a * (0.25 + 0.6 * r()));
+  }
+  ctx.restore();
+}
+function label(t, t0, ax, ay, lx, ly, str, col) { // leader line + label pointing at something in a photo
+  const p = eOC(prog(t, t0, t0 + 0.35)); if (p <= 0) return;
+  ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.shadowColor = col; ctx.shadowBlur = 12;
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(lerp(ax, lx, p), lerp(ay, ly, p)); ctx.stroke();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(ax, ay, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.arc(ax, ay, 8 + 16 * ((t * 1.4) % 1), 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+  const w = measure(str, { s: 40, w: 900, ls: 6 }) + 44;
+  ctx.save(); ctx.globalAlpha = p; ctx.fillStyle = 'rgba(5,7,12,0.82)'; ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(lx - w / 2, ly - 46, w, 62, 10); ctx.fill(); ctx.stroke(); ctx.restore();
+  text(str, lx, ly, { a: 'center', s: 40, w: 900, ls: 6, al: p });
+}
+function chip(t, t0, x, y, str, col, fill) {
+  const p = eOB(prog(t, t0, t0 + 0.3)); if (p <= 0) return;
+  const w = measure(str, { s: 26, w: 800, ls: 3 }) + 48;
+  ctx.save(); ctx.translate(x, y); ctx.scale(clamp(p, 0, 1.2), clamp(p, 0, 1.2));
+  ctx.fillStyle = fill; ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(0, -36, w, 52, 26); ctx.fill(); ctx.stroke();
+  text(str, w / 2, 0, { a: 'center', s: 26, w: 800, c: '#fff', ls: 3 });
+  ctx.restore();
+}
+function topShade(a = 0.65, h = 380) { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, h); }
+/* =====================================================================
+   3D — the two cars rendered live by stage3d.js (three.js); this draws the
+   returned frame and hands back screen positions of named points on the cars
+   ===================================================================== */
+const D3 = { rs3: { xf: 1.2645, xr: -1.3665, R: 0.321, tw: 0.79, side: 0.93 }, m2: { xf: 1.557, xr: -1.19, R: 0.338, tw: 0.8, side: 0.95 } };
+function wheelAnchors(id, s = 1) {
+  const d = D3[id], o = {};
+  for (const [n, x] of [['f', d.xf], ['r', d.xr]]) { o[id + n + 'L'] = [id, x, d.R, d.tw + 0.12]; o[id + n + 'R'] = [id, x, d.R, -d.tw - 0.12]; }
+  return o;
+}
+function three(spec) {
+  const r = window.R3D.render(spec);
+  ctx.drawImage(r.canvas, 0, 0);
+  return r.at;
+}
+const orbit = (u, a0, a1) => lerp(a0, a1, eIOS(u));
+function lightsOn(t, t0) { // studio lights clunking on: exposure ramp with a flicker
+  const u = prog(t, t0, t0 + 0.7);
+  const flick = u < 0.35 ? (Math.floor((t - t0) * 30) % 3 === 1 ? 0.25 : 0.7) : 1;
+  return lerp(0.08, 1.05, eOC(u)) * flick;
+}
+function tag3d(t, t0, at, str, col, dy = -90, t1 = 1e9) { // small label hovering over a point on a car
+  if (!at || !at[2]) return;
+  const p = eOB(prog(t, t0, t0 + 0.3)) * (1 - prog(t, t1, t1 + 0.2)); if (p <= 0) return;
+  const [x, y] = at, w = measure(str, { s: 30, w: 900, ls: 5 }) + 40, al = clamp(prog(t, t0, t0 + 0.12)) * (1 - prog(t, t1, t1 + 0.2));
+  ctx.save(); ctx.globalAlpha = al;
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + dy * clamp(p) + 22); ctx.stroke();
+  ctx.translate(x, y + dy); ctx.scale(clamp(p, 0, 1.2), clamp(p, 0, 1.2));
+  ctx.fillStyle = 'rgba(5,7,12,0.85)'; ctx.beginPath(); ctx.roundRect(-w / 2, -34, w, 52, 26); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  text(str, x, y + dy + 2, { a: 'center', s: 30, w: 900, ls: 5, c: '#fff', al });
+}
+function wheelGlow(t, t0, at, col, k = 1) {
+  if (!at || !at[2]) return;
+  const p = prog(t, t0, t0 + 0.4); if (p <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  glowDot(at[0], at[1], 120 * k, col, 0.55 * eOC(p) * (0.8 + 0.2 * Math.sin(t * 9)));
+  ctx.strokeStyle = `rgba(${col},${0.9 * (1 - (((t - t0) * 1.2) % 1))})`; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(at[0], at[1], (60 + 70 * (((t - t0) * 1.2) % 1)) * k, (24 + 28 * (((t - t0) * 1.2) % 1)) * k, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+function smoke(t, at, a, seed, dir = -1, scale = 1) { // tyre smoke puffs from a point
+  if (!at || a <= 0) return;
+  const r = rng(seed);
+  ctx.save();
+  for (let i = 0; i < 26; i++) {
+    const ph = (t * (0.9 + r() * 0.5) + r()) % 1, ang = r() * 0.8 - 0.4;
+    const x = at[0] + dir * ph * (260 + r() * 260) * scale + Math.sin(ang) * 40, y = at[1] - ph * (120 + r() * 120) * scale + 20;
+    const rad = (40 + ph * 170) * scale;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, `rgba(215,222,232,${0.22 * a * (1 - ph)})`); g.addColorStop(1, 'rgba(215,222,232,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  ctx.restore();
+}
+
+/* =====================================================================
+   SCENE TIMING — every beat hangs off the measured voiceover
+   ===================================================================== */
+const ON = id => VO[id].on, OFF = id => VO[id].off;
+function wt(id, word) { // start time of the first caption word containing `word`
+  const w = wordTimes(VO[id]).find(it => it.w.toLowerCase().includes(word.toLowerCase()));
+  return w ? w.s : VO[id].on;
+}
+const CUT = [0, ...['02', '03', '04', '05', '06', '07', '08', '09', '10', '11'].map(id => ON(id) - 0.3), DURATION];
+const B = {
+  rs3: wt('01', 'RS3'), m2: wt('01', 'M2'), weapons: wt('01', 'weapons'), different: wt('01', 'different'),
+  look: wt('02', 'look'), both: wt('02', 'both'),
+  hatch: wt('03', 'five-door'), cyl: wt('03', 'five-cylinder'), hp400: wt('03', '400'), awd: wt('03', 'four-wheel'),
+  bmw: wt('04', 'BMW'), coupe: wt('04', 'two-door'), i6: wt('04', 'twin-turbo'), hp480: wt('04', '480'), rwd: wt('04', 'rear'),
+  line: wt('05', 'line'), pays: wt('05', 'pays'), rRS3: wt('05', 'RS3'), r38: wt('05', '3.8'), rM2: wt('05', 'M2'), r40: wt('05', '4.0'),
+  trick: wt('06', 'party'), manual: wt('06', 'six-speed'), old: wt('06', 'old'),
+  dont: ON('07'), torque: wt('07', 'Torque'), outside: wt('07', 'outside'), drift: wt('07', 'Drift'),
+  prac: ON('08'), easy: wt('08', 'Easy'), five: wt('08', 'Five'), seat: wt('08', 'back'),
+  price: ON('09'), p60: wt('09', '£60k'), p69: wt('09', '£69k'),
+  take: ON('10'), allw: wt('10', 'all-weather'), vRS3: wt('10', 'RS3'), oldsch: wt('10', 'old-school'), vM2: wt('10', 'M2'),
+  comments: wt('11', 'comments'),
+};
+B.vs = B.m2 + 0.55;
+
+/* =====================================================================
+   SCENES
+   ===================================================================== */
+function splitScreen(t, drawL, drawR, seam = 1) {
+  const sl = 0.18, cx = 960;
+  const clipSide = left => { ctx.beginPath(); if (left) { ctx.moveTo(0, 0); ctx.lineTo(cx + H * sl / 2, 0); ctx.lineTo(cx - H * sl / 2, H); ctx.lineTo(0, H); } else { ctx.moveTo(cx + H * sl / 2, 0); ctx.lineTo(W, 0); ctx.lineTo(W, H); ctx.lineTo(cx - H * sl / 2, H); } ctx.closePath(); ctx.clip(); };
+  for (const left of [true, false]) { ctx.save(); clipSide(left); (left ? drawL : drawR)(); ctx.restore(); }
+  if (seam > 0) {
+    ctx.save(); ctx.globalAlpha = seam; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4; ctx.shadowColor = '#fff'; ctx.shadowBlur = 24;
+    ctx.beginPath(); ctx.moveTo(cx + H * sl / 2, 0); ctx.lineTo(cx - H * sl / 2, H); ctx.stroke(); ctx.restore();
+  }
+}
+function nameplate(str, x, y, t, t0, col, s = 96) {
+  line(str, x, y, t, t0, 999, { a: 'center', s, w: 900, ls: 4, c: '#ffffff', glow: `rgba(${col},0.7)`, gb: 30, st: 0.04, d: 0.25 });
+}
+function vsBadge(t, t0, x = 960, y = 470, sz = 1) {
+  const p = eOB(prog(t, t0, t0 + 0.3)); if (p <= 0) return;
+  ctx.save(); ctx.translate(x, y); const sc = lerp(2.2, 1, clamp(p)) * sz; ctx.scale(sc, sc); ctx.globalAlpha = clamp(prog(t, t0, t0 + 0.1));
+  ctx.fillStyle = 'rgba(5,7,12,0.88)'; ctx.beginPath(); ctx.arc(0, 0, 86, 0, Math.PI * 2); ctx.fill();
+  ctx.lineWidth = 6; const g = ctx.createLinearGradient(-86, 0, 86, 0); g.addColorStop(0, C.rs3); g.addColorStop(1, C.m2);
+  ctx.strokeStyle = g; ctx.stroke();
+  ctx.font = font(900, 82); ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(255,255,255,0.6)'; ctx.shadowBlur = 20;
+  ctx.fillText('VS', 0, 29);
+  ctx.restore();
+}
+const revealed = (t, t0) => { const p = eOC(prog(t, t0 - 0.05, t0 + 0.35)); return `grayscale(${1 - p}) brightness(${0.35 + 0.65 * p})`; };
+function banner(t, t0, x, y, str, fill, ink, s = 92, pad = 46) { // pop-in slab of text
+  const p = eOB(prog(t, t0, t0 + 0.3)); if (p <= 0) return;
+  const w = measure(str, { s, w: 900, ls: 3 }) + pad * 2;
+  ctx.save(); ctx.translate(x, y); ctx.scale(clamp(p, 0, 1.25), clamp(p, 0, 1.25)); ctx.globalAlpha = clamp(prog(t, t0, t0 + 0.1));
+  ctx.fillStyle = fill; ctx.fill(roundPoly([[-w / 2, -s * 0.95], [w / 2, -s * 0.95], [w / 2, s * 0.33], [-w / 2, s * 0.33]], 16));
+  text(str, 0, 0, { a: 'center', s, w: 900, c: ink, ls: 3 });
+  ctx.restore();
+}
+
+// 1 · HOOK — both real cars, colour snaps in as each is named
+function sHook(t) {
+  splitScreen(t,
+    () => photo('rs3_front34', 0, 0, 1060, H, { z: kb(t, 0, CUT[1], 1.55, 1.8), dx: 70, f: [0.5, 0.55], filter: revealed(t, B.rs3) }),
+    () => photo('m2_front34', 860, 0, 1060, H, { z: kb(t, 0, CUT[1], 1.45, 1.7), dx: -30, f: [0.56, 0.66], filter: revealed(t, B.m2) }),
+    prog(t, 0.1, 0.5));
+  topShade(0.6, 330);
+  ringBurst(500, 640, t, B.rs3, '150,230,90', 460, 2, 0);
+  ringBurst(1420, 640, t, B.m2, '90,180,255', 460, 2, 0);
+  nameplate('AUDI RS3', 420, 170, t, B.rs3 - 0.05, '125,220,47');
+  line('SPORTBACK · QUATTRO', 420, 214, t, B.rs3 + 0.05, 999, { a: 'center', s: 24, w: 700, ls: 8, c: '#d2f5b5' });
+  nameplate('BMW M2', 1500, 170, t, B.m2 - 0.05, '63,169,245');
+  line('COUPÉ · REAR-DRIVE', 1500, 214, t, B.m2 + 0.05, 999, { a: 'center', s: 24, w: 700, ls: 8, c: '#c4e4ff' });
+  vsBadge(t, B.vs, 960, 520);
+  ringBurst(960, 520, t, B.vs, '255,255,255', 600, 3, 24);
+  flash(t, B.vs, 0.3, 0.35);
+  if (t < B.different - 0.1) banner(t, B.weapons, 960, 800, 'TWO ABSOLUTE WEAPONS', 'rgba(5,7,12,0.82)', '#fff', 76);
+  if (t > B.different - 0.1) {
+    const p = eOC(prog(t, B.different - 0.1, B.different + 0.2));
+    ctx.save(); ctx.globalAlpha = p; ctx.fillStyle = 'rgba(5,7,12,0.82)'; ctx.fill(roundPoly([[600, 620], [1320, 620], [1320, 840], [600, 840]], 18)); ctx.restore();
+    [['5 DOORS', '2 DOORS'], ['AWD', 'RWD'], ['5 CYL', '6 CYL']].forEach(([a, b], i) => {
+      const q = eOB(prog(t, B.different + i * 0.09, B.different + i * 0.09 + 0.3)); if (q <= 0) return;
+      const y = 685 + i * 64;
+      text(a, 860 - (1 - q) * 80, y, { a: 'right', s: 40, w: 900, c: C.rs3, al: clamp(q), ls: 3 });
+      text(b, 1060 + (1 - q) * 80, y, { s: 40, w: 900, c: C.m2, al: clamp(q), ls: 3 });
+      text('≠', 960, y, { a: 'center', s: 44, w: 900, c: '#fff', al: clamp(q) * p });
+    });
+  }
+}
+
+// 2 · THE PROPER LOOK — lights on in a 3D studio, both cars on one turntable
+function sLook(t) {
+  const t0 = CUT[1], u = prog(t, t0, CUT[2]);
+  const at = three({
+    cars: [{ id: 'rs3', x: 0, z: 1.45, ry: 0 }, { id: 'm2', x: -0.15, z: -1.45, ry: 0 }],
+    bigTable: { ry: -0.5 + 0.55 * u },
+    cam: { az: orbit(u, 50, 22), el: orbit(u, 6, 13), dist: orbit(u, 9.5, 11.5), fov: 30, target: [0, 0.45, 0] },
+    rim: { rs3: 1, m2: 1 }, exposure: lightsOn(t, t0 + 0.05),
+    anchors: { rs3: ['rs3', -0.4, 1.75, 0], m2: ['m2', -0.6, 1.72, 0] },
+  });
+  header(t, t0 + 0.2, CUT[2], 'The proper look');
+  tag3d(t, B.look - 0.1, at.rs3, 'RS3', C.rs3);
+  tag3d(t, B.look + 0.1, at.m2, 'M2', C.m2);
+  flash(t, t0 + 0.05, 0.25, 0.5);
+}
+
+// 3 · THE AUDI — five-door hatch, five-cylinder, 400 PS, quattro
+function sAudi3D(t) {
+  const t0 = CUT[2], u = prog(t, t0, CUT[3]);
+  const at = three({
+    cars: [{ id: 'rs3', ry: -0.25 + 0.5 * u, spin: B.awd < t ? (t - B.awd) * 6 : 0 }],
+    cam: { az: orbit(u, 28, 78), el: orbit(u, 10, 6), dist: orbit(u, 8.6, 7.6), fov: 30, target: [0, 0.6, 0] },
+    rim: { rs3: 1.2 },
+    anchors: { door: ['rs3', -0.95, 0.85, 0.93], bonnet: ['rs3', 1.5, 0.92, 0], ...wheelAnchors('rs3') },
+  });
+  header(t, t0 + 0.1, CUT[3], 'Audi RS3 Sportback');
+  tag3d(t, B.hatch, at.door, '5-DOOR HATCH', C.rs3, -140, B.hp400 - 0.25);
+  tag3d(t, B.cyl, at.bonnet, '2.5 FIVE-CYLINDER', C.amber, -170);
+  if (t > B.hp400 - 0.05) {
+    const w = slot('400', 120, 420, t, B.hp400, { s: 170, w: 900, c: '#fff', glow: 'rgba(125,220,47,0.6)' });
+    text('PS', 132 + w, 420, { s: 64, w: 900, c: C.rs3, al: prog(t, B.hp400 + 0.2, B.hp400 + 0.4) });
+    ringBurst(290, 360, t, B.hp400, '150,230,90', 360, 2, 18);
+  }
+  for (const k of ['rs3fL', 'rs3fR', 'rs3rL', 'rs3rR']) wheelGlow(t, B.awd + (k.includes('r') ? 0.08 : 0), at[k], '150,230,90', 0.9);
+  if (t > B.awd) chip(t, B.awd + 0.1, 120, 510, 'QUATTRO · ALL FOUR', C.rs3, 'rgba(125,220,47,0.3)');
+}
+
+// 4 · THE BMW — two-door coupé, twin-turbo straight-six, 480 PS, rear-drive
+function sBMW3D(t) {
+  const t0 = CUT[3], u = prog(t, t0, CUT[4]);
+  const spin = t > B.rwd ? (t - B.rwd) * 14 : 0;
+  const at = three({
+    cars: [{ id: 'm2', ry: 0.25 - 0.5 * u, spin }],
+    cam: { az: orbit(u, -28, -80), el: orbit(u, 10, 6), dist: orbit(u, 8.9, 7.9), fov: 30, target: [0, 0.6, 0] },
+    rim: { m2: 1.3 },
+    anchors: { door: ['m2', 0.2, 0.85, -0.95], bonnet: ['m2', 1.6, 0.95, 0], ...wheelAnchors('m2') },
+  });
+  header(t, t0 + 0.1, CUT[4], 'BMW M2');
+  tag3d(t, B.coupe, at.door, '2-DOOR COUPÉ', C.m2, -150, B.hp480 - 0.25);
+  tag3d(t, B.i6, at.bonnet, '3.0 TWIN-TURBO STRAIGHT-SIX', C.amber, -180);
+  if (t > B.hp480 - 0.05) {
+    const psW = measure('PS', { s: 64, w: 900 });
+    slot('480', 1800 - psW - 12, 420, t, B.hp480, { a: 'right', s: 170, w: 900, c: '#fff', glow: 'rgba(63,169,245,0.6)' });
+    text('PS', 1800, 420, { a: 'right', s: 64, w: 900, c: C.m2, al: prog(t, B.hp480 + 0.2, B.hp480 + 0.4) });
+    ringBurst(1610, 360, t, B.hp480, '90,180,255', 360, 2, 18);
+  }
+  for (const k of ['m2rL', 'm2rR']) { wheelGlow(t, B.rwd, at[k], '90,180,255', 1.1); smoke(t, at[k], prog(t, B.rwd + 0.2, B.rwd + 0.8), k.length * 7, 1, 0.8); }
+  if (t > B.rwd) chip(t, B.rwd + 0.15, 1800 - measure('REAR-WHEEL DRIVE', { s: 26, w: 800, ls: 3 }) - 48, 510, 'REAR-WHEEL DRIVE', C.m2, 'rgba(63,169,245,0.3)');
+}
+
+// 5 · 0–62 — the timers hit 3.8 and 4.0 as they're said
+function sRace(t) {
+  const t0 = CUT[4];
+  const rS = Math.max(B.pays - 0.3, t0 + 0.6), mS = Math.max(B.rM2 - 1.1, rS + 0.8);
+  const rT = Math.min(3.8, 3.8 * prog(t, rS, B.r38 + 0.05)), mT = Math.min(4.0, 4.0 * prog(t, mS, B.r40 + 0.05));
+  const lanes = [['rs3_front_drive', 0, rT, 3.8, C.rs3, '#d9f7c4', 'AUDI RS3', rS, B.r38, 2.2, [0.6, 0.3]], ['m2_head_drive', 540, mT, 4.0, C.m2, '#cfe8ff', 'BMW M2 AUTO', mS, B.r40, 2.1, [0.5, 0.5]]];
+  lanes.forEach(([name, y, v, tF, col, light, nm, st, fin, z0, f]) => {
+    const u = prog(t, st, fin + 0.05), go = eIC(u);
+    photo(name, 0, y, W, 540, { z: z0 + 0.4 * go + 0.03 * Math.sin(t * 30) * u * (1 - u), f, blur: u > 0 && u < 1 ? [0, 10 * u] : null, dark: 0.15 });
+    ctx.save(); ctx.beginPath(); ctx.rect(0, y, W, 540); ctx.clip();
+    zoomLines(760, y + 280, t, u > 0 && u < 1.0 ? 0.9 : 0, 60, name.length);
+    const g = ctx.createLinearGradient(1300, 0, W, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.75)');
+    ctx.fillStyle = g; ctx.fillRect(1300, y, 620, 540);
+    const done = v >= tF, pop = done ? eOB(prog(t, fin, fin + 0.35)) : 1;
+    ctx.save(); ctx.translate(1840, y + 330); const sc = lerp(1.3, 1, clamp(pop)); ctx.scale(sc, sc);
+    text(v.toFixed(1), 0, 0, { a: 'right', s: 150, w: 900, c: done ? '#fff' : light, glow: done ? col : null, gb: 34 });
+    text(nm, 0, 52, { a: 'right', s: 30, w: 900, c: col, ls: 6 });
+    ctx.restore();
+    text('s', 1850, y + 330, { s: 50, w: 800, c: col });
+    ctx.restore();
+    if (done) ringBurst(1700, y + 270, t, fin, col === C.rs3 ? '150,230,90' : '90,180,255', 280, 2, 16);
+  });
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 538, W, 4);
+  header(t, t0 + 0.1, CUT[5], '0–62 mph');
+  chip(t, B.pays, 120, 300, 'QUATTRO GRIP', C.rs3, 'rgba(125,220,47,0.3)');
+  if (t > B.r40 + 0.5) banner(t, B.r40 + 0.5, 700, 590, 'AUDI BY 0.2 s', C.rs3, '#0c1a02', 46, 30);
+}
+
+// 6 · THE MANUAL — the M2's party trick, proper old school
+function hPattern(x, y, t, t0, a) { // six-speed gate with the lever running through the gears
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y);
+  ctx.fillStyle = 'rgba(5,8,14,0.78)'; ctx.fill(roundPoly([[-210, -190], [210, -190], [210, 190], [-210, 190]], 22));
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 10; ctx.lineCap = 'round';
+  const cols = [-120, 0, 120];
+  ctx.beginPath(); ctx.moveTo(-120, 0); ctx.lineTo(120, 0);
+  for (const cx of cols) { ctx.moveTo(cx, -120); ctx.lineTo(cx, 120); }
+  ctx.stroke();
+  const gears = [['1', -120, -120], ['2', -120, 120], ['3', 0, -120], ['4', 0, 120], ['5', 120, -120], ['6', 120, 120]];
+  for (const [g, gx, gy] of gears) text(g, gx, gy + (gy < 0 ? -26 : 58), { a: 'center', s: 34, w: 900, c: '#cfd6e2' });
+  // path through 1-2-3-4-5-6, one shift every 0.32 s
+  const path = [[-120, -120], [-120, 0], [-120, 120], [-120, 0], [0, 0], [0, -120], [0, 0], [0, 120], [0, 0], [120, 0], [120, -120], [120, 0], [120, 120]];
+  const f = clamp((t - t0) / 2.2) * (path.length - 1), i = Math.min(path.length - 2, Math.floor(f)), k = eIOC(f - i);
+  const px = lerp(path[i][0], path[i + 1][0], k), py = lerp(path[i][1], path[i + 1][1], k);
+  ctx.strokeStyle = C.m2; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(path[0][0], path[0][1]);
+  for (let j = 1; j <= i; j++) ctx.lineTo(path[j][0], path[j][1]); ctx.lineTo(px, py); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.shadowColor = C.m2; ctx.shadowBlur = 30; ctx.beginPath(); ctx.arc(px, py, 26, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function sManual(t) {
+  const t0 = CUT[5];
+  shots(t, [
+    [t0, () => { photo('m2_coast_drive', 0, 0, W, H, { z: kb(t, t0, B.manual, 1.15, 1.3), blur: [-6, 0] }); speedLines(t, 0.5, 4, 150, 950, 1); }],
+    [B.manual - 0.1, () => {
+      photo('m2_manual', 0, 0, W, H, { z: kb(t, B.manual, B.old, 1.15, 1.4), dark: 0.15 });
+      hPattern(1480, 560, t, B.manual + 0.1, prog(t, B.manual, B.manual + 0.25));
+      chip(t, B.manual + 0.05, 120, 300, '6-SPEED MANUAL', C.m2, 'rgba(63,169,245,0.3)');
+    }],
+    [B.old - 0.1, () => {
+      photo('m2_side', 0, 0, W, H, { z: kb(t, B.old, CUT[6], 1.25, 1.35), filter: 'sepia(0.85) contrast(1.15) brightness(0.9)' });
+      const r = rng(Math.floor(t * 24));
+      ctx.fillStyle = `rgba(255,240,200,${0.05 + r() * 0.06})`; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = 'rgba(30,20,10,0.35)'; ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) { const x = r() * W; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + r() * 20 - 10, H); ctx.stroke(); }
+      line('PROPER OLD SCHOOL', 960, 250, t, B.old, 999, { a: 'center', s: 110, w: 900, ls: 4, c: '#fff4dc', glow: 'rgba(255,200,120,0.5)' });
+    }],
+  ]);
+  topShade(0.5, 300);
+  header(t, t0 + 0.1, CUT[6], 'BMW M2');
+  line('THE PARTY TRICK', 120, 210, t, B.trick, B.manual - 0.25, { s: 84, w: 900, glow: 'rgba(63,169,245,0.7)', out: 0.15 });
+}
+
+// 7 · DRIFT — RS Torque Rear sends the rear torque to the outside wheel
+function torqueBar(x, y, pct, col, lab, a) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a;
+  ctx.fillStyle = 'rgba(5,8,14,0.8)'; ctx.fill(roundPoly([[x - 80, y - 150], [x + 80, y - 150], [x + 80, y + 60], [x - 80, y + 60]], 14));
+  ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x - 24, y - 120, 48, 140);
+  const g = ctx.createLinearGradient(0, y + 20, 0, y - 120); g.addColorStop(0, col); g.addColorStop(1, '#ffffff');
+  ctx.fillStyle = g; ctx.fillRect(x - 24, y + 20 - 140 * pct, 48, 140 * pct);
+  ctx.restore();
+  text(`${Math.round(pct * 100)}%`, x, y + 50, { a: 'center', s: 30, w: 900, al: a });
+  text(lab, x, y - 128, { a: 'center', s: 16, w: 800, c: '#9aa3b2', ls: 3, al: a });
+}
+function sDrift(t) {
+  const t0 = CUT[6];
+  shots(t, [
+    [t0, () => { photo('rs3_drift_side', 0, 0, W, H, { z: kb(t, t0, B.torque, 1.12, 1.25), dx: -60 * prog(t, t0, B.torque), blur: [-7, 1] }); snow(t, 0.7, 13, 120); }],
+    [B.torque - 0.15, () => {
+      const u = prog(t, B.torque, B.drift), yaw = 0.62 * eIOS(prog(t, B.torque + 0.2, B.outside + 0.4)) + 0.04 * Math.sin(t * 5) * prog(t, B.outside, B.outside + 0.4);
+      const at = three({
+        cars: [{ id: 'rs3', ry: yaw, spin: t * 14, steer: -0.5 * yaw, table: false }],
+        cam: { az: 90, el: orbit(u, 62, 70), dist: 9.2, fov: 30, target: [0, 0, 0] },
+        rim: { rs3: 1 }, exposure: 1.0,
+        anchors: { ...wheelAnchors('rs3'), diff: ['rs3', -1.3665, 0.3, 0] },
+      });
+      const sp = clamp(prog(t, B.outside - 0.2, B.outside + 0.5));
+      smoke(t, at.rs3rR, 0.6 + 0.4 * sp, 41, -1, 1.1); smoke(t, at.rs3rL, 0.25 + 0.3 * sp, 43, -1, 0.9);
+      wheelGlow(t, B.outside, at.rs3rR, '150,230,90', 1.3);
+      if (at.diff && at.rs3rR) {
+        flow([at.diff, at.rs3rR], t, 'rgba(150,230,90,A)', 6, 1.6, 6, sp);
+        flow([at.diff, at.rs3rL], t, 'rgba(150,230,90,A)', 3, 1.0, 4, 1 - sp);
+      }
+      const a = prog(t, B.torque, B.torque + 0.3);
+      torqueBar(1500, 680, lerp(0.5, 0, sp), C.rs3, 'INSIDE REAR', a);
+      torqueBar(1720, 680, lerp(0.5, 1, sp), C.rs3, 'OUTSIDE REAR', a);
+      chip(t, B.torque, 120, 300, 'RS TORQUE REAR', C.rs3, 'rgba(125,220,47,0.3)');
+    }],
+    [B.drift - 0.1, () => {
+      photo('rs3_drift_rear', 0, 0, W, H, { z: kb(t, B.drift, CUT[7], 1.15, 1.35), dx: 60 * prog(t, B.drift, CUT[7]), blur: [6, -1] });
+      snow(t, 1, 17, 220);
+      banner(t, B.drift, 960, 330, 'DRIFT MODE', 'rgba(125,220,47,0.92)', '#0c1a02', 96);
+      ringBurst(960, 300, t, B.drift, '150,230,90', 700, 3, 24);
+    }],
+  ]);
+  topShade(0.5, 300);
+  header(t, t0 + 0.1, CUT[7], 'Audi RS3');
+  line('DON’T WRITE IT OFF', 120, 210, t, B.dont, B.torque - 0.3, { s: 84, w: 900, glow: 'rgba(125,220,47,0.7)', out: 0.15 });
+}
+
+// 8 · PRACTICALITY — five doors vs two, nose to tail in 3D
+const DOORS = {
+  rs3: [[[0.68, 0.32], [0.68, 0.99], [0.3, 1.18], [-0.05, 1.33], [-0.6, 1.36], [-0.62, 0.32]], [[-0.64, 0.32], [-0.64, 1.36], [-1.27, 1.32], [-1.3, 1.05], [-1.28, 0.8], [-1.05, 0.74], [-0.98, 0.62], [-0.98, 0.32]]],
+  m2: [[[0.92, 0.3], [0.92, 0.99], [0.55, 1.18], [0.16, 1.33], [-0.48, 1.34], [-0.5, 1.0], [-0.52, 0.6], [-0.48, 0.3]]],
+};
+function sPractical(t) {
+  const t0 = CUT[7], u = prog(t, t0, CUT[8]), push = eIOS(prog(t, B.seat - 0.2, CUT[8]));
+  const anchors = { rs3: ['rs3', -0.3, 1.7, 0], m2: ['m2', -0.5, 1.65, 0] };
+  for (const id of ['rs3', 'm2']) DOORS[id].forEach((d, i) => d.forEach((p, k) => { anchors[`${id}d${i}_${k}`] = [id, p[0], p[1], D3[id].side]; }));
+  anchors.seat = ['rs3', -0.95, 1.0, 0.93];
+  const at = three({
+    cars: [{ id: 'rs3', x: -2.45, ry: 0, table: false }, { id: 'm2', x: 2.6, ry: 0, table: false }],
+    cam: { az: 90 + 8 * (1 - u), el: 9, dist: lerp(lerp(13.2, 12.4, u), 7.2, push), fov: 30, target: [lerp(0.05, -3.3, push), 0.62, 0] },
+    rim: { rs3: 1, m2: 0.6 },
+    anchors,
+  });
+  header(t, t0 + 0.1, CUT[8], 'Practicality');
+  const glowDoors = (id, t1, col) => {
+    const p = eOC(prog(t, t1, t1 + 0.4)); if (p <= 0) return;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.shadowColor = col; ctx.shadowBlur = 22; ctx.globalAlpha = p * (0.75 + 0.25 * Math.sin(t * 6));
+    DOORS[id].forEach((d, i) => { ctx.beginPath(); d.forEach((_, k) => { const q = at[`${id}d${i}_${k}`]; k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.closePath(); ctx.stroke(); });
+    ctx.restore();
+  };
+  glowDoors('rs3', B.five - 0.05, C.rs3);
+  glowDoors('m2', B.five + 0.25, C.m2);
+  tag3d(t, B.five, at.rs3, '5 DOORS', C.rs3, -60);
+  tag3d(t, B.five + 0.25, at.m2, '2 DOORS', C.m2, -60);
+  if (t < B.seat + 0.1) banner(t, B.easy, 960, 200, 'EASY WIN: AUDI', C.rs3, '#0c1a02', 76);
+  if (t > B.seat) {
+    const p = prog(t, B.seat + 0.4, B.seat + 0.8);
+    if (at.seat && p > 0) label(t, B.seat + 0.4, at.seat[0], at.seat[1], at.seat[0] + 120, at.seat[1] - 260, 'ADULT-SIZE BACK SEATS', C.rs3);
+  }
+}
+
+// 9 · PRICE — the scale tips toward the pricier M2
+function circlePhoto(name, x, y, r, col, f) {
+  ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.clip();
+  photo(name, x - r, y - r, 2 * r, 2 * r, { z: 1.9, f });
+  ctx.restore();
+  ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 6; ctx.shadowColor = col; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+}
+function sPrice(t) {
+  const t0 = CUT[8];
+  photo('rs3_sunset', 0, 0, W / 2, H, { z: kb(t, t0, CUT[9], 1.05, 1.15), dark: 0.72, filter: 'grayscale(0.6)' });
+  photo('m2_rear', W / 2, 0, W / 2, H, { z: kb(t, t0, CUT[9], 1.05, 1.15), dark: 0.72, filter: 'grayscale(0.6)' });
+  header(t, t0 + 0.1, CUT[9], 'UK price, from');
+  const tilt = 0.07 * eOB(prog(t, B.p69, B.p69 + 0.8)) + Math.sin(t * 3) * 0.004; // the pricier M2 sinks
+  ctx.save(); ctx.translate(960, 300); ctx.rotate(tilt);
+  ctx.fillStyle = '#c9ced8'; ctx.fillRect(-560, -6, 1120, 12);
+  for (const [sx, col, nm, price, img, f, tt] of [[-500, C.rs3, 'AUDI RS3', '£60K', 'rs3_head', [0.5, 0.62], B.p60], [500, C.m2, 'BMW M2', '£69K', 'm2_head', [0.5, 0.66], B.p69]]) {
+    ctx.save(); ctx.translate(sx, 0); ctx.rotate(-tilt);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-120, 150); ctx.moveTo(0, 0); ctx.lineTo(120, 150); ctx.stroke();
+    ctx.fillStyle = col; ctx.fillRect(-160, 150, 320, 10);
+    circlePhoto(img, 0, 260, 95, col, f);
+    text('AROUND', 0, 385, { a: 'center', s: 22, w: 800, c: '#9aa3b2', ls: 6, al: prog(t, tt - 0.3, tt) });
+    slot(price, 0, 470, t, tt, { a: 'center', s: 96, w: 900, dur: 0.7, c: '#fff', from: '£00K' });
+    text(nm, 0, 515, { a: 'center', s: 28, w: 900, c: col, ls: 6, al: prog(t, t0 + 0.2, t0 + 0.5) });
+    ctx.restore();
+  }
+  ctx.restore();
+  ctx.fillStyle = '#c9ced8'; ctx.beginPath(); ctx.moveTo(960, 300); ctx.lineTo(920, 440); ctx.lineTo(1000, 440); ctx.closePath(); ctx.fill();
+  if (t > B.p69 + 0.6) banner(t, B.p69 + 0.6, 960, 190, '~£9K MORE FOR THE M2', 'rgba(5,7,12,0.82)', C.go, 52, 34);
+  line('UK list prices from, 2025: RS3 Sportback £59,510 at launch, M2 £68,705. Check current pricing before you buy.', 960, 880, t, B.p69, 999, { a: 'center', s: 22, w: 500, c: '#8d96a4', st: 0.01 });
+}
+
+// 10 · VERDICT
+function sVerdict(t) {
+  const t0 = CUT[9];
+  splitScreen(t,
+    () => { photo('rs3_snow_front', 0, 0, 1060, H, { z: kb(t, t0, CUT[10], 1.3, 1.45), dx: 60, filter: revealed(t, B.vRS3) }); if (t > B.allw) snow(t, 0.5, 5, 80); },
+    () => photo('m2_rear34_drive', 860, 0, 1060, H, { z: kb(t, t0, CUT[10], 1.02, 1.12), f: [0.5, 0.6], dx: -20, filter: revealed(t, B.vM2) }), 1);
+  topShade(0.65, 360);
+  header(t, t0 + 0.1, CUT[10], 'The verdict');
+  line('ALL-WEATHER, EVERY DAY?', 420, 180, t, B.allw - 0.1, 999, { a: 'center', s: 40, w: 800, c: '#e2f7d2', ls: 2 });
+  nameplate('AUDI RS3', 420, 280, t, B.vRS3, '125,220,47', 110);
+  line('OLD-SCHOOL HOOLIGAN?', 1500, 180, t, B.oldsch - 0.1, 999, { a: 'center', s: 40, w: 800, c: '#d6ecff', ls: 2 });
+  nameplate('BMW M2', 1500, 280, t, B.vM2, '63,169,245', 110);
+  ringBurst(420, 250, t, B.vRS3, '150,230,90', 300, 2, 16);
+  ringBurst(1500, 250, t, B.vM2, '90,180,255', 300, 2, 16);
+}
+
+// 11 · CTA + END CARD — back to the 3D studio, both cars turning
+function sCTA(t) {
+  const t0 = CUT[10], u = prog(t, t0, DURATION);
+  three({
+    cars: [{ id: 'rs3', x: 0, z: 1.45, ry: 0 }, { id: 'm2', x: -0.15, z: -1.45, ry: 0 }],
+    bigTable: { ry: -0.4 + 0.4 * u },
+    cam: { az: orbit(u, 34, 20), el: 10, dist: orbit(u, 12.2, 13.0), fov: 30, target: [0, 0.3, 0] },
+    rim: { rs3: 1, m2: 1 },
+  });
+  topShade(0.7, 360);
+  line('WHICH ONE WOULD YOU HAVE?', 960, 140, t, ON('11'), 999, { a: 'center', s: 72, w: 900, ls: 2 });
+  const p = eOC(prog(t, ON('11') + 0.4, ON('11') + 1.8)), pg = 0.5 + Math.sin(t * 2.1) * 0.06 * p;
+  ctx.save(); ctx.globalAlpha = prog(t, ON('11') + 0.3, ON('11') + 0.6);
+  ctx.fillStyle = 'rgba(5,7,12,0.75)'; ctx.fill(roundPoly([[540, 185], [1380, 185], [1380, 275], [540, 275]], 14));
+  ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(560, 238, 800, 20);
+  ctx.fillStyle = C.rs3; ctx.fillRect(560, 238, 800 * pg * p, 20);
+  ctx.fillStyle = C.m2; ctx.fillRect(560 + 800 * (1 - (1 - pg) * p), 238, 800 * (1 - pg) * p, 20);
+  text('AUDI RS3', 560, 226, { s: 22, w: 800, c: '#d9f7c4', ls: 4 }); text('BMW M2', 1360, 226, { a: 'right', s: 22, w: 800, c: '#cfe8ff', ls: 4 });
+  ctx.restore();
+  if (t > B.comments - 0.1) {
+    const q = eOB(prog(t, B.comments, B.comments + 0.35));
+    ctx.save(); ctx.translate(960, 880); ctx.scale(clamp(q, 0, 1.2), clamp(q, 0, 1.2));
+    ctx.fillStyle = C.go; ctx.beginPath(); ctx.roundRect(-230, -36, 460, 64, 32); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-150, 26); ctx.lineTo(-170, 52); ctx.lineTo(-120, 28); ctx.fill();
+    text('LET ME KNOW IN THE COMMENTS', 0, 8, { a: 'center', s: 24, w: 900, c: '#062012', ls: 2 });
+    ctx.restore();
+  }
+  line('Photos: AUDI AG and BMW AG press images, editorial use. 3D: approximate models built for this film. Figures: manufacturer data, UK prices 2025. Independent film, not affiliated with Audi or BMW.', 960, 1052, t, OFF('11') + 0.2, 999, { a: 'center', s: 17, w: 500, c: '#8d96a4', st: 0.005, d: 0.3 });
+}
+
+/* =====================================================================
+   COMPOSITOR — scene buffers, camera moves, transitions, HUD
+   ===================================================================== */
+const SCENES = [sHook, sLook, sAudi3D, sBMW3D, sRace, sManual, sDrift, sPractical, sPrice, sVerdict, sCTA].map((fn, i) => [CUT[i], CUT[i + 1], fn]);
+const TRANS = [null, 'zoom', 'whip', 'whip', 'stripe', 'whip', 'stripe', 'zoom', 'stripe', 'whip', 'zoom'];
+const TR = 0.2;
+const PUNCH = [[B.rs3, 0.03], [B.m2, 0.03], [B.vs, 0.08], [B.weapons, 0.03], [CUT[1] + 0.05, 0.05], [B.cyl, 0.03], [B.hp400, 0.06], [B.awd, 0.03], [B.i6, 0.03], [B.hp480, 0.06], [B.rwd, 0.05],
+  [B.r38, 0.05], [B.r40, 0.05], [B.manual, 0.03], [B.old, 0.04], [B.outside, 0.04], [B.drift, 0.09], [B.easy, 0.04], [B.five, 0.03], [B.p69, 0.04], [B.vRS3, 0.05], [B.vM2, 0.05], [B.comments, 0.03]];
+const mkBuf = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return [c, c.getContext('2d')]; };
+const [bufA, ctxA] = mkBuf(), [bufB, ctxB] = mkBuf();
+function renderScene(target, i, t) {
+  const prev = ctx; ctx = target;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
+  SCENES[i][2](t);
+  ctx.restore(); ctx = prev;
+}
+function camera(i, t) {
+  const u = prog(t, SCENES[i][0], SCENES[i][1]);
+  let z = 1 + 0.03 * eIOS(u), x = Math.sin(t * 0.7 + i * 1.3) * 6, y = Math.cos(t * 0.5 + i) * 4, r = 0;
+  for (const [t0, amp] of PUNCH) {
+    if (t < t0 || t > t0 + 1.5) continue;
+    const d = Math.exp(-(t - t0) * 6), n = rng(Math.floor(t * 60) + 7);
+    z += amp * d; x += (n() - 0.5) * 260 * amp * d; y += (n() - 0.5) * 200 * amp * d; r += (n() - 0.5) * 0.05 * amp * d;
+  }
+  return { z, x, y, r };
+}
+function blit(buf, c, alpha = 1, dx = 0) {
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.translate(W / 2 + c.x + dx, H / 2 + c.y); ctx.rotate(c.r); ctx.scale(c.z, c.z);
+  ctx.drawImage(buf, -W / 2, -H / 2);
+  ctx.restore();
+}
+function hud(t) {
+  const a = 0.6 * prog(t, 0.5, 1.1) * (1 - prog(t, DURATION - 2.2, DURATION - 1.8));
+  hudCorners(a);
+  if (a > 0) text(`RS3 vs M2   ${t.toFixed(1).padStart(4, '0')}`, W - 104, 70, { a: 'right', s: 17, w: 600, f: 'JetBrains Mono', c: 'rgba(255,255,255,0.55)', al: a * 1.6 });
+}
+function drawFrame(t) {
+  ctx = main;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  let i = SCENES.findIndex(([a, b]) => t >= a && t < b);
+  if (i < 0) i = SCENES.length - 1;
+  let j = -1, p = 0;
+  if (i > 0 && t - SCENES[i][0] < TR) { j = i; p = 0.5 + (t - SCENES[i][0]) / (2 * TR); }
+  else if (i < SCENES.length - 1 && SCENES[i][1] - t < TR) { j = i + 1; p = 0.5 - (SCENES[i][1] - t) / (2 * TR); }
+  if (j < 0) {
+    renderScene(ctxA, i, t); blit(bufA, camera(i, t));
+  } else {
+    const c = SCENES[j][0], tOut = Math.min(t, c - 0.001), tIn = Math.max(t, c);
+    renderScene(ctxA, j - 1, tOut); renderScene(ctxB, j, tIn);
+    const cOut = camera(j - 1, tOut), cIn = camera(j, tIn), type = TRANS[j];
+    if (type === 'whip') {
+      const off = eIOC(p) * W, v = Math.sin(Math.PI * p);
+      for (let k = 4; k >= 0; k--) blit(bufA, cOut, k ? 0.2 * v : 1, -off + k * 45 * v);
+      for (let k = 4; k >= 0; k--) blit(bufB, cIn, k ? 0.2 * v : 1, W - off + k * 45 * v);
+    } else if (type === 'zoom') {
+      if (p < 0.5) blit(bufA, { ...cOut, z: cOut.z * (1 + 0.35 * eIC(p * 2)) });
+      else blit(bufB, { ...cIn, z: cIn.z * (1.3 - 0.3 * eOC((p - 0.5) * 2)) });
+      ctx.fillStyle = `rgba(255,255,255,${0.8 * Math.pow(1 - Math.abs(p - 0.5) * 2, 2)})`; ctx.fillRect(0, 0, W, H);
+    } else {
+      blit(bufA, cOut);
+      const x = lerp(-300, W + 900, eIOC(p)), sl = 0.42;
+      ctx.save(); ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(x - 140, 0); ctx.lineTo(x - 140 - H * sl, H); ctx.lineTo(-10, H); ctx.closePath(); ctx.clip();
+      blit(bufB, cIn); ctx.restore();
+      [C.m2, '#e8ebf0', C.rs3].forEach((col, k) => {
+        const x0 = x - k * 70; ctx.fillStyle = col;
+        ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0 + 60, 0); ctx.lineTo(x0 + 60 - H * sl, H); ctx.lineTo(x0 - H * sl, H); ctx.closePath(); ctx.fill();
+      });
+    }
+  }
+  captions(t);
+  hud(t);
+  vignette(0.5);
+  grain(t, 0.035);
+  black(prog(t, DURATION - 0.6, DURATION));
+  black(1 - prog(t, 0, 0.25));
+  ctx.restore();
+}
+window.drawFrame = drawFrame;
+window.DURATION = DURATION;
+
+if (!location.hash.includes('render')) {
+  const start = performance.now() - (parseFloat(new URLSearchParams(location.search).get('t')) || 0) * 1000;
+  const loop = () => { drawFrame(((performance.now() - start) / 1000) % DURATION); requestAnimationFrame(loop); };
+  window.ready.then(() => requestAnimationFrame(loop));
+}
+
+</script>
+</body>
+</html>
