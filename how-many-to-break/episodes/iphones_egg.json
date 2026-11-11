@@ -1,0 +1,16 @@
+{
+  "title": "How many iPhones to break an egg?",
+  "drop_object": "iphone",
+  "drop_mass_kg": 0.2,
+  "target": "egg",
+  "break_at": 26,
+  "drop_interval_start_s": 2.4,
+  "drop_interval_end_s": 0.95,
+  "crack_stages": [
+    15,
+    20,
+    23,
+    25
+  ],
+  "duration_s": 66
+}

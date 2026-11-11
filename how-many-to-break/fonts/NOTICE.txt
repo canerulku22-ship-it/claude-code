@@ -1,0 +1,4 @@
+Inter Display (Black, ExtraBold) by The Inter Project Authors, https://github.com/rsms/inter
+Copyright 2016-2023 The Inter Project Authors. Licensed under the SIL Open Font License 1.1 (see OFL.txt).
+
+overlay_assets/point_down.png is rendered from Noto Color Emoji (SIL Open Font License 1.1).

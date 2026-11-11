@@ -1,0 +1,16 @@
+{
+  "title": "How many bricks to break a wooden chair?",
+  "drop_object": "brick",
+  "drop_mass_kg": 2.5,
+  "target": "wooden_chair",
+  "break_at": 46,
+  "drop_interval_start_s": 1.5,
+  "drop_interval_end_s": 0.6,
+  "crack_stages": [
+    26,
+    35,
+    41,
+    45
+  ],
+  "duration_s": 72
+}

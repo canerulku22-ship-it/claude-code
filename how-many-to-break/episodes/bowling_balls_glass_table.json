@@ -1,0 +1,11 @@
+{
+  "title": "How many bowling balls to break a glass table?",
+  "drop_object": "bowling_ball",
+  "drop_mass_kg": 7,
+  "target": "glass_table",
+  "break_at": 37,
+  "drop_interval_start_s": 1.5,
+  "drop_interval_end_s": 0.6,
+  "crack_stages": [20, 28, 33, 36],
+  "duration_s": 70
+}

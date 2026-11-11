@@ -1,0 +1,16 @@
+{
+  "title": "How many anvils to break a glass table?",
+  "drop_object": "anvil",
+  "drop_mass_kg": 50,
+  "target": "glass_table",
+  "break_at": 12,
+  "drop_interval_start_s": 5.2,
+  "drop_interval_end_s": 2.9,
+  "crack_stages": [
+    5,
+    8,
+    10,
+    11
+  ],
+  "duration_s": 70
+}

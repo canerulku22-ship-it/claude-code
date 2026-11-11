@@ -1,0 +1,16 @@
+{
+  "title": "How many watermelons to break a trampoline?",
+  "drop_object": "watermelon",
+  "drop_mass_kg": 6,
+  "target": "trampoline",
+  "break_at": 20,
+  "drop_interval_start_s": 3.1,
+  "drop_interval_end_s": 1.4,
+  "crack_stages": [
+    11,
+    15,
+    18,
+    19
+  ],
+  "duration_s": 68
+}
