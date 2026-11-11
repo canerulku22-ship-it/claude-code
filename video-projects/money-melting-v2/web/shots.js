@@ -88,8 +88,8 @@ shot(0, S('s02'), g => {
   }));
   // camera: open tight on the figure + number, then pull back to reveal
   const tAnd = w('s01', 'and');
-  camSet(0, { x: 0.32, y: 1.05, z: 3.5, tx: 0.12, ty: 1.55, tz: 0, roll: -3, fov: 34 });
-  camTo(0, { x: 0.26, z: 3.2, ty: 1.58 }, tAnd - 0.1, 'none');
+  camSet(0, { x: 0.2, y: 1.05, z: 4.1, tx: 0.0, ty: 1.55, tz: 0, roll: -3, fov: 34 });
+  camTo(0, { x: 0.14, z: 3.8, ty: 1.58 }, tAnd - 0.1, 'none');
   camTo(tAnd - 0.15, { x: 0.05, y: 1.2, z: 6.6, tx: 0.0, ty: 1.3, roll: -7, fov: 30 }, 1.0, 'power3.inOut');
   sfx('boom', 0.02, 0.8);
   for (let t = 0.1; t < S('s02') - 0.3; t += 1 / 12) { const r = Math.abs(Math.sin(Math.floor(t * 12) * 12.9898) * 43758.5453 % 1); if (r > 0.55) sfx('glitch', t, 0.18); }
@@ -327,8 +327,8 @@ shot(S('s07'), S('s08'), g => {
   const dis = hidden(panel(g, { w: 1.1, h: 0.16, x: -0.18, y: 1.12, z: 0.05, ppu: 640, draw: (c, t, P) => lbl(c, 'Disappeared', P.cw / 2, P.ch / 2, 38, C.red, { glow: 16 }) }).mesh);
   popScale(dis, tD, { s: 'glitch', gain: 0.6 });
   shake(tD, 0.5, 0.4);
-  camSet(t0, { x: 0.45, y: 1.1, z: 5.7, tx: 0.3, ty: 0.7, tz: 0, roll: -4, fov: 30 });
-  camTo(t0, { x: 0.3, z: 5.1 }, nextStart('s07') - t0, 'none');
+  camSet(t0, { x: 0.55, y: 1.2, z: 7.0, tx: 0.38, ty: 0.72, tz: 0, roll: -4, fov: 30 });
+  camTo(t0, { x: 0.42, z: 6.3 }, nextStart('s07') - t0, 'none');
 });
 
 // =====================================================================
@@ -426,7 +426,7 @@ shot(S('s10'), S('s12'), (g, h) => {
     const b = hidden(panel(g, { w: 0.9, h: 0.16, x, y: 1.35, z: 0, ppu: 640, draw: (c, tt, P) => lbl(c, '✓  Bought $100', P.cw / 2, P.ch / 2, 30, C.mint, { glow: 14 }) }).mesh);
     popScale(b, t, { s: 'cash', gain: 0.35 });
   });
-  const tag = hidden(panel(g, { w: 1.1, h: 0.26, x: X[3], y: 1.65, z: 0, ppu: 640, boost: 1.35, key: t => (t < tUp + 0.6 ? q(t) : 'd'), draw: (c, t, P) => {
+  const tag = hidden(panel(g, { w: 1.1, h: 0.26, x: X[3] - 0.15, y: 1.6, z: 0, ppu: 640, boost: 1.35, key: t => (t < tUp + 0.6 ? q(t) : 'd'), draw: (c, t, P) => {
     neonRect(c, 8, 8, P.cw - 16, P.ch - 16, C.red, { r: 18, lw: 5, glow: 18 });
     const k = prog(t, tUp - 0.25, 0.5);
     lbl(c, `Prices  $100 → $${Math.round(lerp(100, 110, k))}`, P.cw / 2, P.ch / 2, 32, C.red, { glow: 10 });
@@ -434,8 +434,8 @@ shot(S('s10'), S('s12'), (g, h) => {
   popScale(tag, w('s11', 'prices') - 0.1, { s: 'hit', gain: 0.5 });
   camSet(t0, { x: -0.9, y: 0.9, z: 5.2, tx: -0.4, ty: 0.8, tz: 0, roll: -4, fov: 31 });
   [[tB, 0], [tW, 1], [tA, 2]].forEach(([t, i]) => camTo(t - 0.35, { x: X[i] + 0.3, tx: X[i] + 0.05, ty: 0.8, z: 5.0 }, 0.7, 'power2.inOut'));
-  camTo(tSp - 0.3, { x: -1.4, y: 1.7, z: 4.4, tx: 2.6, ty: 0.6, tz: -0.4, roll: -6 }, 1.0, 'power3.inOut');
-  camTo(tSp + 0.8, { x: -1.1, z: 4.1 }, nextStart('s11') - tSp - 0.8, 'none');
+  camTo(tSp - 0.35, { x: 2.35, y: 1.25, z: 6.6, tx: 2.35, ty: 0.9, tz: 0, roll: -4 }, 0.8, 'power3.inOut');
+  camTo(w('s11', 'prices') - 0.25, { x: 4.05, tx: 4.1, z: 6.6 }, 0.75, 'power2.inOut');
 });
 
 // =====================================================================
@@ -516,7 +516,7 @@ shot(S('s14'), S('s15'), g => {
   panel(g, {
     w: 3.5, h: 1.6, x: 1.05, y: 0.95, z: 0, ppu: 600, boost: 1.4, key: t => (t < tEnd + 0.6 ? q(t) : 'd'),
     draw: (c, t, P) => {
-      lbl(c, 'Who gets richer?', 200, 70, 40, C.white, { align: 'left', glow: 8 });
+      lbl(c, 'Who gets richer?', 200, 70, 30, C.white, { align: 'left', glow: 8 });
       c.save(); c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = 2; for (let y = 200; y <= 760; y += 140) { c.beginPath(); c.moveTo(200, y); c.lineTo(1950, y); c.stroke(); } c.restore();
       const kA = prog(t, tH, dA, E_INOUT), kS = prog(t, tWh, dS, E_INOUT), fk = prog(t, tF, 0.6);
       if (fk > 0 && kA > 0.99) { c.save(); c.beginPath(); for (let i = 0; i <= 60; i++) { const [x, y] = curveA(i / 60); i ? c.lineTo(x, y) : c.moveTo(x, y); } for (let i = 60; i >= 0; i--) { const [x, y] = curveS(i / 60 * kS); c.lineTo(x, y); } c.closePath(); const gr = c.createLinearGradient(0, 170, 0, 760); gr.addColorStop(0, `rgba(255,77,94,${0.45 * fk})`); gr.addColorStop(1, `rgba(255,77,94,${0.05 * fk})`); c.fillStyle = gr; c.fill(); c.restore(); }
@@ -530,7 +530,7 @@ shot(S('s14'), S('s15'), g => {
   });
   sfx('riser', tH, 0.35, { dur: dA }); sfx('cash', tRi, 0.5); sfx('down', tF, 0.5, { dur: 0.9 });
   shake(tF, 0.35, 0.4);
-  camSet(t0, { x: -0.45, y: 1.0, z: 3.4, tx: -0.35, ty: 1.0, tz: 0, roll: -4, fov: 31 });
+  camSet(t0, { x: 0.25, y: 1.05, z: 5.0, tx: 0.25, ty: 1.1, tz: 0, roll: -4, fov: 31 });
   camTo(tH, { x: 2.3, tx: 2.0, ty: 1.15 }, dA, 'power2.inOut');
   camTo(tWh - 0.1, { x: 1.2, tx: 1.05, ty: 1.0, z: 5.3, y: 1.15, roll: -3 }, 1.2, 'power3.inOut');
 });
@@ -545,7 +545,7 @@ shot(S('s15'), S('s16'), g => {
   const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 1.25, 5, 48, 1, true), new THREE.ShaderMaterial({
     uniforms: {}, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
     vertexShader: 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv = uv; vec4 mv = modelViewMatrix*vec4(position,1.0); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }',
-    fragmentShader: 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ float edge = pow(abs(dot(vN, vV)), 1.6); gl_FragColor = vec4(vec3(1.0), 0.16 * edge * smoothstep(0.0, 0.6, vUv.y) * (0.4 + 0.6 * vUv.y)); }',
+    fragmentShader: 'varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ float edge = pow(abs(dot(vN, vV)), 1.6); gl_FragColor = vec4(vec3(1.0), 0.09 * edge * smoothstep(0.0, 0.6, vUv.y) * (0.4 + 0.6 * vUv.y)); }',
   }));
   cone.position.y = 2.5; g.add(cone);
   const tL = w('s15', 'less');
@@ -653,7 +653,7 @@ shot(S('s19'), DUR + 1, g => {
   const you = figure({ glow: C.mint, glowOpacity: 1, glowSize: 2.6 }); g.add(you);
   g.add(dashedLine(80, 0.55, 0, 0.35));
   const tF = w('s19', 'follow'), tP = w('s19', 'part'), tPr = w('s19', 'protect');
-  const p2 = hidden(panel(g, { w: 2.1, h: 0.62, x: 0, y: 2.3, z: -0.3, ppu: 640, boost: 1.0, draw: (c, t, P) => { lbl(c, 'Next episode', P.cw / 2, 40, 24, C.mint); big(c, 'PART 2', P.cw / 2, 230, 250, C.mint, { glow: 34 }); } }).mesh);
+  const p2 = hidden(panel(g, { w: 2.1, h: 0.62, x: 0, y: 2.3, z: -0.3, ppu: 640, boost: 1.0, draw: (c, t, P) => { lbl(c, 'Next episode', P.cw / 2, 40, 24, C.mint); big(c, 'PART 2', P.cw / 2, 230, 250, C.mint, { glow: 12 }); } }).mesh);
   popScale(p2, tP - 0.05, { ease: 'expo.out', dur: 0.4, s: 'boom', gain: 0.7 });
   shake(tP, 0.6, 0.4); flash(tP, 0.25, 0.3, C.mint);
   const how = panel(g, { w: 2.2, h: 0.16, x: 0, y: 1.82, z: -0.3, ppu: 640, draw: (c, t, P) => lbl(c, 'How to protect your money', P.cw / 2, P.ch / 2, 40, C.white, { glow: 10 }) });
