@@ -14,11 +14,22 @@ Everything is generated from code:
   illuminated "Iconic Glow" outline and M double slats, the light signature,
   carbon roof, Hofmeister kink, flared arches, quad tailpipes and blue M
   calipers, in Isle of Man Green. No photos or stock footage.
-- **Voiceover:** [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)
-  (Apache-2.0), a neural text-to-speech model run locally with
-  [kokoro-js](https://www.npmjs.com/package/kokoro-js), British English voice
-  `bf_emma`. Each line is a separate file, and captions follow the measured
-  speech timing.
+- **Motion graphics:** every scene is drawn into an off-screen buffer and
+  composited through a virtual camera. That gives a slow push-in per scene,
+  plus zoom punches and shake on the big beats. Scenes change with M-stripe
+  wipes, whip pans with motion blur, and zoom-throughs. Other elements:
+  rolling-digit counters, ring bursts, scan bars, drifting outlined type, a
+  gear and RPM readout synced to the engine sound, sparks, lightning,
+  raindrops on the lens, a viewfinder frame and a shine across the logo.
+- **Voiceover:** [Chatterbox](https://github.com/resemble-ai/chatterbox)
+  (Resemble AI, MIT licence), run locally on the CPU with an expressive ad
+  read. The voice is cloned from a synthetic reference, not a real person:
+  about nine seconds of the British female voice `bf_emma` from
+  [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-2.0, run
+  with [kokoro-js](https://www.npmjs.com/package/kokoro-js)). Each line is
+  generated three times; Whisper checks every take, and the clearest take
+  that fits its slot is kept. Chatterbox adds Resemble's inaudible Perth
+  watermark to its output. Captions follow the measured speech timing.
 - **Soundtrack:** music, a V8 engine model, EV whine and sound effects,
   synthesised with NumPy/SciPy. The music ducks about 11 dB under the voice.
   The mix is mastered to −14 LUFS.
@@ -64,17 +75,22 @@ quoting a rate.
 ./build.sh
 ```
 
-The script installs `kokoro-js`, synthesises the voiceover, renders the frames
-and soundtrack, and writes `bmw-m5.mp4`. A full build takes about two minutes
-on four cores. It needs Node with Playwright and Chromium, Python 3 with
-NumPy and SciPy, and ffmpeg. The first run downloads the voice model (about
-330 MB) from Hugging Face. To preview the animation live, open `film.html` in
-a browser after one build; add `?t=15` to the URL to start at 15 s.
+The script installs `kokoro-js` and Chatterbox (PyTorch, a few GB, into
+`.venv`). It then synthesises the narration, renders the frames and
+soundtrack, and writes `bmw-m5.mp4`. On four CPU cores the narration takes
+about 20 minutes (33 takes); the rest takes about two minutes.
+`VOICE=kokoro ./build.sh` skips Chatterbox and uses the lighter Kokoro voice.
+
+It needs Node with Playwright and Chromium, Python 3 with NumPy and SciPy, and
+ffmpeg. The first run downloads the voice models from Hugging Face. To preview
+the animation live, open `film.html` in a browser after one build; add `?t=15`
+to the URL to start at 15 s.
 
 | File | Purpose |
 |---|---|
 | `timeline.js` | Script and timing for each voiceover line, shared by every step. |
-| `voiceover.mjs` | Synthesises each line and measures where the speech starts and ends. |
+| `voiceover.mjs` | Kokoro lines: the reference voice for Chatterbox, and the fallback narration. |
+| `voiceover.py` | Chatterbox narration: three takes per line, checked with Whisper; writes the speech timing for the captions. |
 | `film.html` | All visuals. `drawFrame(t)` draws the frame at time `t`. |
 | `render.mjs` | Steps through every frame in headless Chromium and pipes the frames to ffmpeg, using parallel workers. |
 | `audio.py` | Music, engine and effects, mixed with the voiceover. |

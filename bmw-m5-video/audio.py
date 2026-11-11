@@ -296,6 +296,44 @@ pad(37.45, 'Am', DUR - 37.45, 0.9, 1400)
 for k, nm in enumerate(['A4', 'C5', 'E5', 'B5']):
     bell(37.5 + k * 0.09, nm, 1.0, pan=-0.3 + 0.2 * k, d=3.4)
 
+# ------------------------------------------------------------ motion-graphics sync
+def ticks(t0, d, g=0.5, f=3200):
+    """Accelerating-then-settling ticks for the rolling-digit counters."""
+    tk = t0
+    while tk < t0 + d:
+        click(tk, g, f, 0.2)
+        tk += 0.02 + 0.08 * ((tk - t0) / d) ** 2
+
+
+def thunder(t0, g=1.0):
+    d = 3.2
+    t = tt(d)
+    rumble = sosfilt(lp(160), noise(d)) * (1 - np.exp(-t * 12)) * np.exp(-t * 1.1)
+    rumble *= 1 + 0.6 * np.sin(2 * np.pi * 3.1 * t)
+    place(sfx, t0, rumble * 1.6, g)
+    place(sfx, t0, sosfilt(hp(1500), noise(0.25)) * np.exp(-tt(0.25) * 14) * 0.5, g)
+    place(send, t0, rumble * 0.5, g)
+
+
+for c, kind in [(4.75, 'stripe'), (9.15, 'zoom'), (15.45, 'whip'), (19.0, 'stripe'), (21.75, 'whip'), (27.3, 'zoom'),
+                (29.2, 'whip'), (31.65, 'stripe'), (33.95, 'zoom'), (37.45, 'stripe')]:
+    if kind == 'whip':
+        whoosh(c - 0.24, 0.42, 0.9, 0.9, -0.9)
+    elif kind == 'stripe':
+        whoosh(c - 0.26, 0.5, 0.8, -0.8, 0.8)
+    else:
+        whoosh(c - 0.3, 0.45, 0.6, -0.2, 0.2)
+        impact(c, 0.35)
+ticks(4.9, 0.8, 0.35)          # first year rolls in
+ticks(12.9, 0.85, 0.5)         # 727
+ticks(21.9, 0.6, 0.4)          # 43
+ticks(27.4, 0.6, 0.4)          # 37
+thunder(29.45, 1.0)
+for i in range(16):            # spark crackle at the charge port
+    click(20.65 + 0.02 + rng.random() * 0.5, rng.uniform(0.3, 0.8), rng.uniform(2500, 7000), rng.uniform(-0.3, 0.6))
+blip(24.45, NOTE['E5'], 0.8)   # arrive at work
+blip(26.25, NOTE['A5'], 0.8)   # back home
+
 # ------------------------------------------------------------ engine model
 t = np.arange(N) / SR
 rpm = np.full(N, 800.0)

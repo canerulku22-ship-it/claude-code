@@ -12,7 +12,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(path.join(here, 'timeline.js'), 'utf8');
 const TL = JSON.parse(src.slice(src.indexOf('{'), src.lastIndexOf('}') + 1));
 const voice = process.argv[2] || TL.voice;
-const outDir = path.join(here, 'out', 'vo');
+const outDir = path.join(here, 'out', 'vo_ref'); // Kokoro lines: Chatterbox's reference voice, or a fallback narration
 mkdirSync(outDir, { recursive: true });
 
 const tts = await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype: 'fp32', device: 'cpu' });

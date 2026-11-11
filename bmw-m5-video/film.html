@@ -25,7 +25,8 @@
 const TL = window.TIMELINE, VOT = window.VO_TIMING || {};
 const W = 1920, H = 1080, DURATION = TL.duration;
 const cv = document.getElementById('c');
-const ctx = cv.getContext('2d');
+const main = cv.getContext('2d');
+let ctx = main; // scenes draw into whichever context this points at
 
 const C = {
   ink: '#f3f5f8', mute: '#9aa3b2', dim: '#5a6476',
@@ -89,7 +90,7 @@ function measure(str, o = {}) {
 }
 // Kinetic line: words rise in with a stagger from t0, leave from t1.
 function line(str, x, y, t, t0, t1, o = {}) {
-  const out = o.out ?? 0.3;
+  const out = o.out ?? 0.22;
   if (t < t0 || t > t1 + out) return;
   ctx.save();
   ctx.font = font(o.w || 600, o.s || 48, o.f);
@@ -99,7 +100,7 @@ function line(str, x, y, t, t0, t1, o = {}) {
   const widths = words.map(w => ctx.measureText(w).width);
   const total = widths.reduce((a, b) => a + b, 0) + space * (words.length - 1);
   let cx = o.a === 'center' ? x - total / 2 : o.a === 'right' ? x - total : x;
-  const st = o.st ?? 0.05, d = o.d ?? 0.5, size = o.s || 48;
+  const st = o.st ?? 0.03, d = o.d ?? 0.3, size = o.s || 48;
   const ex = eIC(prog(t, t1, t1 + out));
   const base = ctx.globalAlpha;
   words.forEach((wd, i) => {
@@ -150,11 +151,11 @@ function speak(l, t, cx, cy, o = {}) {
     let x = cx - total / 2;
     const y = cy - (lines.length - 1 - li) * lh;
     for (const it of ln) {
-      const p = eOB(prog(t, it.s - 0.06, it.s + 0.16));
+      const p = eOB(prog(t, it.s - 0.05, it.s + 0.08));
       const now = t >= it.s && t < it.e + 0.05;
       const key = it.w.replace(/[.,!?:;]/g, '');
       const hl = (o.hl && o.hl[key]) || CAP_HL[key];
-      ctx.globalAlpha = clamp(prog(t, it.s - 0.06, it.s + 0.06)) * fade;
+      ctx.globalAlpha = clamp(prog(t, it.s - 0.05, it.s + 0.02)) * fade;
       ctx.save();
       ctx.translate(x + it.ww / 2, y + (1 - clamp(p)) * 14);
       const sc = 0.8 + 0.2 * p;
@@ -163,6 +164,10 @@ function speak(l, t, cx, cy, o = {}) {
       ctx.fillStyle = hl || (now && !o.noCurrent ? '#9fd8ff' : (o.c || 'rgba(240,243,248,0.95)'));
       ctx.fillText(it.w, -it.ww / 2, 0);
       ctx.restore();
+      if (o.ul && o.ul[key]) { // underline swipe under a key word
+        ctx.fillStyle = o.ul[key];
+        ctx.fillRect(x, y + s * 0.15, it.ww * eOC(prog(t, it.s + 0.08, it.s + 0.3)), s * 0.08);
+      }
       x += it.ww + sp;
     }
   });
@@ -215,6 +220,107 @@ function streak(x, y, len, col, a) { // anamorphic lens streak
   g.addColorStop(0, `rgba(${col},0)`); g.addColorStop(0.5, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`);
   ctx.fillStyle = g; ctx.fillRect(x - len, y - 2, len * 2, 4);
   ctx.save(); ctx.globalAlpha *= 0.4; ctx.fillRect(x - len * 0.6, y - 7, len * 1.2, 14); ctx.restore();
+}
+
+/* ---------- motion-graphics kit ---------- */
+function ringBurst(x, y, t, t0, col = '255,255,255', maxR = 420, n = 3, lines = 24) {
+  for (let k = 0; k < n; k++) {
+    const p = prog(t, t0 + k * 0.07, t0 + k * 0.07 + 0.75);
+    if (p <= 0 || p >= 1) continue;
+    ctx.save(); ctx.strokeStyle = `rgba(${col},${0.7 * (1 - p)})`; ctx.lineWidth = 1 + 5 * (1 - p);
+    ctx.beginPath(); ctx.arc(x, y, eOC(p) * maxR * (1 - k * 0.18), 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  const p = prog(t, t0, t0 + 0.55);
+  if (p > 0 && p < 1 && lines) {
+    ctx.save(); ctx.strokeStyle = `rgba(${col},${0.8 * (1 - p)})`; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    for (let i = 0; i < lines; i++) {
+      const a = i / lines * Math.PI * 2 + 0.13, r1 = maxR * (0.25 + 0.55 * eOC(p)), r2 = maxR * (0.35 + 0.75 * eOC(p));
+      ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); ctx.lineTo(x + Math.cos(a) * r2, y + Math.sin(a) * r2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+function bgType(str, y, t, speed, a = 0.05, s = 300) { // giant outlined type drifting behind a scene
+  ctx.save(); ctx.font = font(900, s); ctx.textBaseline = 'alphabetic';
+  const w = ctx.measureText(str + '  ').width;
+  let x = -((t * speed) % w);
+  ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = 2;
+  for (; x < W; x += w) ctx.strokeText(str, x, y);
+  ctx.restore();
+}
+function slot(str, x, y, t, t0, o = {}) { // rolling-digit counter; returns its width
+  const s = o.s || 200, dur = o.dur ?? 0.7, lh = s * 1.05, ls = o.ls || 0;
+  ctx.save(); ctx.font = font(o.w || 900, s); ctx.textBaseline = 'alphabetic';
+  const chars = [...str], ws = chars.map(ch => ctx.measureText(ch).width + ls);
+  const total = ws.reduce((a, b) => a + b, 0);
+  let cx = o.a === 'center' ? x - total / 2 : o.a === 'right' ? x - total : x;
+  ctx.beginPath(); ctx.rect(cx - 30, y - s * 0.9, total + 60, s * 1.12); ctx.clip();
+  ctx.fillStyle = o.c || C.ink;
+  if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.gb || 40; }
+  ctx.globalAlpha *= clamp(prog(t, t0 - 0.02, t0 + 0.1));
+  chars.forEach((ch, i) => {
+    if (/\d/.test(ch)) {
+      const e = eOC(prog(t, t0 + i * 0.05, t0 + i * 0.05 + dur));
+      let start = +ch + 10 + i * 4; // spin in from far away...
+      if (o.from && /\d/.test(o.from[i] || '')) { start = +o.from[i]; if (start > +ch) start -= 10; } // ...or roll on from the previous value
+      const pos = lerp(start, +ch, e), n = Math.floor(pos), f = pos - n;
+      ctx.fillText(String(((n % 10) + 10) % 10), cx, y + f * lh);
+      ctx.fillText(String((((n + 1) % 10) + 10) % 10), cx, y + (f - 1) * lh);
+    } else ctx.fillText(ch, cx, y);
+    cx += ws[i];
+  });
+  ctx.restore();
+  return total;
+}
+function scanBar(x, y0, y1, a, col = '120,200,255') {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createLinearGradient(x - 140, 0, x + 6, 0);
+  g.addColorStop(0, `rgba(${col},0)`); g.addColorStop(0.85, `rgba(${col},${0.22 * a})`); g.addColorStop(1, `rgba(${col},${0.95 * a})`);
+  ctx.fillStyle = g; ctx.fillRect(x - 140, y0, 146, y1 - y0);
+  ctx.restore();
+}
+function zoomLines(cx, cy, t, a, n = 60, seed = 9) { // radial speed burst
+  if (a <= 0) return;
+  const r = rng(seed);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const ang = r() * Math.PI * 2, sp = 0.8 + r() * 1.4, f = (t * sp + r()) % 1;
+    const r1 = 140 + f * 1100, r2 = r1 + 60 + f * 300;
+    ctx.strokeStyle = `rgba(225,235,255,${a * 0.4 * f})`; ctx.lineWidth = 1 + 2.5 * f;
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1); ctx.lineTo(cx + Math.cos(ang) * r2, cy + Math.sin(ang) * r2); ctx.stroke();
+  }
+  ctx.restore();
+}
+function stripes(t, t0, dur = 0.55, y = 540, ang = -0.32, a = 1) { // M-tricolour bars shoot across
+  const p = prog(t, t0, t0 + dur); if (p <= 0 || p >= 1) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.translate(960, y); ctx.rotate(ang);
+  [C.mBlue, C.mNavy, C.mRed].forEach((c, i) => {
+    const x = lerp(-2600, 2600, eIOC(clamp(p * 1.25 - i * 0.1)));
+    ctx.fillStyle = c; ctx.fillRect(x - 900, -62 + i * 42, 1800, 30);
+  });
+  ctx.restore();
+}
+function sparks(x, y, t, t0, n = 28, col = '120,230,255') {
+  const lt = t - t0; if (lt < 0 || lt > 0.9) return;
+  const r = rng(Math.round(t0 * 100));
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const a = r() * Math.PI * 2, v = 200 + r() * 650;
+    const px = x + Math.cos(a) * v * lt, py = y + Math.sin(a) * v * lt + 600 * lt * lt;
+    ctx.strokeStyle = `rgba(${col},${1 - lt / 0.9})`;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - Math.cos(a) * 20, py - Math.sin(a) * 20 - 14 * lt); ctx.stroke();
+  }
+  ctx.restore();
+}
+function hudCorners(a, inset = 46, arm = 44) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+  const k = inset + (1 - a) * 30;
+  for (const [x, y, dx, dy] of [[k, k, 1, 1], [W - k, k, -1, 1], [k, H - k, 1, -1], [W - k, H - k, -1, -1]]) {
+    ctx.beginPath(); ctx.moveTo(x, y + dy * arm); ctx.lineTo(x, y); ctx.lineTo(x + dx * arm, y); ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /* ---------- path helpers ---------- */
@@ -788,11 +894,21 @@ function sHook(t) {
   glowDot(0, 0, 700, '150,190,240', 0.25 * o.beam); ctx.restore();
   drawFront(960, gy, s, o);
   ctx.restore();
+  ringBurst(960, gy - 300 * s, t, 0.88, '190,225,255', 780, 3, 0);
+  const lp = prog(t, 0.86, 1.5); // light line racing out from the headlights
+  if (lp > 0 && lp < 1) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const w = eOC(lp) * W, y = gy - 385 * s;
+    const lg = ctx.createLinearGradient(960 - w, 0, 960 + w, 0);
+    lg.addColorStop(0, 'rgba(150,200,255,0)'); lg.addColorStop(0.5, `rgba(225,242,255,${1 - lp})`); lg.addColorStop(1, 'rgba(150,200,255,0)');
+    ctx.fillStyle = lg; ctx.fillRect(960 - w, y - 3, 2 * w, 6);
+    ctx.restore();
+  }
   flash(t, 0.88, 0.4, 0.35, '200,225,255');
   const g = ctx.createLinearGradient(0, 820, 0, H); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.75)');
   ctx.fillStyle = g; ctx.fillRect(0, 820, W, 260);
-  speak(VO['01'], t, 960, 1022, { s: 68, w: 900, maxW: 1100, hold: 0.9, hl: { best: C.mBlue, M5: '#ffffff' }, noCurrent: true });
-  line('THIS IS WHY', 960, 120, t, 0.35, 4.45, { a: 'center', s: 26, w: 700, c: C.mute, ls: 14, st: 0.03 });
+  speak(VO['01'], t, 960, 1022, { s: 68, w: 900, maxW: 1100, hold: 0.9, hl: { best: C.mBlue, M5: '#ffffff' }, ul: { best: C.mBlue }, noCurrent: true });
+  line('THIS IS WHY', 960, 120, t, 0.3, 4.45, { a: 'center', s: 26, w: 700, c: C.mute, ls: lerp(60, 14, eOC(prog(t, 0.3, 1.3))), st: 0.02 });
 }
 
 // 2 · ORIGIN (4.75 – 9.15)
@@ -820,13 +936,14 @@ function sOrigin(t) {
   const g = ctx.createRadialGradient(1300, 560, 0, 1300, 560, 800);
   g.addColorStop(0, `rgba(${Math.round(lerp(255, 60, morph))},${Math.round(lerp(170, 140, morph))},${Math.round(lerp(90, 255, morph))},0.12)`); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  bgType('SINCE 1984 ·', 400, t, 90, 0.045, 300);
   header(t, 4.85, 9.1, 'Since 1984');
   const years = [1984, 1988, 1998, 2004, 2011, 2017, 2024];
   const yi = t < 6.9 ? 0 : Math.min(6, Math.floor((t - 6.9) / 0.24) + 1);
   const ya = prog(t, 4.85, 5.2);
   ctx.save(); ctx.globalAlpha = ya;
   const bump = yi > 0 ? 1 - prog(t - 6.9 - (yi - 1) * 0.24, 0, 0.18) : 0;
-  text(String(years[yi]), 140, 540 - bump * 10, { s: 230, w: 900, c: yi === 6 ? '#ffffff' : C.amber, ls: -6, glow: yi === 6 ? 'rgba(63,169,245,0.6)' : 'rgba(255,170,80,0.35)', gb: 40 });
+  slot(String(years[yi]), 140, 540 - bump * 8, t, yi === 0 ? 4.9 : 6.9 + (yi - 1) * 0.24, { s: 230, w: 900, dur: yi === 0 ? 0.8 : 0.16, from: yi > 0 ? String(years[yi - 1]) : null, c: yi === 6 ? '#ffffff' : C.amber, ls: -6, glow: yi === 6 ? 'rgba(63,169,245,0.6)' : 'rgba(255,170,80,0.35)', gb: 40 });
   text(['E28 · the first M5', 'E34', 'E39 · V8', 'E60 · V10', 'F10 · twin-turbo V8', 'F90 · all-wheel drive', 'G90 · plug-in hybrid V8'][yi], 150, 620, { s: 34, w: 600, c: yi === 6 ? C.ev : C.mute });
   ctx.restore();
   ['E28', 'E34', 'E39', 'E60', 'F10', 'F90', 'G90'].forEach((gname, i) => {
@@ -838,6 +955,13 @@ function sOrigin(t) {
     text(gname, x + 40, y + 27, { a: 'center', s: 20, w: 700, f: 'JetBrains Mono', c: on ? C.ink : C.dim });
     ctx.restore();
   });
+  { // timeline ruler scrolls as the years roll
+    const off = (t * 40 + yi * 96) % 24;
+    ctx.save(); ctx.globalAlpha = ya * 0.7; ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5;
+    for (let x = 150 - off, k = 0; x < 820; x += 24, k++) { ctx.beginPath(); ctx.moveTo(x, 760); ctx.lineTo(x, k % 4 === 0 ? 780 : 770); ctx.stroke(); }
+    ctx.restore();
+  }
+  if (yi > 0) ringBurst(190 + yi * 96, 710, t, 6.9 + (yi - 1) * 0.24, yi === 6 ? '120,190,255' : '255,200,120', 80, 1, 0);
   e28(1000, 680, 0.8, eIOC(prog(t, 4.95, 6.3)), 1 - morph);
   if (morph > 0) {
     ctx.save(); ctx.globalAlpha = morph;
@@ -896,6 +1020,7 @@ function sHeart(t) {
   ctx.save(); ctx.globalAlpha = 1 - 0.8 * eOC(prog(t, 12.85, 13.2));
   ctx.fillStyle = 'rgba(120,200,255,0.25)'; ctx.fillRect(200, GY, 1520 * eOC(prog(t, 9.2, 9.9)), 1.5);
   drawSide(X, GY, S, { blueprint: eIOC(prog(t, 9.2, 10.3)) });
+  scanBar(lerp(X - 60, X + 1010 * S, eIOC(prog(t, 9.2, 10.3))), GY - 330 * S, GY + 20, env(t, 9.2, 10.45, 0.1, 0.2));
   const eA = eOC(prog(t, 9.9, 10.4)); // V8
   if (eA > 0) {
     ctx.save(); ctx.globalAlpha *= eA;
@@ -949,13 +1074,14 @@ function sHeart(t) {
   callout(t, 12.0, bax, bay, 460, 200, '18.6 kWh battery', 'charges from a plug', C.ev);
   ctx.restore();
   if (t > 12.85) { // 727 slam
+    ringBurst(960, 480, t, 12.85, '120,190,255', 720);
+    stripes(t, 12.85, 0.6, 620, -0.3, 0.85);
     const p = eOB(prog(t, 12.85, 13.3));
-    const n = Math.round(727 * eOC(prog(t, 12.95, 13.9)));
     const out = 1 - prog(t, 15.2, 15.45);
     ctx.save();
     ctx.translate(960, 600); const sc = lerp(1.4, 1, clamp(p)); ctx.scale(sc, sc);
     ctx.globalAlpha = clamp(prog(t, 12.85, 13.0)) * out;
-    text(String(n), 0, 0, { a: 'center', s: 330, w: 900, ls: -10, glow: 'rgba(63,169,245,0.55)', gb: 60 });
+    slot('727', 0, 0, t, 12.9, { a: 'center', s: 330, w: 900, ls: -10, dur: 0.85, glow: 'rgba(63,169,245,0.55)', gb: 60 });
     text('HORSEPOWER', 0, 80, { a: 'center', s: 44, w: 800, c: C.mBlue, ls: 18 });
     ctx.restore();
     line('727 PS · 717 bhp · 1,000 Nm of torque', 960, 790, t, 13.9, 15.15, { a: 'center', s: 32, w: 500, c: C.mute, st: 0.03 });
@@ -1009,8 +1135,23 @@ function sNumbers(t) {
   text('0–62 MPH', 0, -232, { s: 34, w: 700, c: C.mute, ls: 6 });
   text(el.toFixed(1), 0, 0, { s: 260, w: 900, ls: -8, glow: done ? 'rgba(229,50,45,0.55)' : null, gb: 50 });
   text('s', measure(el.toFixed(1), { s: 260, w: 900, ls: -8 }) + 16, 0, { s: 90, w: 800, c: C.mRed });
-  text(done ? 'seconds. Quicker than most supercars of the M5’s first decade.' : '', 0, 70, { s: 26, w: 500, c: C.mute });
   ctx.restore();
+  const SH = [15.55, 16.1, 16.75, 17.45, 18.05], R0 = [3200, 4600, 5000, 5300]; // gear changes, as in audio.py
+  let gear = 1, rpm = 1600;
+  for (let k = 0; k < 4; k++) if (t >= SH[k]) { gear = k + 1; rpm = lerp(R0[k], 7000, Math.pow(prog(t, SH[k], SH[k + 1]), 0.8)); }
+  if (t >= 18.05) rpm = lerp(6400, 2400, eOC(prog(t, 18.05, 18.9)));
+  ctx.save(); ctx.globalAlpha = prog(t, 15.5, 15.75);
+  text('GEAR', 1000, 650, { s: 20, w: 700, c: C.mute, ls: 4 });
+  const gp = 1 - prog(t, SH[gear - 1], SH[gear - 1] + 0.15);
+  text(String(gear), 1000, 730 + gp * 12, { s: 84, w: 900, f: 'JetBrains Mono', c: gp > 0.5 ? C.mBlue : C.ink });
+  text('RPM', 1130, 650, { s: 20, w: 700, c: C.mute, ls: 4 });
+  for (let k = 0; k < 28; k++) {
+    ctx.fillStyle = k / 28 < rpm / 7400 ? (k > 23 ? C.mRed : k > 17 ? C.amber : C.mBlue) : 'rgba(255,255,255,0.08)';
+    ctx.fillRect(1130 + k * 20, 672, 14, 52);
+  }
+  text(String(Math.round(rpm / 100) * 100), 1690, 650, { a: 'right', s: 22, w: 600, f: 'JetBrains Mono', c: C.mute });
+  ctx.restore();
+  ringBurst(1150, 440, t, 18.05, '255,90,80', 440);
   ctx.restore();
   ctx.fillStyle = '#0c0e12'; ctx.fillRect(0, 960, W, H - 960); // road
   ctx.fillStyle = 'rgba(255,255,255,0.18)';
@@ -1054,6 +1195,15 @@ function sPlug(t) {
     }
     ctx.restore();
   }
+  if (t > 20.65) { // charging ring around the port
+    ctx.save(); ctx.strokeStyle = C.ev; ctx.lineWidth = 4; ctx.shadowColor = C.ev; ctx.shadowBlur = 16; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(port[0], port[1], 46, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * eOC(prog(t, 20.75, 21.75))); ctx.stroke();
+    ctx.setLineDash([4, 10]); ctx.lineDashOffset = -t * 40; ctx.lineWidth = 2; ctx.globalAlpha = 0.6;
+    ctx.beginPath(); ctx.arc(port[0], port[1], 64, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+  ringBurst(port[0], port[1], t, 20.65, '56,214,255', 280, 2, 16);
+  sparks(port[0], port[1], t, 20.65);
   flash(t, 20.65, 0.3, 0.3, '120,220,255');
   const pct = lerp(18, 64, eIOS(prog(t, 20.75, 21.75))), hx = 150, hy = 250;
   ctx.save(); ctx.globalAlpha = prog(t, 20.6, 20.9);
@@ -1076,11 +1226,26 @@ function pin(x, y, label, col) {
 function sCommute(t) {
   const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#081424'); g.addColorStop(1, '#0f2238');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  { // drifting map grid and faint roads
+    ctx.save(); ctx.strokeStyle = 'rgba(120,180,255,0.06)'; ctx.lineWidth = 1;
+    const go = (t * 14) % 60;
+    ctx.beginPath();
+    for (let x = -go; x < W; x += 60) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+    for (let y = -go * 0.5; y < H; y += 60) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(120,180,255,0.08)'; ctx.lineWidth = 6;
+    const r = rng(44);
+    for (let k = 0; k < 6; k++) {
+      const y0 = r() * H, y1 = r() * H, dx = -t * 10;
+      ctx.beginPath(); ctx.moveTo(-50 + dx, y0); ctx.bezierCurveTo(600 + dx, y0 + (r() - 0.5) * 400, 1300 + dx, y1 + (r() - 0.5) * 400, W + 250 + dx, y1); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  bgType('ELECTRIC ·', 900, t, 80, 0.035, 240);
   header(t, 21.85, 27.25, 'Electric range');
   const p0 = eOB(prog(t, 21.9, 22.4));
   ctx.save(); ctx.translate(150, 330); ctx.scale(clamp(p0, 0, 1.2), clamp(p0, 0, 1.2)); ctx.globalAlpha = clamp(prog(t, 21.9, 22.1));
-  text('43', 0, 0, { s: 210, w: 900, c: C.ev, ls: -6, glow: 'rgba(56,214,255,0.5)', gb: 40 });
-  const w = measure('43', { s: 210, w: 900, ls: -6 });
+  const w = slot('43', 0, 0, t, 21.9, { s: 210, w: 900, c: C.ev, ls: -6, dur: 0.6, glow: 'rgba(56,214,255,0.5)', gb: 40 });
   text('miles', w + 18, 0, { s: 70, w: 800 });
   text('on electric power (WLTP)', w + 20, -86, { s: 26, w: 500, c: C.mute });
   ctx.restore();
@@ -1090,6 +1255,8 @@ function sCommute(t) {
   ctx.beginPath(); ctx.moveTo(x0, ry); ctx.lineTo(lerp(x0, x1, lp), ry); ctx.stroke(); ctx.setLineDash([]);
   if (lp > 0.05) pin(x0, ry, 'HOME', C.ev);
   if (lp > 0.95) pin(x1, ry, 'WORK', C.warm);
+  ringBurst(x1, ry, t, 24.45, '255,211,138', 170, 2, 12);
+  ringBurst(x0, ry, t, 26.25, '56,214,255', 170, 2, 12);
   const there = eIOS(prog(t, 22.9, 24.5)), back = eIOS(prog(t, 24.7, 26.3)), trip = (there + back) / 2;
   if (t > 22.8) {
     const cx = back > 0 ? lerp(x1, x0, back) : lerp(x0, x1, there);
@@ -1119,10 +1286,18 @@ function sTax(t) {
   const g = ctx.createRadialGradient(560, 500, 0, 560, 500, 800); g.addColorStop(0, 'rgba(94,240,138,0.10)'); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   header(t, 27.35, 29.25, 'Company-car tax');
+  ctx.save(); ctx.translate(1560, 450); // rotating CO2 dial
+  ctx.rotate(t * 0.5); ctx.strokeStyle = 'rgba(94,240,138,0.25)'; ctx.lineWidth = 2; ctx.setLineDash([6, 14]);
+  ctx.beginPath(); ctx.arc(0, 0, 200, 0, Math.PI * 2); ctx.stroke();
+  ctx.rotate(-t * 0.5); ctx.setLineDash([]); ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 14; ctx.beginPath(); ctx.arc(0, 0, 165, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = C.go; ctx.shadowColor = C.go; ctx.shadowBlur = 18;
+  ctx.beginPath(); ctx.arc(0, 0, 165, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * 0.14 * eOC(prog(t, 27.6, 28.3))); ctx.stroke();
+  ctx.restore();
+  text('CO₂', 1560, 472, { a: 'center', s: 64, w: 800, c: 'rgba(94,240,138,0.85)', al: prog(t, 27.5, 27.8) });
   const p = eOB(prog(t, 27.4, 27.8));
   ctx.save(); ctx.translate(150, 440); ctx.scale(clamp(p, 0, 1.2), clamp(p, 0, 1.2)); ctx.globalAlpha = clamp(prog(t, 27.4, 27.55));
-  text('37', 0, 0, { s: 230, w: 900, c: C.go, ls: -6, glow: 'rgba(94,240,138,0.4)', gb: 40 });
-  const w = measure('37', { s: 230, w: 900, ls: -6 });
+  const w = slot('37', 0, 0, t, 27.4, { s: 230, w: 900, c: C.go, ls: -6, dur: 0.6, glow: 'rgba(94,240,138,0.4)', gb: 40 });
   text('g/km', w + 18, 0, { s: 70, w: 800 });
   text('CO₂, WLTP (saloon, from)', w + 20, -110, { s: 28, w: 500, c: C.mute });
   ctx.restore();
@@ -1145,6 +1320,15 @@ function sRain(t) {
     for (let x = 0; x <= W; x += 8) { const xx = x + lt * sp * par; ctx.lineTo(x, y + Math.sin(xx * 0.002 + ph[0]) * amp + Math.sin(xx * 0.0057 + ph[1]) * amp * 0.4); }
     ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
   };
+  const lf = t > 29.42 && t < 29.8 ? (Math.floor((t - 29.42) * 30) % 3 !== 1 ? 1 - prog(t, 29.42, 29.8) : 0.15) : 0;
+  if (lf > 0) { // lightning
+    ctx.fillStyle = `rgba(220,230,255,${0.55 * lf})`; ctx.fillRect(0, 0, W, 760);
+    const r = rng(29); let x = 1320, y = 0;
+    ctx.save(); ctx.strokeStyle = `rgba(240,245,255,${lf})`; ctx.lineWidth = 3; ctx.shadowColor = '#cfe0ff'; ctx.shadowBlur = 30;
+    ctx.beginPath(); ctx.moveTo(x, y);
+    while (y < 520) { x += (r() - 0.5) * 90; y += 30 + r() * 40; ctx.lineTo(x, y); }
+    ctx.stroke(); ctx.restore();
+  }
   hill(560, 60, 1, '#2a333a', 0.03); hill(640, 40, 2, '#1d262b', 0.08);
   hill(760, 14, 3, '#121a16', 0.5); // hedgerow
   const wo = (lt * sp * 0.8) % 60; // dry-stone wall
@@ -1172,6 +1356,13 @@ function sRain(t) {
     ctx.moveTo(x, y); ctx.lineTo(x - 14, y + 34);
   }
   ctx.stroke(); ctx.restore();
+  const dr = rng(5); // raindrops on the lens
+  for (let i = 0; i < 18; i++) {
+    const x = dr() * W, rr = 6 + dr() * 16, y = dr() * H + (dr() < 0.3 ? (t - 29.2) * 70 * dr() : 0);
+    const g = ctx.createRadialGradient(x - rr * 0.3, y - rr * 0.3, 1, x, y, rr);
+    g.addColorStop(0, 'rgba(255,255,255,0.28)'); g.addColorStop(0.6, 'rgba(180,200,220,0.05)'); g.addColorStop(1, 'rgba(255,255,255,0.16)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.save(); ctx.globalAlpha = prog(t, 29.4, 29.7); // M xDrive HUD
   const hx = 1540, hy = 150;
   ctx.fillStyle = 'rgba(5,10,12,0.78)'; ctx.strokeStyle = 'rgba(255,255,255,0.15)';
@@ -1193,9 +1384,15 @@ function sRain(t) {
 function sTouring(t) {
   studio(true);
   const k = eIOC(prog(t, 32.5, 33.1));
+  bgType(k < 0.5 ? 'SALOON ·' : 'TOURING ·', 560, t, 140, 0.05, 280);
   const S = 1.15, X = 960 - 500 * S, GY = 840;
   floorReflect(() => drawSide(X, GY, S, { k, lights: 1, noShadow: true }), GY, 0.22, 280);
   drawSide(X, GY, S, { k, lights: 1, sweep: prog(t, 32.9, 33.9) });
+  const wa = env(t, 32.4, 33.3, 0.1, 0.3);
+  if (wa > 0) {
+    ctx.save(); ctx.globalAlpha = wa; drawSide(X, GY, S, { blueprint: 1, k }); ctx.restore();
+    scanBar(lerp(X - 60, X + 1010 * S, eIOC(prog(t, 32.45, 33.15))), GY - 340 * S, GY + 20, wa);
+  }
   flash(t, 32.75, 0.4, 0.3);
   line('SALOON', 960, 250, t, 31.85, 32.45, { a: 'center', s: 110, w: 900, ls: 8, out: 0.15 });
   line('TOURING', 960, 250, t, 32.62, 33.8, { a: 'center', s: 110, w: 900, ls: 8, c: C.mBlue, glow: 'rgba(63,169,245,0.4)' });
@@ -1223,6 +1420,8 @@ function sFinale(t) {
     const y0 = hz + (H - hz) * z0 * z0, y1 = hz + (H - hz) * z1 * z1;
     ctx.beginPath(); ctx.moveTo(958 - 6 * z0 * z0, y0); ctx.lineTo(962 + 6 * z0 * z0, y0); ctx.lineTo(962 + 6 * z1 * z1, y1); ctx.lineTo(958 - 6 * z1 * z1, y1); ctx.fill();
   }
+  zoomLines(960, hz, t, clamp(launch * 2) + 0.3 * sat, 80, 3);
+  stripes(t, 35.45, 0.5, 600, -0.28, 0.8);
   const s0 = 0.78, s = s0 / (1 + 7 * launch), gy = hz + (930 - hz) * (s / s0);
   const shake = t > 35.45 && t < 36.2 ? (rng(Math.floor(t * 60))() - 0.5) * 8 * (1 - prog(t, 35.45, 36.2)) : 0;
   const tail = sat > 0 ? 1 : 0.55, brake = t > 35.45 && t < 35.75 ? 1 : 0;
@@ -1262,6 +1461,13 @@ function sEnd(t) {
   const g = ctx.createLinearGradient(0, 560, 0, H); g.addColorStop(0, 'rgba(2,3,6,0)'); g.addColorStop(0.4, 'rgba(2,3,6,0.95)');
   ctx.fillStyle = g; ctx.fillRect(0, 560, W, H - 560);
   line('BMW M5', 960, 840, t, 37.8, 99, { a: 'center', s: 170, w: 900, ls: -3, d: 0.7, st: 0.12 });
+  if (t > 38.5 && t < 39.7) {
+    const sx = lerp(500, 1420, eIOC(prog(t, 38.5, 39.6)));
+    const g = ctx.createLinearGradient(sx - 110, 0, sx + 110, 0);
+    g.addColorStop(0, 'rgba(120,190,255,0)'); g.addColorStop(0.5, 'rgba(175,220,255,0.95)'); g.addColorStop(1, 'rgba(120,190,255,0)');
+    text('BMW M5', 960, 840, { a: 'center', s: 170, w: 900, ls: -3, c: g });
+  }
+  stripes(t, 37.55, 0.6, 760, -0.3, 0.9);
   tri(888, 876, 40, 10, prog(t, 38.2, 39.0));
   line('The super-saloon that plugs in.', 960, 960, t, 38.6, 99, { a: 'center', s: 42, w: 600, c: C.mute });
   line('Figures: BMW WLTP data. Real-world electric range varies. Independent film, not affiliated with or endorsed by BMW.', 960, 1048, t, 39.2, 99, { a: 'center', s: 18, w: 500, c: C.dim, st: 0.006, d: 0.4 });
@@ -1270,24 +1476,78 @@ function sEnd(t) {
 /* =====================================================================
    TIMELINE
    ===================================================================== */
-const CUTS = [4.75, 9.15, 15.45, 19.0, 21.75, 27.3, 29.2, 31.65, 33.95, 37.45];
+const SCENES = [[0, 4.75, sHook], [4.75, 9.15, sOrigin], [9.15, 15.45, sHeart], [15.45, 19.0, sNumbers], [19.0, 21.75, sPlug],
+  [21.75, 27.3, sCommute], [27.3, 29.2, sTax], [29.2, 31.65, sRain], [31.65, 33.95, sTouring], [33.95, 37.45, sFinale], [37.45, DURATION, sEnd]];
+const TRANS = [null, 'stripe', 'zoom', 'whip', 'stripe', 'whip', 'zoom', 'whip', 'stripe', 'zoom', 'stripe']; // into scene i
+const TR = 0.2; // half-length of a transition, seconds
+const PUNCH = [[0.88, 0.06], [12.85, 0.09], [18.05, 0.05], [20.65, 0.04], [24.45, 0.02], [26.0, 0.03], [29.42, 0.04], [32.75, 0.04], [35.45, 0.08], [37.45, 0.04]];
+const mkBuf = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return [c, c.getContext('2d')]; };
+const [bufA, ctxA] = mkBuf(), [bufB, ctxB] = mkBuf();
+function renderScene(target, i, t) {
+  const prev = ctx; ctx = target;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
+  SCENES[i][2](t);
+  ctx.restore(); ctx = prev;
+}
+function camera(i, t) { // slow push-in per scene, plus a punch and shake on the beats
+  const u = prog(t, SCENES[i][0], SCENES[i][1]);
+  let z = 1 + 0.035 * eIOS(u), x = Math.sin(t * 0.7 + i * 1.3) * 7, y = Math.cos(t * 0.5 + i) * 4, r = 0;
+  for (const [t0, amp] of PUNCH) {
+    if (t < t0 || t > t0 + 1.5) continue;
+    const d = Math.exp(-(t - t0) * 6), n = rng(Math.floor(t * 60) + 7);
+    z += amp * d; x += (n() - 0.5) * 260 * amp * d; y += (n() - 0.5) * 200 * amp * d; r += (n() - 0.5) * 0.05 * amp * d;
+  }
+  return { z, x, y, r };
+}
+function blit(buf, c, alpha = 1, dx = 0) {
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.translate(W / 2 + c.x + dx, H / 2 + c.y); ctx.rotate(c.r); ctx.scale(c.z, c.z);
+  ctx.drawImage(buf, -W / 2, -H / 2);
+  ctx.restore();
+}
+function hud(t) {
+  const a = 0.6 * prog(t, 0.5, 1.1) * (1 - prog(t, 37.3, 37.7));
+  hudCorners(a);
+  if (a > 0) text(`M5 · G90   ${t.toFixed(1).padStart(4, '0')}`, W - 104, 70, { a: 'right', s: 17, w: 600, f: 'JetBrains Mono', c: 'rgba(255,255,255,0.45)', al: a * 1.6 });
+}
 function drawFrame(t) {
+  ctx = main;
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
-  if (t < 4.75) sHook(t);
-  else if (t < 9.15) sOrigin(t);
-  else if (t < 15.45) sHeart(t);
-  else if (t < 19.0) sNumbers(t);
-  else if (t < 21.75) sPlug(t);
-  else if (t < 27.3) sCommute(t);
-  else if (t < 29.2) sTax(t);
-  else if (t < 31.65) sRain(t);
-  else if (t < 33.95) sTouring(t);
-  else if (t < 37.45) sFinale(t);
-  else sEnd(t);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  let i = SCENES.findIndex(([a, b]) => t >= a && t < b);
+  if (i < 0) i = SCENES.length - 1;
+  let j = -1, p = 0; // j = incoming scene of an active transition, p = 0..1 through it
+  if (i > 0 && t - SCENES[i][0] < TR) { j = i; p = 0.5 + (t - SCENES[i][0]) / (2 * TR); }
+  else if (i < SCENES.length - 1 && SCENES[i][1] - t < TR) { j = i + 1; p = 0.5 - (SCENES[i][1] - t) / (2 * TR); }
+  if (j < 0) {
+    renderScene(ctxA, i, t); blit(bufA, camera(i, t));
+  } else {
+    const c = SCENES[j][0], tOut = Math.min(t, c - 0.001), tIn = Math.max(t, c);
+    renderScene(ctxA, j - 1, tOut); renderScene(ctxB, j, tIn);
+    const cOut = camera(j - 1, tOut), cIn = camera(j, tIn), type = TRANS[j];
+    if (type === 'whip') { // whip pan with motion blur
+      const off = eIOC(p) * W, v = Math.sin(Math.PI * p);
+      for (let k = 4; k >= 0; k--) blit(bufA, cOut, k ? 0.2 * v : 1, -off + k * 45 * v);
+      for (let k = 4; k >= 0; k--) blit(bufB, cIn, k ? 0.2 * v : 1, W - off + k * 45 * v);
+    } else if (type === 'zoom') { // zoom through a flash
+      if (p < 0.5) blit(bufA, { ...cOut, z: cOut.z * (1 + 0.35 * eIC(p * 2)) });
+      else blit(bufB, { ...cIn, z: cIn.z * (1.3 - 0.3 * eOC((p - 0.5) * 2)) });
+      ctx.fillStyle = `rgba(255,255,255,${0.8 * Math.pow(1 - Math.abs(p - 0.5) * 2, 2)})`; ctx.fillRect(0, 0, W, H);
+    } else { // M-stripe wipe
+      blit(bufA, cOut);
+      const x = lerp(-300, W + 900, eIOC(p)), sl = 0.42;
+      ctx.save(); ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(x - 140, 0); ctx.lineTo(x - 140 - H * sl, H); ctx.lineTo(-10, H); ctx.closePath(); ctx.clip();
+      blit(bufB, cIn); ctx.restore();
+      [C.mRed, C.mNavy, C.mBlue].forEach((col, k) => {
+        const x0 = x - k * 70; ctx.fillStyle = col;
+        ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0 + 60, 0); ctx.lineTo(x0 + 60 - H * sl, H); ctx.lineTo(x0 - H * sl, H); ctx.closePath(); ctx.fill();
+      });
+    }
+  }
   captions(t);
-  for (const c of CUTS) black(0.9 * (1 - prog(Math.abs(t - c), 0, 0.12)));
+  hud(t);
   vignette(0.55);
   grain(t, 0.04);
   black(prog(t, DURATION - 0.6, DURATION));
