@@ -1,0 +1,15 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+#stage { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; overflow: hidden; }
+#gl, #gl canvas { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+#captions { position: absolute; left: 70px; width: 940px; top: 1345px; transform: translateY(-50%); text-align: center;
+  font-family: 'Inter Display', 'Inter', sans-serif; font-weight: 800; font-size: 82px; line-height: 1.06; letter-spacing: -0.01em; }
+#captions .cw { display: inline-block; margin: 0 .12em; color: #fff; will-change: transform, opacity;
+  text-shadow: 0 4px 0 rgba(0,0,0,.6), 0 0 26px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9); }
+#captions .cw.hl, #captions .cw.bad, #captions .cw.good { font-weight: 900; }
+#captions .cw.hl   { color: #FFD15C; text-shadow: 0 4px 0 rgba(0,0,0,.6), 0 0 28px rgba(255,209,92,.55); }
+#captions .cw.bad  { color: #FF4D5E; text-shadow: 0 4px 0 rgba(0,0,0,.6), 0 0 28px rgba(255,77,94,.6); }
+#captions .cw.good { color: #4DFFD2; text-shadow: 0 4px 0 rgba(0,0,0,.6), 0 0 28px rgba(77,255,210,.55); }
+#progress { position: absolute; left: 0; top: 0; width: 1080px; height: 7px; background: rgba(255,255,255,.07); }
+#bar { height: 100%; width: 0; background: linear-gradient(90deg, #4DFFD2, #FFD15C); box-shadow: 0 0 12px rgba(77,255,210,.8); }
+#hud { position: absolute; inset: 0; pointer-events: none; }
