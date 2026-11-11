@@ -683,7 +683,7 @@ function sTwins(t) {
       }
       const at = three({
         cars: [{ id: 'golf', z: -1.35, spin: t * 12, table: false }, { id: 's3', z: 1.35, spin: t * 12, table: false }],
-        cam: { az: 180, el: orbit(u, 60, 67), dist: orbit(u, 12.6, 12.0), fov: 30, target: [-0.55, 0, 0] },
+        cam: { az: 180, el: orbit(u, 60, 66), dist: orbit(u, 14.0, 13.4), fov: 30, target: [-0.3, 0, 0] },
         rim: { golf: 1, s3: 1 }, anchors,
       });
       for (const id of ['golf', 's3']) {
@@ -697,9 +697,9 @@ function sTwins(t) {
       }
       header(t, B.awd, CUT[2], 'Under the skin');
       for (const [id, nm, col] of [['golf', 'GOLF R', C.vw], ['s3', 'AUDI S3', C.audi]]) {
-        const q = at[id + 'f']; if (q) text(nm, q[0], q[1] - 175, { a: 'center', s: 30, w: 900, ls: 6, c: col, al: prog(t, B.awd, B.awd + 0.3) });
+        const q = at[id + 'f']; if (q) text(nm, q[0], q[1] - 160, { a: 'center', s: 30, w: 900, ls: 6, c: col, al: prog(t, B.awd, B.awd + 0.3) * (1 - prog(t, B.torque - 0.25, B.torque)) });
       }
-      if (t > B.torque) line('TORQUE TO EITHER REAR WHEEL', 960, 170, t, B.torque, 999, { a: 'center', s: 40, w: 900, c: C.amber, ls: 5 });
+      if (t > B.torque) line('TORQUE TO EITHER REAR WHEEL', 960, 150, t, B.torque, 999, { a: 'center', s: 38, w: 900, c: C.amber, ls: 5 });
     }],
   ]);
 }
