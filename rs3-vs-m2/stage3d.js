@@ -1,15 +1,17 @@
-// The 3D stage for the film: both cars on turntables in a dark studio. film.html calls
-// R3D.render(spec) with a shot description and composites the returned canvas.
+// The 3D stage for a film: the cars from cars.js on turntables in a dark studio.
+// film.html calls R3D.render(spec) with a shot description and composites the
+// returned canvas. This file and car3d.js are shared, unchanged, between the films;
+// each film's cars.js exports CARS = { id: { spec, color } }.
 import * as THREE from 'three';
 import { buildCar, makeStudio, placeCar } from './car3d.js';
-import { RS3, M2 } from './cars.js';
+import { CARS } from './cars.js';
 
 const W = 1920, H = 1080;
 const canvas = document.createElement('canvas');
 canvas.width = W; canvas.height = H;
 const st = makeStudio(canvas, W, H);
-const SPEC = { rs3: RS3, m2: M2 };
-const COL = { rs3: 0x7ddc2f, m2: 0x3fa9f5 };
+const SPEC = Object.fromEntries(Object.entries(CARS).map(([id, c]) => [id, c.spec]));
+const COL = Object.fromEntries(Object.entries(CARS).map(([id, c]) => [id, c.color]));
 
 // turntable: dark glossy disc with a glowing rim in the car's colour
 function turntable(r, col) {
@@ -29,22 +31,25 @@ function turntable(r, col) {
 }
 
 const actors = {};
-for (const id of ['rs3', 'm2']) {
+for (const id of Object.keys(SPEC)) {
   const car = buildCar(SPEC[id]);
   const placed = placeCar(st, car);
+  // lit decals (lights, glowing grilles), in the car and its floor reflection, so shots can switch them on
+  const glowMats = [];
+  for (const o of [car, placed.refl]) o.traverse(m => { if (m.isMesh) for (const mt of [].concat(m.material)) if (mt.emissiveMap) glowMats.push(mt); });
   // wheel indices, so the floor reflection's wheels can copy the real ones
   const wheelIdx = car.userData.wheels.map(w => car.children.indexOf(w));
   const tt = turntable(3.0, COL[id]);
   placed.root.add(tt.g);
   placed.shadow.position.y = 0.022;
-  actors[id] = { ...placed, wheelIdx, tt };
+  actors[id] = { ...placed, wheelIdx, tt, glowMats };
 }
 const big = turntable(4.6, 0xffffff);
 st.scene.add(big.g);
 big.ring.material.color.set(0xc9d4e2).multiplyScalar(1.6);
 
 // coloured rim lights, one per car, switched per shot
-const rim = { rs3: new THREE.SpotLight(COL.rs3, 0, 30, 0.5, 0.6), m2: new THREE.SpotLight(COL.m2, 0, 30, 0.5, 0.6) };
+const rim = Object.fromEntries(Object.keys(SPEC).map(id => [id, new THREE.SpotLight(COL[id], 0, 30, 0.5, 0.6)]));
 for (const l of Object.values(rim)) { st.scene.add(l); st.scene.add(l.target); }
 
 const v3 = new THREE.Vector3();
@@ -54,7 +59,7 @@ function project(obj, p) {
 }
 
 /* spec = {
-     cars: [{ id, x, z, ry, spin, steer, table: true }],  // ry in radians; spin = wheel angle
+     cars: [{ id, x, z, ry, spin, steer, table: true, glow: 1 }],  // ry in radians; spin = wheel angle; glow = lights
      bigTable: { ry } | null,
      cam: { az, el, dist, fov, target: [x, y, z] },        // orbit camera (degrees)
      rim: { rs3: k, m2: k }, exposure,
@@ -71,6 +76,7 @@ function render(spec) {
     a.tt.g.visible = c.table !== false && !spec.bigTable;
     a.tt.g.rotation.y = 0;
     a.shadow.visible = true;
+    for (const m of a.glowMats) m.emissiveIntensity = 2.2 * (c.glow ?? 1);
     const wheels = a.car.userData.wheels;
     wheels.forEach((w, i) => {
       const left = i % 2 === 0, front = i < 2;

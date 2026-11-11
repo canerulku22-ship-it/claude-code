@@ -321,7 +321,8 @@ export function buildCar(S) {
   }
   // mirrors
   for (const side of [1, -1]) {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12), S.mirrorPaint ? paint : black);
+    const mirrorMat = S.mirrorPaint ? paint : S.mirrorColor ? new THREE.MeshPhysicalMaterial({ color: S.mirrorColor, metalness: 0.9, roughness: 0.3, clearcoat: 1 }) : black;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12), mirrorMat);
     m.scale.set(0.09, 0.065, 0.13); m.position.set(S.mirror[0], S.mirror[1], side * (B.width(S.mirror[0]) + 0.08)); car.add(m);
     const st = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.03, 0.1), black); st.position.set(S.mirror[0] + 0.02, S.mirror[1] - 0.02, side * (B.width(S.mirror[0]) + 0.01)); car.add(st);
   }

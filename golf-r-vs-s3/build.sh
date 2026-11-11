@@ -11,6 +11,7 @@ cd "$(dirname "$0")"
 mkdir -p out
 
 ./fetch_photos.sh   # official VW / Audi press photos -> out/photos/ (never committed)
+[ -d node_modules/three ] || npm ci --no-audit --no-fund
 
 VENV=${VENV:-.venv}
 if [ ! -x "$VENV/bin/python" ]; then

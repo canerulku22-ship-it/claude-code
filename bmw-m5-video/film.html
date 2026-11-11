@@ -11,6 +11,8 @@
 </style>
 <script src="timeline.js"></script>
 <script src="out/vo/timing.js" onerror="window.VO_TIMING = {}"></script>
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js" } }</script>
+<script type="module" src="stage3d.js"></script>
 </head>
 <body>
 <canvas id="c" width="1920" height="1080"></canvas>
@@ -868,6 +870,17 @@ function header(t, a, b, label) {
 }
 
 /* =====================================================================
+   3D — the M5 (and the Touring) rendered live by stage3d.js with three.js;
+   three() draws the frame and returns screen positions of named points
+   ===================================================================== */
+window.ready = new Promise(res => (window.R3D ? res() : addEventListener('r3d-ready', res, { once: true })));
+function three(spec) {
+  const r = window.R3D.render(spec);
+  ctx.drawImage(r.canvas, 0, 0);
+  return r.at;
+}
+
+/* =====================================================================
    SCENES
    ===================================================================== */
 // 1 · HOOK (0 – 4.75): the light signature wakes up; the narrator makes the claim
@@ -880,25 +893,27 @@ function sHook(t) {
     glowDot(x, y, 3 + r() * 5, '170,200,240', a * prog(t, 0.8, 1.6));
   }
   ctx.restore();
-  const s = lerp(0.8, 0.88, eIOS(prog(t, 0, 4.75)));
-  const gy = 790 + lerp(0, 18, eIOS(prog(t, 0, 4.75)));
+  const u = eIOS(prog(t, 0, 4.75));
   const shake = t > 0.88 && t < 1.3 ? Math.sin(t * 90) * 3 * (1 - prog(t, 0.88, 1.3)) : 0;
-  const o = {
-    glow: prog(t, 0.12, 0.3), glowDraw: eOC(prog(t, 0.12, 0.75)),
-    drl: t < 0.88 ? 0 : (t < 1.0 ? (Math.floor(t * 40) % 2) : 1),
-    beam: eOC(prog(t, 1.5, 2.0)), flare: (t > 0.88 ? 1 : 0) * (0.6 + 0.4 * Math.sin(t * 2)),
-  };
+  // the real car in 3D: the kidney contour glows first, then the headlights snap on
+  const glow = t < 0.88 ? 0.6 * prog(t, 0.12, 0.6) : (t < 1.0 ? (Math.floor(t * 40) % 2 ? 1 : 0.2) : 1);
+  const beam = eOC(prog(t, 1.5, 2.0));
   ctx.save(); ctx.translate(shake, 0);
-  floorReflect(() => drawFront(960, gy, s, { ...o, noShadow: true, flare: 0 }), gy, 0.2, 260);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(960, gy + 30); ctx.scale(1, 0.12);
-  glowDot(0, 0, 700, '150,190,240', 0.25 * o.beam); ctx.restore();
-  drawFront(960, gy, s, o);
+  const at = three({
+    cars: [{ id: 'm5', ry: 0, table: false, glow }],
+    cam: { az: lerp(-7, 6, u), el: lerp(5, 3, u), dist: lerp(6.4, 5.5, u), fov: 30, target: [0, 0.78, 0] },
+    rim: { m5: 0.6 }, exposure: lerp(0.16, 0.95, eOC(prog(t, 0.88, 1.6))) + 0.12 * prog(t, 0.12, 0.6),
+    anchors: { lights: ['m5', 2.42, 0.78, 0] },
+  });
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(960, 900); ctx.scale(1, 0.12);
+  glowDot(0, 0, 700, '150,190,240', 0.25 * beam); ctx.restore();
   ctx.restore();
-  ringBurst(960, gy - 300 * s, t, 0.88, '190,225,255', 780, 3, 0);
+  const [lx, ly] = at.lights || [960, 560];
+  ringBurst(lx, ly, t, 0.88, '190,225,255', 780, 3, 0);
   const lp = prog(t, 0.86, 1.5); // light line racing out from the headlights
   if (lp > 0 && lp < 1) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    const w = eOC(lp) * W, y = gy - 385 * s;
+    const w = eOC(lp) * W, y = ly;
     const lg = ctx.createLinearGradient(960 - w, 0, 960 + w, 0);
     lg.addColorStop(0, 'rgba(150,200,255,0)'); lg.addColorStop(0.5, `rgba(225,242,255,${1 - lp})`); lg.addColorStop(1, 'rgba(150,200,255,0)');
     ctx.fillStyle = lg; ctx.fillRect(960 - w, y - 3, 2 * w, 6);
@@ -1385,14 +1400,22 @@ function sTouring(t) {
   studio(true);
   const k = eIOC(prog(t, 32.5, 33.1));
   bgType(k < 0.5 ? 'SALOON ·' : 'TOURING ·', 560, t, 140, 0.05, 280);
-  const S = 1.15, X = 960 - 500 * S, GY = 840;
-  floorReflect(() => drawSide(X, GY, S, { k, lights: 1, noShadow: true }), GY, 0.22, 280);
-  drawSide(X, GY, S, { k, lights: 1, sweep: prog(t, 32.9, 33.9) });
-  const wa = env(t, 32.4, 33.3, 0.1, 0.3);
-  if (wa > 0) {
-    ctx.save(); ctx.globalAlpha = wa; drawSide(X, GY, S, { blueprint: 1, k }); ctx.restore();
-    scanBar(lerp(X - 60, X + 1010 * S, eIOC(prog(t, 32.45, 33.15))), GY - 340 * S, GY + 20, wa);
+  const u = prog(t, 31.65, 33.95);
+  const shot = id => three({
+    cars: [{ id, ry: lerp(0.15, -0.15, u), table: true }],
+    cam: { az: lerp(62, 78, eIOS(u)), el: 7, dist: lerp(11.6, 10.8, u), fov: 30, target: [0, 0.6, 0] },
+    rim: { [id]: 1 }, exposure: 1.0,
+  });
+  const sx = lerp(-60, W + 60, eIOC(prog(t, 32.45, 33.15)));   // the scan line sweeps saloon -> Touring
+  if (sx < W) shot('m5');
+  if (sx > 0) {
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, sx, H); ctx.clip();
+    if (sx < W) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, sx, H); }
+    shot('m5t');
+    ctx.restore();
   }
+  const wa = env(t, 32.4, 33.3, 0.1, 0.3);
+  if (wa > 0) scanBar(sx, 200, 1000, wa);
   flash(t, 32.75, 0.4, 0.3);
   line('SALOON', 960, 250, t, 31.85, 32.45, { a: 'center', s: 110, w: 900, ls: 8, out: 0.15 });
   line('TOURING', 960, 250, t, 32.62, 33.8, { a: 'center', s: 110, w: 900, ls: 8, c: C.mBlue, glow: 'rgba(63,169,245,0.4)' });
@@ -1455,9 +1478,12 @@ function sFinale(t) {
 // 10 · END CARD (37.45 – 41.5)
 function sEnd(t) {
   ctx.fillStyle = '#020306'; ctx.fillRect(0, 0, W, H);
-  ctx.save(); ctx.globalAlpha = prog(t, 37.45, 38.2); // the light signature returns
-  drawFront(960, 640, 0.62, { alpha: 0.3, glow: 1, drl: 1, noShadow: true, flare: 0.5 });
-  ctx.restore();
+  const u = prog(t, 37.45, DURATION); // the car returns, turning on its turntable
+  three({
+    cars: [{ id: 'm5', ry: lerp(-0.5, 0.35, u), table: true, glow: 1 }],
+    cam: { az: 28, el: 9, dist: 12.5, fov: 30, target: [0, -0.15, 0] },
+    rim: { m5: 1 }, exposure: lerp(0.3, 0.85, eOC(prog(t, 37.45, 38.4))),
+  });
   const g = ctx.createLinearGradient(0, 560, 0, H); g.addColorStop(0, 'rgba(2,3,6,0)'); g.addColorStop(0.4, 'rgba(2,3,6,0.95)');
   ctx.fillStyle = g; ctx.fillRect(0, 560, W, H - 560);
   line('BMW M5', 960, 840, t, 37.8, 99, { a: 'center', s: 170, w: 900, ls: -3, d: 0.7, st: 0.12 });
@@ -1559,7 +1585,7 @@ window.DURATION = DURATION;
 if (!location.hash.includes('render')) {
   const start = performance.now() - (parseFloat(new URLSearchParams(location.search).get('t')) || 0) * 1000;
   const loop = () => { drawFrame(((performance.now() - start) / 1000) % DURATION); requestAnimationFrame(loop); };
-  requestAnimationFrame(loop);
+  window.ready.then(() => requestAnimationFrame(loop));
 }
 </script>
 </body>

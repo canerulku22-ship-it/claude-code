@@ -10,7 +10,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p out
 
-[ -d node_modules/kokoro-js ] || npm install --no-audit --no-fund
+{ [ -d node_modules/kokoro-js ] && [ -d node_modules/three ]; } || npm install --no-audit --no-fund
 # NODE_USE_ENV_PROXY lets Node's fetch use HTTPS_PROXY where one is set
 NODE_USE_ENV_PROXY=1 node voiceover.mjs                 # Kokoro lines -> out/vo_ref/
 

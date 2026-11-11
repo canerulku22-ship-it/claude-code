@@ -1,0 +1,9 @@
+{
+  "name": "golf-r-vs-s3",
+  "private": true,
+  "type": "module",
+  "description": "Builds the Golf R vs Audi S3 film (see README.md)",
+  "dependencies": {
+    "three": "0.187.0"
+  }
+}

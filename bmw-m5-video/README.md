@@ -14,6 +14,21 @@ Everything is generated from code:
   illuminated "Iconic Glow" outline and M double slats, the light signature,
   carbon roof, Hofmeister kink, flared arches, quad tailpipes and blue M
   calipers, in Isle of Man Green. No photos or stock footage.
+- **3D renders:** the opening, the "Saloon, or Touring" moment and the end
+  card show the M5 as a real-time 3D model, built from code with
+  [three.js](https://threejs.org) and rendered frame by frame inside the film.
+  - The body is lofted from cross-sections built from BMW's published length,
+    width, height, wheelbase and tyre sizes.
+  - Its side profile was matched against a side-on BMW press photo, and its
+    kidneys, lights and diffuser against the studio shots. That photo is only
+    a modelling reference and isn't in the film or the repository.
+  - The Touring shares the saloon's front half, with an estate roof, roof rails
+    and a tailgate.
+  - The opening sets the 3D car in the dark: the kidney outline glows first,
+    then the headlights snap on with the engine.
+  - The models are close approximations, not BMW CAD.
+  - The 3D code (`car3d.js`, `stage3d.js`, `decals.js`) is shared, unchanged,
+    with the RS3 vs M2 and Golf R vs S3 films.
 - **Motion graphics:** every scene is drawn into an off-screen buffer and
   composited through a virtual camera. That gives a slow push-in per scene,
   plus zoom punches and shake on the big beats. Scenes change with M-stripe
@@ -38,16 +53,16 @@ Everything is generated from code:
 
 | Time | Voiceover | On screen |
 |---|---|---|
-| 0:00 | "This is why the BMW M5 is the best car on British roads." | Darkness. The kidney grille's light outline traces on, the headlights snap on and the engine starts. |
+| 0:00 | "This is why the BMW M5 is the best car on British roads." | Darkness. A 3D M5, head-on: the kidney outline glows, the headlights snap on and the engine starts. |
 | 0:05 | "Since 1984, it's put supercar power in a family saloon." | A 1980s saloon outline. The year rolls through every generation to 2024, and the new M5 appears. |
 | 0:09 | "The new one? A twin-turbo V8 and an electric motor." / "727 horsepower." | X-ray view: V8, gearbox-mounted motor and battery light up, power flows to all four wheels, then "727" slams in. |
 | 0:15 | "0–62 in 3.5 seconds." | Speedometer and stopwatch with the car flat out. |
 | 0:19 | "But here's the clever bit: it plugs in." | Charge flap opens and the cable plugs in at home. |
 | 0:22 | "Up to 43 miles on electric alone. Most commutes, there and back, with no petrol." | Home-to-work route with the electric range draining. |
 | 0:27 | "Lower company-car tax. Four-wheel drive for British weather." | 37 g/km CO₂ against a petrol-only rival's top tax band, then the car in rain past dry-stone walls, a lightning strike and a four-wheel-drive torque display. |
-| 0:32 | "Saloon, or Touring." | The saloon morphs into the Touring. |
+| 0:32 | "Saloon, or Touring." | The 3D saloon turns on a turntable and becomes the 3D Touring behind a scan line. |
 | 0:34 | "Electric on Monday. V8 on Saturday." | Rear view: silent in EV mode, then the tail lights flare and it launches into the night. |
-| 0:37 | "The BMW M5." | End card. |
+| 0:37 | "The BMW M5." | End card, over the 3D M5 turning with its lights on. |
 
 Lines can be edited in `timeline.js`: `text` is the caption and `say` is the
 pronunciation. Re-run `build.sh` after editing.
@@ -78,13 +93,16 @@ quoting a rate.
 The script installs `kokoro-js` and Chatterbox (PyTorch, a few GB, into
 `.venv`). It then synthesises the narration, renders the frames and
 soundtrack, and writes `bmw-m5.mp4`. On four CPU cores the narration takes
-about 20 minutes (33 takes); the rest takes about two minutes.
+about 20 minutes (33 takes). The frames take about 15 minutes, most of it the
+3D shots, which run on Chromium's CPU WebGL renderer.
 `VOICE=kokoro ./build.sh` skips Chatterbox and uses the lighter Kokoro voice.
 
 It needs Node with Playwright and Chromium, Python 3 with NumPy and SciPy, and
 ffmpeg. The first run downloads the voice models from Hugging Face. To preview
-the animation live, open `film.html` in a browser after one build; add `?t=15`
-to the URL to start at 15 s.
+the animation live, serve the folder over HTTP after one build (for example
+`python3 -m http.server`) and open `film.html`; add `?t=15` to the URL to start
+at 15 s. ES modules (three.js) don't load from `file://`. `test3d.html`,
+served the same way, shows the 3D cars on their own.
 
 | File | Purpose |
 |---|---|
@@ -92,7 +110,10 @@ to the URL to start at 15 s.
 | `voiceover.mjs` | Kokoro lines: the reference voice for Chatterbox, and the fallback narration. |
 | `voiceover.py` | Chatterbox narration: three takes per line, checked with Whisper; writes the speech timing for the captions. |
 | `film.html` | All visuals. `drawFrame(t)` draws the frame at time `t`. |
-| `render.mjs` | Steps through every frame in headless Chromium and pipes the frames to ffmpeg, using parallel workers. |
+| `cars.js` | The 3D M5 saloon and Touring: dimensions, silhouettes, and their lights, kidneys and glass. |
+| `car3d.js`, `stage3d.js`, `decals.js` | The shared 3D kit: body lofting, projected decals, wheels, studio, turntables and camera. |
+| `test3d.html` | A test page that renders either car from any angle. |
+| `render.mjs` | Serves the folder locally, steps through every frame in headless Chromium and pipes the frames to ffmpeg, using parallel workers. |
 | `audio.py` | Music, engine and effects, mixed with the voiceover. |
 | `build.sh` | Runs everything and masters the result. |
 

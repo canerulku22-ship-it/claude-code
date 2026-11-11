@@ -2,8 +2,8 @@
 
 A 69-second narrated comparison (1920×1080, 30 fps, stereo) of the Volkswagen
 Golf R (Mk8.5) and the Audi S3 (8Y facelift). It's built from the
-manufacturers' own press photos of the real cars, with motion graphics and a
-chatty YouTuber-style voiceover on top. It opens on a split-screen hook that
+manufacturers' own press photos of the real cars plus real-time 3D renders of
+both, with motion graphics and a chatty YouTuber-style voiceover on top. It opens on a split-screen hook that
 names and shows both cars, then covers what they share, 0–62 mph, each car's
 character, practicality and price, and ends with a verdict and a question for
 the comments.
@@ -16,7 +16,23 @@ the comments.
   - Audi: the S3 Sportback and saloon in the Dolomites, and both together.
   - `fetch_photos.sh` downloads them from the official URLs in `photos.tsv`.
     They are **not committed** (see *Photo terms*).
-- **Motion graphics:** drawn on an HTML canvas over the photos:
+- **3D renders:** both cars are modelled from code with
+  [three.js](https://threejs.org) and rendered frame by frame inside the film.
+  - The body is lofted from cross-sections built from the published
+    dimensions and tyre sizes.
+  - The Golf was checked against Volkswagen's side-on press photo.
+  - The S3 uses the same A3 Sportback shell as the RS3 in `../rs3-vs-m2`,
+    with narrower arches and its own grille, quad exhausts and wheels.
+  - Lights, grilles, glass, badges and UK plates are projected decals.
+  - The models are close approximations, not manufacturer CAD.
+  - The 3D code (`car3d.js`, `stage3d.js`, `decals.js`) is shared, unchanged,
+    with the RS3 vs M2 and M5 films.
+- **3D shots:**
+  - the "twins" on one turntable as the studio lights clunk on
+  - both cars from above, with drive flowing to all four wheels and torque
+    shuffling between the rear two
+  - the end card
+- **Motion graphics:** drawn on an HTML canvas over the photos and 3D:
   - a virtual camera with push-ins, zoom punches and shake
   - flash cuts on the beats, and stripe wipes, whip pans and zoom-throughs between scenes
   - colour snapping in as each car is named
@@ -51,21 +67,25 @@ So the photos stay out of the repository, and the end card credits Volkswagen
 AG and AUDI AG. A review-style post fits these terms. Ads, sponsored posts or
 other commercial use would need permission from Volkswagen and Audi first.
 
+The 3D models carry simplified versions of each brand's badges, as you'd see
+on any model car, and are labelled on the end card as approximate models built
+for this film.
+
 ## Script
 
 | Voiceover | On screen |
 |---|---|
 | "Right, Golf R or Audi S3? Honestly, this one's a proper head-scratcher." | Split screen of the real cars; each snaps into colour as it's named, then "VS". |
 | "Same engine, same power, so which one actually deserves your money? Let's find out." | "WHICH ONE?" |
-| "Okay, so here's the thing: under the skin, these two are basically twins." | A grey Golf R and a grey S3 Sportback side by side: "TWINS". |
-| "Both get a 2.0-litre turbo with 333 horsepower, and clever four-wheel drive that can shove torque to either rear wheel." | Golf R engine bay, matching spec rows, and a torque-split diagram. |
+| "Okay, so here's the thing: under the skin, these two are basically twins." | Studio lights flicker on: both cars in 3D on one turntable, then "TWINS". |
+| "Both get a 2.0-litre turbo with 333 horsepower, and clever four-wheel drive that can shove torque to either rear wheel." | Golf R engine bay with matching spec rows, then both 3D cars from above with torque flowing to the wheels. |
 | "So, 0–62? The Golf does it in 4.6 seconds. And the S3? 4.7. Literally a tenth apart!" | Split-lane drag race; each timer lands as its number is said. |
 | "But this is where it gets fun. The Golf's the hooligan: spec the R-Performance pack and you get an actual Drift mode. Yes, really!" | Golf R sliding on snow, the real driving-profile screen, then the drift shot with flying snow. |
 | "The Audi? It's the grown-up. A classier badge, and you can have it as a Sportback or a saloon." | S3 saloon, a close-up of the grille, then both bodies with labels. |
 | "Need space? The Golf's got the bigger boot, and you can even get it as an estate. Dog owners, you're welcome." | 341 vs 325 litres, then the Golf R Estate. |
 | "And price? Honestly, it's neck and neck. Both start at around £47k." | A balance scale: £46,930 vs £47,550. |
 | "So here's my take. Want the wilder drive? Get the Golf R. Want the badge? Get the S3." | Split-screen verdict. |
-| "But which one would you take? Let me know in the comments!" | Poll-style ending and end card. |
+| "But which one would you take? Let me know in the comments!" | Both 3D cars turning, a poll bar and the end card. |
 
 ## Facts used and sources
 
@@ -89,14 +109,22 @@ labels them as 2025 list prices.
 ./build.sh
 ```
 
-The script fetches the photos, records the narration (33 takes, about 25
-minutes on four CPU cores), renders the frames (about 2 minutes) and the
-soundtrack, and writes `golf-r-vs-s3.mp4`.
+The script:
+
+1. fetches the photos
+2. installs three.js
+3. records the narration (33 takes, about 25 minutes on four CPU cores)
+4. renders the frames (about 20 minutes, most of it the 3D shots on
+   Chromium's CPU WebGL renderer)
+5. synthesises the soundtrack
+6. writes `golf-r-vs-s3.mp4`
 
 - `ONLY=07 TAKES=4 .venv/bin/python voiceover.py` re-records selected lines.
 - `ONLY=layout` re-times the film without recording anything.
-- To preview live, open `film.html` in a browser after one build; add `?t=15`
-  to the URL to start at 15 s.
+- To preview live, serve the folder over HTTP after one build (for example
+  `python3 -m http.server`) and open `film.html`. Add `?t=15` to start at
+  15 s. ES modules don't load from `file://`.
+- Open `test3d.html` the same way to look at the 3D cars on their own.
 
 | File | Purpose |
 |---|---|
@@ -104,8 +132,11 @@ soundtrack, and writes `golf-r-vs-s3.mp4`.
 | `photos.tsv`, `fetch_photos.sh` | The press photos used, with their official URLs, and the script that downloads them. |
 | `voice-reference.wav` | Synthetic reference voice for Chatterbox. |
 | `voiceover.py` | Narration: three takes per line, checked with Whisper, laid out into `out/vo/timing.js`. |
-| `film.html` | The edit: photos, motion graphics and captions, timed from the narration. |
-| `render.mjs` | Steps through every frame in headless Chromium and pipes the frames to ffmpeg. |
+| `film.html` | The edit: photos, 3D, motion graphics and captions, timed from the narration. |
+| `cars.js` | The 3D Golf R and S3: dimensions, silhouettes, and their lights, grilles and glass. |
+| `car3d.js`, `stage3d.js`, `decals.js` | The shared 3D kit: body lofting, projected decals, wheels, studio, turntables and camera. |
+| `test3d.html` | A test page that renders either car from any angle. |
+| `render.mjs` | Serves the folder locally, steps through every frame in headless Chromium and pipes the frames to ffmpeg. |
 | `audio.py` | Music, engines and effects, mixed with the narration. |
 | `build.sh` | Runs everything and masters the result. |
 

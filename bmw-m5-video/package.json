@@ -4,6 +4,7 @@
   "type": "module",
   "description": "Builds the BMW M5 short film (see README.md)",
   "dependencies": {
-    "kokoro-js": "1.2.1"
+    "kokoro-js": "1.2.1",
+    "three": "0.187.0"
   }
 }

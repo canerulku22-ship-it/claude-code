@@ -11,6 +11,8 @@
 </style>
 <script src="timeline.js"></script>
 <script src="out/vo/timing.js" onerror="window.VO_TIMING = {}"></script>
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js" } }</script>
+<script type="module" src="stage3d.js"></script>
 </head>
 <body>
 <canvas id="c" width="1920" height="1080"></canvas>
@@ -440,9 +442,10 @@ const PHOTOS = {
   s3_sb_front: [0.53, 0.56], s3_sb_drive: [0.5, 0.55], s3_sb_rear: [0.62, 0.6], s3_wheel: [0.42, 0.58], s3_pass: [0.55, 0.62],
 };
 const PH = {};
-window.ready = Promise.all(Object.keys(PHOTOS).map(n => new Promise(res => {
+const r3dReady = new Promise(res => (window.R3D ? res() : addEventListener('r3d-ready', res, { once: true })));
+window.ready = Promise.all([r3dReady, ...Object.keys(PHOTOS).map(n => new Promise(res => {
   const im = new Image(); im.onload = () => im.decode().then(res, res); im.onerror = res; im.src = `out/photos/${n}.jpg`; PH[n] = im;
-})));
+}))]);
 // Draw a photo to cover a rectangle, centred on the car, with zoom/pan and grading.
 function photo(name, x = 0, y = 0, w = W, h = H, o = {}) {
   const im = PH[name];
@@ -507,6 +510,34 @@ function chip(t, t0, x, y, str, col, fill) {
   ctx.restore();
 }
 function topShade(a = 0.65, h = 380) { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, h); }
+
+/* =====================================================================
+   3D — both cars rendered live by stage3d.js (three.js); three() draws the
+   frame and hands back screen positions of named points on the cars
+   ===================================================================== */
+const D3 = { golf: { xf: 1.285, xr: -1.343, R: 0.3236, tw: 0.7725 }, s3: { xf: 1.2705, xr: -1.3605, R: 0.3236, tw: 0.775 } };
+function three(spec) {
+  const r = window.R3D.render(spec);
+  ctx.drawImage(r.canvas, 0, 0);
+  return r.at;
+}
+const orbit = (u, a0, a1) => lerp(a0, a1, eIOS(u));
+function lightsOn(t, t0) { // studio lights clunking on: exposure ramp with a flicker
+  const u = prog(t, t0, t0 + 0.7);
+  const flick = u < 0.35 ? (Math.floor((t - t0) * 30) % 3 === 1 ? 0.25 : 0.7) : 1;
+  return lerp(0.08, 1.05, eOC(u)) * flick;
+}
+function tag3d(t, t0, at, str, col, dy = -90) { // small label hovering over a point on a car
+  if (!at || !at[2]) return;
+  const p = eOB(prog(t, t0, t0 + 0.3)); if (p <= 0) return;
+  const [x, y] = at, w = measure(str, { s: 30, w: 900, ls: 5 }) + 40;
+  ctx.save(); ctx.globalAlpha = clamp(prog(t, t0, t0 + 0.12));
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + dy * clamp(p) + 22); ctx.stroke();
+  ctx.translate(x, y + dy); ctx.scale(clamp(p, 0, 1.2), clamp(p, 0, 1.2));
+  ctx.fillStyle = 'rgba(5,7,12,0.85)'; ctx.beginPath(); ctx.roundRect(-w / 2, -34, w, 52, 26); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  text(str, x, y + dy + 2, { a: 'center', s: 30, w: 900, ls: 5, c: '#fff', al: clamp(prog(t, t0, t0 + 0.12)) });
+}
 
 /* =====================================================================
    SCENE TIMING — every beat hangs off the measured voiceover
@@ -603,13 +634,19 @@ function topDiagram(x, y, t, a, t0) { // torque pulsing between the rear wheels
 function sTwins(t) {
   const t0 = CUT[1];
   shots(t, [
-    [t0, () => {
-      photo('golf_bridge', 0, 0, 958, H, { z: kb(t, t0, B.turbo, 1.5, 1.65), f: [0.55, 0.62] });
-      photo('s3_sb_drive', 962, 0, 958, H, { z: kb(t, t0, B.turbo, 1.75, 1.9) });
-      ctx.fillStyle = '#fff'; ctx.fillRect(958, 0, 4, H);
-      topShade(0.55, 300);
-      text('GOLF R', 479, 120, { a: 'center', s: 34, w: 900, ls: 8, c: '#cfe0ff', al: prog(t, t0 + 0.2, t0 + 0.5) });
-      text('AUDI S3', 1441, 120, { a: 'center', s: 34, w: 900, ls: 8, c: '#ffd0c8', al: prog(t, t0 + 0.2, t0 + 0.5) });
+    [t0, () => {   // the twins side by side on a turntable, in 3D
+      const u = prog(t, t0, B.turbo);
+      const at = three({
+        cars: [{ id: 'golf', x: 0.05, z: 1.4 }, { id: 's3', x: -0.1, z: -1.4 }],
+        bigTable: { ry: -0.45 + 0.5 * u },
+        cam: { az: orbit(u, 48, 24), el: orbit(u, 6, 12), dist: orbit(u, 9.6, 11.2), fov: 30, target: [0, 0.45, 0] },
+        rim: { golf: 1, s3: 1 }, exposure: lightsOn(t, t0 + 0.05),
+        anchors: { golf: ['golf', -0.4, 1.72, 0], s3: ['s3', -0.4, 1.7, 0] },
+      });
+      tag3d(t, t0 + 0.35, at.golf, 'GOLF R', C.vw);
+      tag3d(t, t0 + 0.5, at.s3, 'AUDI S3', C.audi);
+      header(t, t0 + 0.2, B.turbo, 'Under the skin');
+      flash(t, t0 + 0.05, 0.25, 0.5);
       const tw = eOB(prog(t, B.twins, B.twins + 0.3));
       if (tw > 0) {
         ctx.save(); ctx.translate(960, 560); const sc = clamp(tw, 0, 1.2); ctx.scale(sc, sc); ctx.globalAlpha = clamp(prog(t, B.twins, B.twins + 0.1));
@@ -635,8 +672,34 @@ function sTwins(t) {
         text('=', 960, y, { a: 'center', s: 50, w: 900, c: C.amber });
         ctx.restore();
       });
-      topDiagram(960, 760, t, prog(t, B.torque - 0.2, B.torque + 0.2), B.torque);
-      if (t > B.torque) text('TORQUE TO EITHER REAR WHEEL', 960, 940, { a: 'center', s: 24, w: 800, c: C.amber, ls: 5, al: prog(t, B.torque, B.torque + 0.3) * (1 - prog(t, OFF('04') - 0.2, OFF('04'))) });
+    }],
+    [B.awd - 0.15, () => {   // both cars from above: drive to all four wheels, shuffling between the rear two
+      const u = prog(t, B.awd, CUT[2]), bias = Math.sin((t - B.awd) * 4.2);
+      const anchors = {};
+      for (const id of ['golf', 's3']) {
+        const d = D3[id];
+        Object.assign(anchors, { [id + 'f']: [id, d.xf, 0.32, 0], [id + 'r']: [id, d.xr, 0.32, 0], [id + 'rL']: [id, d.xr, d.R, d.tw + 0.1], [id + 'rR']: [id, d.xr, d.R, -d.tw - 0.1],
+          [id + 'fL']: [id, d.xf, d.R, d.tw + 0.1], [id + 'fR']: [id, d.xf, d.R, -d.tw - 0.1] });
+      }
+      const at = three({
+        cars: [{ id: 'golf', z: -1.35, spin: t * 12, table: false }, { id: 's3', z: 1.35, spin: t * 12, table: false }],
+        cam: { az: 180, el: orbit(u, 60, 67), dist: orbit(u, 12.6, 12.0), fov: 30, target: [-0.55, 0, 0] },
+        rim: { golf: 1, s3: 1 }, anchors,
+      });
+      for (const id of ['golf', 's3']) {
+        const col = id === 'golf' ? 'rgba(255,190,90,A)' : 'rgba(255,190,90,A)';
+        flow([at[id + 'f'], at[id + 'r']], t, col, 6, 1.4, 5, 1);
+        flow([at[id + 'f'], at[id + 'fL']], t, col, 3, 1.2, 4, 0.5);
+        flow([at[id + 'f'], at[id + 'fR']], t, col, 3, 1.2, 4, 0.5);
+        flow([at[id + 'r'], at[id + 'rL']], t, col, 4, 1.2, 5, clamp(0.5 + bias * 0.6));
+        flow([at[id + 'r'], at[id + 'rR']], t, col, 4, 1.2, 5, clamp(0.5 - bias * 0.6));
+        for (const [k, v] of [['rL', 0.5 + bias * 0.5], ['rR', 0.5 - bias * 0.5]]) { const q = at[id + k]; if (q) glowDot(q[0], q[1], 70 + 60 * v, '255,190,90', 0.6 * v); }
+      }
+      header(t, B.awd, CUT[2], 'Under the skin');
+      for (const [id, nm, col] of [['golf', 'GOLF R', C.vw], ['s3', 'AUDI S3', C.audi]]) {
+        const q = at[id + 'f']; if (q) text(nm, q[0], q[1] - 175, { a: 'center', s: 30, w: 900, ls: 6, c: col, al: prog(t, B.awd, B.awd + 0.3) });
+      }
+      if (t > B.torque) line('TORQUE TO EITHER REAR WHEEL', 960, 170, t, B.torque, 999, { a: 'center', s: 40, w: 900, c: C.amber, ls: 5 });
     }],
   ]);
 }
@@ -801,29 +864,32 @@ function sVerdict(t) {
 // 9 · CTA + END CARD
 function sCTA(t) {
   const t0 = CUT[8];
-  splitScreen(t,
-    () => photo('golf_hero', 0, 0, 1060, H, { z: kb(t, t0, DURATION, 1.3, 1.45), dx: 60, dark: 0.35 }),
-    () => photo('s3_sb_front', 860, 0, 1060, H, { z: kb(t, t0, DURATION, 1.6, 1.75), dx: -60, dark: 0.35 }), 1);
+  const u = prog(t, t0, DURATION);   // back in the 3D studio, both cars turning
+  three({
+    cars: [{ id: 'golf', x: 0.05, z: 1.4 }, { id: 's3', x: -0.1, z: -1.4 }],
+    bigTable: { ry: -0.4 + 0.4 * u },
+    cam: { az: orbit(u, 34, 20), el: 10, dist: orbit(u, 12.2, 13.0), fov: 30, target: [0, 0.3, 0] },
+    rim: { golf: 1, s3: 1 },
+  });
   topShade(0.7, 360);
-  vsBadge(t, t0 + 0.15, 960, 470, 0.85);
-  line('WHICH ONE WOULD YOU TAKE?', 960, 150, t, ON('11'), 999, { a: 'center', s: 72, w: 900, ls: 2 });
+  line('WHICH ONE WOULD YOU TAKE?', 960, 140, t, ON('11'), 999, { a: 'center', s: 72, w: 900, ls: 2 });
   const p = eOC(prog(t, ON('11') + 0.4, ON('11') + 1.8)), pg = 0.5 + Math.sin(t * 2.1) * 0.06 * p;
   ctx.save(); ctx.globalAlpha = prog(t, ON('11') + 0.3, ON('11') + 0.6);
-  ctx.fillStyle = 'rgba(5,7,12,0.75)'; ctx.fill(roundPoly([[540, 660], [1380, 660], [1380, 760], [540, 760]], 14));
-  ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(560, 720, 800, 22);
-  ctx.fillStyle = C.vw; ctx.fillRect(560, 720, 800 * pg * p, 22);
-  ctx.fillStyle = C.audi; ctx.fillRect(560 + 800 * (1 - (1 - pg) * p), 720, 800 * (1 - pg) * p, 22);
-  text('GOLF R', 560, 706, { s: 22, w: 800, c: '#bcd5ff', ls: 4 }); text('AUDI S3', 1360, 706, { a: 'right', s: 22, w: 800, c: '#ffc4ba', ls: 4 });
+  ctx.fillStyle = 'rgba(5,7,12,0.75)'; ctx.fill(roundPoly([[540, 185], [1380, 185], [1380, 275], [540, 275]], 14));
+  ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(560, 238, 800, 20);
+  ctx.fillStyle = C.vw; ctx.fillRect(560, 238, 800 * pg * p, 20);
+  ctx.fillStyle = C.audi; ctx.fillRect(560 + 800 * (1 - (1 - pg) * p), 238, 800 * (1 - pg) * p, 20);
+  text('GOLF R', 560, 226, { s: 22, w: 800, c: '#bcd5ff', ls: 4 }); text('AUDI S3', 1360, 226, { a: 'right', s: 22, w: 800, c: '#ffc4ba', ls: 4 });
   ctx.restore();
   if (t > B.comments - 0.1) {
     const q = eOB(prog(t, B.comments, B.comments + 0.35));
-    ctx.save(); ctx.translate(960, 840); ctx.scale(clamp(q, 0, 1.2), clamp(q, 0, 1.2));
+    ctx.save(); ctx.translate(960, 880); ctx.scale(clamp(q, 0, 1.2), clamp(q, 0, 1.2));
     ctx.fillStyle = C.go; ctx.beginPath(); ctx.roundRect(-230, -36, 460, 64, 32); ctx.fill();
     ctx.beginPath(); ctx.moveTo(-150, 26); ctx.lineTo(-170, 52); ctx.lineTo(-120, 28); ctx.fill();
     text('LET ME KNOW IN THE COMMENTS', 0, 8, { a: 'center', s: 24, w: 900, c: '#062012', ls: 2 });
     ctx.restore();
   }
-  line('Photos: Volkswagen AG and AUDI AG press images, editorial use. Figures: manufacturer data, UK list prices 2025. Independent film, not affiliated with Volkswagen or Audi.', 960, 1052, t, OFF('11') + 0.2, 999, { a: 'center', s: 17, w: 500, c: '#8d96a4', st: 0.005, d: 0.3 });
+  line('Photos: Volkswagen AG and AUDI AG press images, editorial use. 3D: approximate models built for this film. Figures: manufacturer data, UK list prices 2025. Independent film, not affiliated with Volkswagen or Audi.', 960, 1052, t, OFF('11') + 0.2, 999, { a: 'center', s: 17, w: 500, c: '#8d96a4', st: 0.005, d: 0.3 });
 }
 
 /* =====================================================================

@@ -1,4 +1,6 @@
 // Renders film.html frame by frame with headless Chromium and encodes with ffmpeg.
+// The page is served over a local HTTP server (ES modules and three.js don't load
+// from file://), and WebGL runs on SwiftShader, Chromium's CPU renderer.
 //
 //   node render.mjs stills out/stills 1.2 7.5 20     -> PNG stills at the given times
 //   node render.mjs video out/video.mp4 [workers]    -> silent H.264 video, all frames
@@ -6,19 +8,34 @@
 import { createRequire } from 'node:module';
 const { chromium } = createRequire(import.meta.url)('playwright');
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync, readFile } from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FPS = 30;
-const url = pathToFileURL(path.join(here, 'film.html')).href + '#render';
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.wav': 'audio/wav' };
+const server = http.createServer((req, res) => {
+  const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  const file = path.join(here, path.normalize(rel));
+  if (!file.startsWith(here + path.sep)) { res.writeHead(403); res.end(); return; }
+  readFile(file, (err, data) => {
+    if (err) { res.writeHead(404); res.end(); return; }
+    res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' }); res.end(data);
+  });
+}).listen(0, '127.0.0.1');
+await new Promise(r => server.once('listening', r));
+const url = `http://127.0.0.1:${server.address().port}/film.html#render`;
 
 async function openPage(browser) {
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
   page.on('pageerror', e => { console.error('page error:', e.message); process.exitCode = 1; });
+  page.on('console', m => { if (m.type() === 'error') console.error('console:', m.text()); });
   await page.goto(url);
   await page.evaluate(() => document.fonts.ready);
+  await page.waitForFunction(() => window.ready, null, { timeout: 120000 });
+  await page.evaluate(() => window.ready); // photos decoded and 3D stage built before the first frame
   return page;
 }
 
@@ -33,7 +50,6 @@ const run = (cmd, args, opts = {}) => new Promise((res, rej) => {
   const p = spawn(cmd, args, { stdio: ['pipe', 'inherit', 'inherit'], ...opts });
   p.on('exit', c => (c === 0 ? res() : rej(new Error(`${cmd} exited ${c}`))));
   p.on('error', rej);
-  if (opts.feed) opts.feed(p.stdin);
 });
 
 async function renderSegment(browser, f0, f1, out) {
@@ -53,7 +69,7 @@ async function renderSegment(browser, f0, f1, out) {
 }
 
 const [mode, out, ...rest] = process.argv.slice(2);
-const browser = await chromium.launch();
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 if (mode === 'stills') {
   mkdirSync(out, { recursive: true });
   const page = await openPage(browser);
@@ -80,3 +96,4 @@ if (mode === 'stills') {
   console.log(`wrote ${out} (${total} frames)`);
 }
 await browser.close();
+server.close();

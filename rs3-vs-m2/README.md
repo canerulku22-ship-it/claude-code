@@ -24,6 +24,8 @@ motion graphics and a chatty YouTuber-style voiceover.
     projected onto the body. Wheels, brake callipers, mirrors, spoilers and
     exhausts are separate parts.
   - The models are close approximations, not manufacturer CAD.
+  - The 3D code (`car3d.js`, `stage3d.js`, `decals.js`) is shared, unchanged,
+    with the M5 and Golf R vs S3 films.
 - **3D shots:**
   - both cars on a turntable as the studio lights clunk on
   - an orbit around each car with callouts that track the bodywork: doors,
@@ -142,6 +144,7 @@ The script:
 | `photos.tsv`, `fetch_photos.sh` | The press photos used, with their official URLs, and the script that downloads them. |
 | `car3d.js` | The 3D car generator: lofted body, projected decals, wheels, and the studio. |
 | `cars.js` | The RS3 and M2: dimensions, silhouettes, and their lights, grilles and glass. |
+| `decals.js` | Drawing helpers for the decals: plates, badges, honeycomb, slats, glass outlines. |
 | `stage3d.js` | The 3D stage used by the film: turntables, rim lights, cameras, and screen positions for callouts. |
 | `test3d.html` | A test page that renders either car from any angle. |
 | `voice-reference.wav` | Synthetic reference voice for Chatterbox. |

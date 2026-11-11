@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8">
+<title>3D cars test bench</title>
+<!-- Renders any car from cars.js from any angle: open over HTTP, then call
+     shot('<id>', azimuth°, elevation°, distance, fov°, targetY, hideDecals) in the console. -->
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js"}}</script>
+<style>html,body{margin:0;background:#000}</style></head><body>
+<canvas id="c" width="1280" height="720"></canvas>
+<script type="module">
+import { buildCar, makeStudio, placeCar } from './car3d.js';
+import { CARS } from './cars.js';
+const st = makeStudio(document.getElementById('c'), 1280, 720);
+const cars = {};
+try { for (const [id, c] of Object.entries(CARS)) cars[id] = buildCar(c.spec); } catch (e) { console.error('BUILD', e.stack); }
+let placed = null;
+window.hideDecals = on => { for (const c of Object.values(cars)) c.traverse(o => { if (o.isMesh && o.renderOrder >= 1) o.visible = !on; }); };
+window.shot = (which, az, el, dist, fov = 30, ty = 0.6, hide = 0) => {
+  window.hideDecals(!!hide);
+  if (placed) st.scene.remove(placed.root);
+  placed = placeCar(st, cars[which]);
+  const a = az * Math.PI / 180, e = el * Math.PI / 180;
+  st.camera.fov = fov; st.camera.updateProjectionMatrix();
+  window._fog ||= st.scene.fog; st.scene.fog = dist > 30 ? null : window._fog;   // no fog for long-lens overlays
+  st.camera.position.set(Math.cos(a) * Math.cos(e) * dist, Math.sin(e) * dist + ty, Math.sin(a) * Math.cos(e) * dist);
+  st.camera.lookAt(0, ty, 0);
+  const t0 = performance.now(); st.renderer.render(st.scene, st.camera);
+  return performance.now() - t0;
+};
+window.ok = true;
+</script></body></html>
