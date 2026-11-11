@@ -8,6 +8,7 @@ the same word-timing estimate as film.html.
 """
 import json
 import os
+from types import SimpleNamespace
 import re
 import sys
 import wave
@@ -46,7 +47,7 @@ def wt(i, word):
 ON = {i: VO[i]['on'] for i in VO}
 OFF = {i: VO[i]['off'] for i in VO}
 CUT = [0, ON['03'] - 0.35, ON['05'] - 0.35, ON['06'] - 0.3, ON['07'] - 0.3, ON['08'] - 0.3, ON['09'] - 0.3, ON['10'] - 0.3, ON['11'] - 0.3, DUR]
-B = dict(golf=wt('01', 'Golf'), audi=wt('01', 'Audi'), vs=OFF['01'] + 0.05, which=wt('02', 'which'), twins=wt('03', 'twins'),
+B = SimpleNamespace(golf=wt('01', 'Golf'), audi=wt('01', 'Audi'), vs=OFF['01'] + 0.05, which=wt('02', 'which'), twins=wt('03', 'twins'),
          turbo=wt('04', '2.0'), hp=wt('04', '333'), awd=wt('04', 'four-wheel'), torque=wt('04', 'torque'), race=ON['05'] + 0.15,
          hoolig=wt('06', 'hooligan'), pack=wt('06', 'R-Performance'), drift=wt('06', 'Drift'), premium=wt('07', 'premium'),
          sportback=wt('07', 'Sportback'), saloon=wt('07', 'saloon'), boot=wt('08', 'boot'), estate=wt('08', 'estate'),
@@ -258,13 +259,13 @@ for t0 in (B.turbo, B.hp, B.awd):
     blip(t0, NOTE['A5'], 0.8)
 blip(B.twins, NOTE['D6'], 1.0)
 
-groove(CUT[2], CUT[3], ['Dm', 'Bb'], kick_from=CUT[2], snare_from=CUT[2], hat_from=CUT[2], hat_div=4, bass_from=CUT[2], g=0.8, cutoff=2000)
-groove(CUT[3], CUT[4], ['Gm', 'Dm', 'Bb', 'C'], kick_from=CUT[3], snare_from=B.drift, hat_from=CUT[3], hat_div=4, bass_from=CUT[3], bass_div=4, g=0.75, cutoff=1800)
+groove(CUT[2], CUT[3], ['Dm', 'Bb'], kick_from=CUT[2], snare_from=OFF['05'] - 0.5, hat_from=CUT[2], hat_div=2, bass_from=CUT[2], pad_g=0.6, g=0.55, cutoff=1600)
+groove(CUT[3], CUT[4], ['Gm', 'Dm', 'Bb', 'C'], kick_from=CUT[3], snare_from=OFF['06'], hat_from=CUT[3], hat_div=2, bass_from=CUT[3], bass_div=2, pad_g=0.6, g=0.55, cutoff=1500)
 modes_n = 3
 for k in range(modes_n):
     click(B.pack + (B.drift - B.pack) * (k + 1) / (modes_n + 1), 0.9, 2600, 0.5)
 click(B.drift, 1.3, 2000, 0.5)
-impact(B.drift, 0.6)
+impact(B.drift, 0.3)
 groove(CUT[4], CUT[5], ['F', 'C', 'Dm', 'Bb'], kick_from=CUT[4], hat_from=CUT[4] + 0.5, bass_from=CUT[4], arp_from=CUT[4], g=0.65, cutoff=1500)
 shimmer(B.premium, 0.7, 900, 3600, 1.0)
 bell(B.premium + 0.05, 'A5', 1.0)
@@ -366,13 +367,13 @@ for eng, tF, sh in ((golf, 4.6, 0.0), (audi, 4.7, 0.03)):
     end = eng.pull(r0, [(0.55 + sh, 3000), (0.6 + sh, 4400), (0.7, 4800), (0.75, 5100)])
     eng.ramp(end, end + 0.6, 6600, 3000, 0.6)
     eng.bov.append(end + 0.02)
-    eng.gain([(CUT[2], 0), (CUT[2] + 0.2, 0.6), (r0, 0.9), (r0 + run, 0.9), (CUT[3], 0.3), (CUT[3] + 0.2, 0)])
+    eng.gain([(CUT[2], 0), (CUT[2] + 0.2, 0.3), (r0, 0.42), (r0 + run, 0.42), (CUT[3], 0.15), (CUT[3] + 0.2, 0)])
 golf.ramp(CUT[3], B.drift, 2500, 4200)                 # Golf drift scene
 golf.thr[golf.seg(B.drift, CUT[4])] = 0.8
 m = golf.seg(B.drift, CUT[4])
 golf.rpm[m] = 5200 + 700 * np.sin(2 * np.pi * 1.7 * (t[m] - B.drift))
-golf.gain([(CUT[3], 0), (CUT[3] + 0.3, 0.35), (B.drift, 0.45), (B.drift + 0.2, 0.75), (CUT[4] - 0.2, 0.7), (CUT[4], 0)])
-squeal(B.drift + 0.15, CUT[4] - B.drift - 0.1, 1.0, 0.2)
+golf.gain([(CUT[3], 0), (CUT[3] + 0.3, 0.22), (B.drift, 0.28), (B.drift + 0.2, 0.5), (OFF['06'], 0.5), (OFF['06'] + 0.2, 0.8), (CUT[4] - 0.2, 0.75), (CUT[4], 0)])
+squeal(B.drift + 0.15, CUT[4] - B.drift - 0.1, 0.7, 0.2)
 golf.blip(B.vGolf, 5600)
 golf.gain([(B.vGolf - 0.05, 0), (B.vGolf, 0.8), (B.vGolf + 1.0, 0)])
 audi.blip(B.vAudi, 5400)
@@ -413,9 +414,9 @@ for k0 in kicks:
     m = min(len(dk), N - i)
     if m > 0:
         duck[i:i + m] = np.minimum(duck[i:i + m], dk[:m])
-music *= duck * (1 - 0.72 * duckc)
-engine *= 1 - 0.6 * duckc
-sfx *= 1 - 0.45 * duckc
+music *= duck * (1 - 0.8 * duckc)
+engine *= 1 - 0.72 * duckc
+sfx *= 1 - 0.55 * duckc
 ir_t = tt(2.0)
 ir = np.vstack([rng.standard_normal(len(ir_t)), rng.standard_normal(len(ir_t))]) * np.exp(-ir_t * 3.4)
 ir[:, : int(0.02 * SR)] *= np.linspace(0, 1, int(0.02 * SR))
@@ -424,7 +425,7 @@ rev = np.vstack([fftconvolve(send[0], ir[0])[:N], fftconvolve(send[1], ir[1])[:N
 bed = music * 0.5 + sfx * 0.7 + engine * 0.6 + rev * 0.8
 bed = np.vstack([sosfilt(hp(25), bed[0]), sosfilt(hp(25), bed[1])])
 bed /= np.max(np.abs(bed)) + 1e-9
-mix = bed * 0.42 + np.vstack([vo, vo]) * 0.62
+mix = bed * 0.38 + np.vstack([vo, vo]) * 0.62
 fade = np.ones(N)
 fade[-int(1.0 * SR):] = np.linspace(1, 0, int(1.0 * SR)) ** 2
 fade[: int(0.02 * SR)] = np.linspace(0, 1, int(0.02 * SR))
@@ -438,5 +439,10 @@ with wave.open(out, 'wb') as w:
     w.setframerate(SR)
     w.writeframes((np.clip(mix.T, -1, 1) * 32767).astype('<i2').tobytes())
 speech = denv > 0.02
-ratio = 10 * np.log10(np.mean((vo * 0.62)[speech] ** 2) / np.mean((bed * 0.42)[:, speech] ** 2))
+ratio = 10 * np.log10(np.mean((vo * 0.62)[speech] ** 2) / np.mean((bed * 0.38)[:, speech] ** 2))
+for i in VO:  # per-line balance
+    m = speech & (t >= VO[i]['on']) & (t < VO[i]['off'])
+    if m.any():
+        print(i, f"{10 * np.log10(np.mean((vo * 0.62)[m] ** 2) / np.mean((bed * 0.38)[:, m] ** 2)):.1f} dB", end='  ')
+print()
 print(f'wrote {out}: {DUR:.1f}s, voice sits {ratio:.1f} dB above the bed while speaking')

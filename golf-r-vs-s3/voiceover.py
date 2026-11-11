@@ -9,7 +9,7 @@ line's `gap`, so the film and the soundtrack follow the real speech timing.
 Writes out/vo/<id>.wav, out/vo/durations.json and out/vo/timing.js.
 
     pip install chatterbox-tts==0.1.7 "setuptools<81"
-    HF_HUB_DISABLE_XET=1 python voiceover.py        # ONLY=05,09 regenerates selected lines
+    HF_HUB_DISABLE_XET=1 python voiceover.py        # ONLY=05,09 re-records selected lines; ONLY=layout only re-times
 """
 import difflib
 import json
@@ -34,9 +34,8 @@ src = open(os.path.join(HERE, 'timeline.js'), encoding='utf-8').read()
 TL = json.loads(src[src.index('{'):src.rindex('}') + 1])
 os.makedirs(OUT, exist_ok=True)
 torch.set_num_threads(os.cpu_count() or 4)
-tts = ChatterboxTTS.from_pretrained(device='cpu')
-asr = pipeline('automatic-speech-recognition', model='openai/whisper-base.en', device='cpu')
 ref = os.path.join(HERE, 'voice-reference.wav')
+tts = asr = None   # loaded only when a line needs recording (ONLY=layout just re-lays out the timing)
 
 
 def norm(s):
@@ -58,6 +57,9 @@ if ONLY and os.path.exists(path):
 for n, line in enumerate(lines):
     if ONLY and line['id'] not in ONLY:
         continue
+    if tts is None:
+        tts = ChatterboxTTS.from_pretrained(device='cpu')
+        asr = pipeline('automatic-speech-recognition', model='openai/whisper-base.en', device='cpu')
     best = None
     for k in range(TAKES):
         torch.manual_seed(1000 * n + k + (100 if ONLY else 0))

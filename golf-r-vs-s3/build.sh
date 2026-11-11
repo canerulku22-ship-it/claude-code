@@ -25,7 +25,7 @@ python3 audio.py out/soundtrack.wav
 ffmpeg -y -loglevel error -i out/video.mp4 -i out/soundtrack.wav \
   -map 0:v -map 1:a \
   -c:v libx264 -preset slow -crf 20 -tune animation -pix_fmt yuv420p \
-  -c:a aac -b:a 192k -ar 48000 -af "loudnorm=I=-14:TP=-1.5:LRA=11" \
+  -c:a aac -b:a 192k -ar 48000 -af "loudnorm=I=-14:TP=-1.5:LRA=11,alimiter=limit=0.89:level=false" \
   -movflags +faststart -shortest golf-r-vs-s3.mp4
 
 echo "done: $(pwd)/golf-r-vs-s3.mp4"

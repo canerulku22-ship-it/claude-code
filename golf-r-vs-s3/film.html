@@ -989,7 +989,7 @@ function sRace(t) {
   const r0 = B.race, run = 2.5;                       // 4.7 s of car time in 2.5 s
   const tau = Math.max(0, (t - r0) / run * 4.7);
   const lanes = [['golf', 420, 4.6, C.vw, '#cfe0ff'], ['audi', 760, 4.7, C.audi, '#ffd0c8']];
-  const x0 = 120, xF = 1380, fin = 1480;
+  const fin = 1300, x0 = 140, xF = fin - 250; // car x is its centre; its nose crosses the line at xF
   ctx.fillStyle = '#0c0e12'; ctx.fillRect(0, 300, W, 560);
   ctx.save(); ctx.setLineDash([60, 40]); ctx.lineDashOffset = -t * 900 * clamp(tau / 2); ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(0, 590); ctx.lineTo(W, 590); ctx.stroke(); ctx.restore();
@@ -997,19 +997,18 @@ function sRace(t) {
   speedLines(t, clamp(tau / 3) * 0.6, 21, 320, 840, -1);
   lanes.forEach(([which, gy, tF, col, light]) => {
     const u = Math.min(tau / tF, 1.6);
-    const x = x0 + (xF - x0) * (u <= 1 ? u * u : 1 + (u - 1) * 2);
+    const x = u <= 1 ? x0 + (xF - x0) * u * u : xF + 170 * eOC(clamp((u - 1) / 0.6)); // coast to a stop past the line
     drawSideCar(which, x - 500 * 0.5, gy, 0.5, { rot: tau * 30, blur: clamp(tau / 2.5), lights: 1, beam: 0.5 });
     const done = tau >= tF, shown = Math.min(tau, tF);
     const pop = done ? eOB(prog(tau, tF, tF + 0.4)) : 1;
-    ctx.save(); ctx.translate(1700, gy - 60); const sc = lerp(1.25, 1, clamp(pop)); ctx.scale(sc, sc);
+    ctx.save(); ctx.translate(1830, gy - 60); const sc = lerp(1.25, 1, clamp(pop)); ctx.scale(sc, sc);
     text(shown.toFixed(1), 0, 0, { a: 'right', s: 110, w: 900, c: done ? '#fff' : light, glow: done ? col : null, gb: 30 });
     text('s', 8, 0, { s: 44, w: 800, c: col });
     text(which === 'golf' ? 'GOLF R' : 'AUDI S3', 0, 40, { a: 'right', s: 24, w: 800, c: col, ls: 5 });
     ctx.restore();
-    if (done) ringBurst(1640, gy - 90, t, r0 + tF / 4.7 * run, which === 'golf' ? '120,175,255' : '255,130,110', 220, 2, 14);
+    if (done) ringBurst(1740, gy - 90, t, r0 + tF / 4.7 * run, which === 'golf' ? '120,175,255' : '255,130,110', 220, 2, 14);
   });
-  const lead = tau >= 4.6 && tau < 6;
-  if (lead) line('A TENTH APART', 960, 250, t, r0 + run * 4.6 / 4.7, 999, { a: 'center', s: 40, w: 900, ls: 8, c: C.amber });
+  if (tau >= 4.6) line('A TENTH APART', 960, 250, t, r0 + run * 4.6 / 4.7, 999, { a: 'center', s: 40, w: 900, ls: 8, c: C.amber });
 }
 
 // 4 · GOLF — the hooligan, Drift mode

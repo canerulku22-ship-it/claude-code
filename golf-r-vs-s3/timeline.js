@@ -12,7 +12,7 @@ window.TIMELINE = {
     { "id": "04", "gap": 0.2, "text": "Both get a 2.0-litre turbo with 333 horsepower, and four-wheel drive that can push torque to either rear wheel.", "say": "Both get a two litre turbo with three hundred and thirty-three horsepower, and four wheel drive that can push torque to either rear wheel." },
     { "id": "05", "gap": 0.5, "text": "0–62? Golf R: 4.6 seconds. S3: 4.7.", "say": "Nought to sixty-two? Golf R, four point six seconds. S three, four point seven.", "check": "0-62? Golf R, 4.6 seconds. S3, 4.7." },
     { "id": "06", "gap": 0.45, "text": "The Golf is the hooligan. Add the R-Performance pack and you even get a Drift mode.", "say": "The Golf is the hooligan. Add the R Performance pack, and you even get a drift mode." },
-    { "id": "07", "gap": 0.45, "text": "The Audi is the smart one: a premium badge, and a choice of Sportback or saloon.", "say": "The Audi is the smart one. A premium badge, and a choice of Sportback or saloon." },
+    { "id": "07", "gap": 1.4, "text": "The Audi is the smart one: a premium badge, and a choice of Sportback or saloon.", "say": "The Audi is the smart one. A premium badge, and a choice of Sportback or saloon." },
     { "id": "08", "gap": 0.45, "text": "The Golf has the bigger boot, and you can even get it as an estate.", "say": "The Golf has the bigger boot, and you can even get it as an estate." },
     { "id": "09", "gap": 0.45, "text": "And prices? Neck and neck, from around £47k.", "say": "And prices? Neck and neck, from around forty-seven grand.", "check": "And prices? Neck and neck, from around 47 grand." },
     { "id": "10", "gap": 0.5, "text": "Want the wilder drive? Golf R. Want the badge? Audi S3.", "say": "Want the wilder drive? Golf R. Want the badge? Audi S three." },
