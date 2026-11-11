@@ -671,6 +671,14 @@ shot(S('s19'), DUR + 1, g => {
   g.add(particles({ count: M.length, texture: TEX.glow, size: 0.04, color: C.mint, boost: 2, fn: (t, p, a) => M.forEach((d, i) => { const f = t - t0; p.set([d[0], (d[1] + f * d[3]) % 3.2, d[2]], i * 3); a[i] = clamp01(f) * 0.8; }) }));
   camSet(t0, { x: 0, y: 1.35, z: 5.6, tx: 0, ty: 1.55, tz: 0, roll: -2, fov: 30 });
   camTo(t0, { z: 5.0, roll: 0 }, DUR - t0, 'power1.out');
+  // after the voice ends: comment prompt where the captions live (DOM, crisp)
+  const cm = document.createElement('div');
+  cm.style.cssText = `position:absolute;left:0;width:1080px;top:1345px;transform:translateY(-50%);text-align:center;font:800 64px "Inter Display";color:${C.gold};text-shadow:0 4px 0 rgba(0,0,0,.6),0 0 28px rgba(255,209,92,.5);opacity:0`;
+  cm.textContent = 'Comment “PART 2” 👇'.replace(' 👇', '');
+  document.getElementById('hud').appendChild(cm);
+  const tCm = L('s19', 0).end + 0.45;
+  sfx('pop', tCm, 0.6);
+  every(t => { const k = clamp01((t - tCm) / 0.25); cm.style.opacity = k; cm.style.transform = `translateY(-50%) scale(${0.6 + 0.4 * E_BACK(k)}) translateY(${Math.sin(Math.max(0, t - tCm) * 5) * 6}px)`; });
   music(DUR - 1.2, 0.9); music(DUR, 0);
 });
 
