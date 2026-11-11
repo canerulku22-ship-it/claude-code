@@ -1,0 +1,5 @@
+node_modules/
+out/
+audio/mix_*.wav
+audio/cues.json
+__pycache__/

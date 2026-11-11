@@ -1,0 +1,68 @@
+{
+  "_notes": [
+    "tts  = what the voice says. phon = optional IPA override passed straight to Kokoro.",
+    "cap  = on-screen caption. *gold* = emphasis, !red! = loss, +green+ = gain.",
+    "{TEXT:N} = show TEXT in place of the next N spoken words (e.g. 'a thousand dollars' -> $1,000).",
+    "pause = silence (seconds) after the line; used for countdowns, beats and the end card."
+  ],
+  "voice": "am_michael",
+  "speed": 1.14,
+  "segments": [
+    {"id": "s01", "name": "hook", "lines": [
+      {"tts": "Your money is shrinking right now.", "cap": "Your money is !shrinking! right now.", "pause": 0.12},
+      {"tts": "And you can't even see it.", "cap": "And you can't even *see* it.", "pause": 0.3}
+    ]},
+    {"id": "s02", "name": "quiz", "lines": [
+      {"tts": "Quick test.", "cap": "*Quick* *test.*", "pause": 0.15},
+      {"tts": "You saved a thousand dollars in twenty twenty.", "cap": "You saved {*$1,000*:3} in {2020:2}.", "pause": 0.1},
+      {"tts": "What can it buy today?", "cap": "What can it *buy* today?", "pause": 0.1},
+      {"tts": "Lock in your guess.", "cap": "Lock in your *guess.*", "pause": 1.5}
+    ]},
+    {"id": "s03", "name": "reveal", "lines": [
+      {"tts": "About eight hundred dollars' worth.", "cap": "About {+$800+:3} worth.", "pause": 0.15},
+      {"tts": "Two hundred bucks, gone.", "cap": "{!$200!:3} !gone.!", "pause": 0.1},
+      {"tts": "Without spending a cent.", "cap": "Without spending a *cent.*", "pause": 0.3}
+    ]},
+    {"id": "s04", "name": "inflation", "lines": [
+      {"tts": "That's inflation.", "cap": "That's *inflation.*", "pause": 0.15},
+      {"tts": "Groceries. Rent. Gas. Insurance.", "cap": "Groceries. Rent. Gas. Insurance.", "pause": 0.1},
+      {"tts": "Prices climb every single year.", "cap": "Prices !climb! every single year.", "pause": 0.3}
+    ]},
+    {"id": "s05", "name": "savings", "lines": [
+      {"tts": "Meanwhile, your savings account pays almost nothing.", "cap": "Meanwhile, your savings account pays almost *nothing.*", "pause": 0.15},
+      {"tts": "So your balance stays the same, but it buys less every year.", "cap": "So your balance stays the *same,* but it buys !less! every year.", "pause": 0.35}
+    ]},
+    {"id": "s06", "name": "twist", "lines": [
+      {"tts": "Now here's what they don't teach you in school.", "cap": "Now here's what they *don't* *teach* *you* in school.", "pause": 0.35}
+    ]},
+    {"id": "s07", "name": "flow", "lines": [
+      {"tts": "When new money is created, it doesn't reach everyone at once.", "cap": "When *new* *money* is created, it doesn't reach everyone at once.", "pause": 0.15},
+      {"tts": "Banks and Wall Street get it first.", "cap": "+Banks+ and +Wall+ +Street+ get it *first.*", "pause": 0.1},
+      {"tts": "Then people who already own assets.", "cap": "Then people who already own +assets.+", "pause": 0.12},
+      {"tts": "They spend it before prices rise.", "cap": "They spend it *before* prices rise.", "pause": 0.25}
+    ]},
+    {"id": "s08", "name": "paycheck", "lines": [
+      {"tts": "By the time it reaches your paycheck, everything already costs more.", "cap": "By the time it reaches *your* *paycheck,* everything already costs !more.!", "pause": 0.4}
+    ]},
+    {"id": "s09", "name": "name", "lines": [
+      {"tts": "This has a name.", "cap": "This has a name.", "pause": 0.25},
+      {"tts": "The Cantillon Effect.", "phon": "ðə kæntiˈjɔːn ɪfˈɛkt.", "cap": "The *Cantillon* *Effect.*", "pause": 0.3},
+      {"tts": "Save this one.", "cap": "*Save* this one.", "pause": 0.35}
+    ]},
+    {"id": "s10", "name": "diverge", "lines": [
+      {"tts": "It's why people who own homes and stocks get richer during inflation,", "cap": "It's why people who own +homes+ and +stocks+ get +richer+ during inflation,", "pause": 0.05},
+      {"tts": "while people living on a salary fall behind.", "cap": "while people living on a salary !fall! !behind.!", "pause": 0.35}
+    ]},
+    {"id": "s11", "name": "design", "lines": [
+      {"tts": "Not because they work less.", "cap": "Not because they work *less.*", "pause": 0.15},
+      {"tts": "Because cash is designed to lose value.", "cap": "Because cash is *designed* to !lose! !value.!", "pause": 0.15},
+      {"tts": "The Fed literally targets two percent inflation.", "cap": "The Fed literally targets {*2%*:2} inflation.", "pause": 0.08},
+      {"tts": "Every. Single. Year.", "cap": "!Every.! !Single.! !Year.!", "pause": 0.4}
+    ]},
+    {"id": "s12", "name": "close", "lines": [
+      {"tts": "So if your money is just sitting still, it's not safe.", "cap": "So if your money is just sitting still, it's !not! !safe.!", "pause": 0.15},
+      {"tts": "It's melting.", "cap": "It's !melting.!", "pause": 0.75},
+      {"tts": "Follow for part two, how to protect it.", "cap": "Follow for *part* *two:* how to *protect* *it.*", "pause": 2.2}
+    ]}
+  ]
+}
