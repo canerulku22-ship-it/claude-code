@@ -42,6 +42,7 @@ def main():
     p.add_argument("--samples", type=int)
     p.add_argument("--scale", type=float, default=1.0)
     p.add_argument("--fresh", action="store_true")
+    p.add_argument("--chunk", type=int, default=0, help="frames per Blender process (see make_episode.py)")
     args = p.parse_args()
 
     configs = []
@@ -62,7 +63,7 @@ def main():
         t0 = time.time()
         try:
             mp4 = make_episode(cfg, preview=args.preview, blender=args.blender, samples=args.samples,
-                               scale=args.scale, fresh=args.fresh)
+                               scale=args.scale, fresh=args.fresh, chunk=args.chunk)
             results.append((cfg, "OK", time.time() - t0, mp4))
         except (Exception, SystemExit) as exc:   # keep going with the rest of the batch
             traceback.print_exc()

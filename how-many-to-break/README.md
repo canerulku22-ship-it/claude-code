@@ -146,6 +146,9 @@ machine (software OpenGL/Vulkan) it is several seconds per frame. To speed it up
 
 * `--scale 0.67` renders the 3D at 720x1280. It's upscaled when encoding, and the text stays sharp.
 * `--samples 8` (or lower `samples` in the config)
+* `--chunk 60` renders 60 frames per Blender process. Use it on CPU-only machines, where
+  the software GPU driver can crash Blender after ~80 renders in one process. Crashed
+  renders also resume automatically.
 * Split one render across machines or processes:
   `blender -b -P render.py -- --config X.json --frames 0:1000`, and `--frames 1000:2100` on the other.
   Then run `make_episode.py X.json --skip-render`.

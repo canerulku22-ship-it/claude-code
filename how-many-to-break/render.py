@@ -17,6 +17,7 @@ stopped (use --fresh to start over).
 """
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -286,11 +287,23 @@ def main():
     elif args.frames:
         frames = sorted(int(f) for f in args.frames.split(","))
 
-    # Physics is only needed if a rendered frame shows the break, or for the full events log.
-    need_physics = (not args.preview) or any(tl.scene_frame(f)[0] >= tl.break_f - 2 for f in frames)
-
     out_dir = args.out or os.path.join(HERE, "out", cfg["slug"] + ("_preview" if args.preview else ""))
     os.makedirs(out_dir, exist_ok=True)
+    events_path = os.path.join(out_dir, "events.json")
+    cfg_hash = hashlib.sha1(json.dumps({k: v for k, v in cfg.items() if not k.startswith("_")},
+                                       sort_keys=True).encode()).hexdigest()[:12]
+    existing = None
+    if os.path.exists(events_path):
+        with open(events_path) as fh:
+            existing = json.load(fh)
+        if existing.get("config_hash") != cfg_hash:
+            existing = None
+
+    # Physics is needed if a rendered frame shows the break, or once for the full events
+    # log (debris sounds). Later chunks of a split render reuse that log and skip the bake.
+    shows_break = any(tl.scene_frame(f)[0] >= tl.break_f - 2 for f in frames)
+    full_log = existing is not None and existing.get("physics")
+    need_physics = shows_break or (not args.preview and not full_log)
     print("Building scene (%dx%d, %d samples, physics %s)..." % (width, height, samples,
                                                                  "on" if need_physics else "off"), flush=True)
     t0 = time.time()
@@ -299,12 +312,16 @@ def main():
         built["debris"] = physics.debris_events(built["scene"], tl, built["dynamic"])
     print("  scene built in %.1fs" % (time.time() - t0), flush=True)
 
-    events = build_events(cfg, tl, built, args.preview)
-    events["render"] = {"width": width, "height": height, "samples": samples,
-                        "frames": [frames[0], frames[-1] + 1] if frames else [0, 0]}
-    with open(os.path.join(out_dir, "events.json"), "w") as fh:
-        json.dump(events, fh, indent=1)
-    print("Wrote", os.path.join(out_dir, "events.json"), flush=True)
+    if need_physics or existing is None:
+        events = build_events(cfg, tl, built, args.preview)
+        events["physics"] = need_physics
+        events["config_hash"] = cfg_hash
+        all_frames = list(range(0, int(PREVIEW_SECONDS * FPS))) if args.preview else list(range(tl.total_frames))
+        events["render"] = {"width": width, "height": height, "samples": samples,
+                            "frames": [all_frames[0], all_frames[-1] + 1]}
+        with open(events_path, "w") as fh:
+            json.dump(events, fh, indent=1)
+        print("Wrote", events_path, flush=True)
 
     if not args.no_render:
         render_frames(built, tl, frames, os.path.join(out_dir, "frames"), args.fresh)

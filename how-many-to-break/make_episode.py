@@ -34,6 +34,9 @@ def parse_args(argv=None):
     p.add_argument("--fresh", action="store_true", help="re-render all frames")
     p.add_argument("--skip-render", action="store_true", help="reuse existing frames and events.json")
     p.add_argument("--crf", type=int, default=18, help="x264 quality (lower = better, bigger)")
+    p.add_argument("--chunk", type=int, default=0,
+                   help="render N frames per Blender process (e.g. 60 on CPU-only machines, where "
+                        "software GPU drivers can crash after ~80 renders)")
     return p.parse_args(argv)
 
 
@@ -44,31 +47,39 @@ def probe(path):
     return json.loads(r.stdout)
 
 
-def run_render(cmd, frames_dir, max_retries=6):
+def run_render(cmd, frames_dir, max_retries=100):
     """Run the Blender render, resuming automatically if it crashes part-way.
 
-    Software (CPU) GPU drivers occasionally crash Blender during long renders. Frames
-    already on disk are kept, so a retry continues where it stopped. It gives up if a
-    retry makes no progress.
+    Software (CPU-only) GPU drivers can crash Blender during long renders. Frames already
+    on disk are kept, so a retry continues where it stopped. It gives up only when a
+    retry makes no progress at all.
     """
     def count():
         return len(os.listdir(frames_dir)) if os.path.isdir(frames_dir) else 0
 
+    stalled = 0
     for attempt in range(max_retries + 1):
         before = count()
         rc = subprocess.run(cmd).returncode
         if rc == 0:
             return
-        if attempt > 0 and count() == before:
+        stalled = stalled + 1 if count() == before else 0
+        if stalled >= 2:
             raise SystemExit("Render failed twice in a row without progress (exit %d)." % rc)
-        print("Render exited with %d after %d frames; resuming (retry %d/%d)..."
-              % (rc, count(), attempt + 1, max_retries), flush=True)
+        print("Render exited with %d after %d frames; resuming (retry %d)..." % (rc, count(), attempt + 1),
+              flush=True)
         cmd = [c for c in cmd if c != "--fresh"]
     raise SystemExit("Render kept failing; giving up.")
 
 
+def chunk_ranges(total, chunk):
+    if not chunk:
+        return [None]
+    return ["%d:%d" % (a, min(total, a + chunk)) for a in range(0, total, chunk)]
+
+
 def make_episode(config_path, preview=False, blender=None, samples=None, scale=1.0, fresh=False,
-                 skip_render=False, crf=18):
+                 skip_render=False, crf=18, chunk=0):
     from hmtb.audio import build_soundtrack
     from hmtb.encode import encode
 
@@ -91,9 +102,16 @@ def make_episode(config_path, preview=False, blender=None, samples=None, scale=1
             args += ["--samples", str(samples)]
         if fresh:
             args.append("--fresh")
-        cmd = tools.blender_command(found, os.path.join(HERE, "render.py"), args)
-        print("[1/3] Rendering 3D:", " ".join(cmd), flush=True)
-        run_render(cmd, os.path.join(out_dir, "frames"))
+        from hmtb.timeline import build_timeline
+        from hmtb import FPS, PREVIEW_SECONDS
+        total = int(PREVIEW_SECONDS * FPS) if preview else build_timeline(cfg).total_frames
+        for i, rng_ in enumerate(chunk_ranges(total, chunk)):
+            chunk_args = args + (["--frames", rng_] if rng_ else [])
+            if i > 0 and "--fresh" in chunk_args:
+                chunk_args.remove("--fresh")
+            cmd = tools.blender_command(found, os.path.join(HERE, "render.py"), chunk_args)
+            print("[1/3] Rendering 3D%s: %s" % (" (frames %s)" % rng_ if rng_ else "", " ".join(cmd)), flush=True)
+            run_render(cmd, os.path.join(out_dir, "frames"))
 
     with open(os.path.join(out_dir, "events.json")) as fh:
         events = json.load(fh)
@@ -129,7 +147,8 @@ def main():
         tools.check(args.blender)
         raise SystemExit(1)
     make_episode(args.config, preview=args.preview, blender=args.blender, samples=args.samples,
-                 scale=args.scale, fresh=args.fresh, skip_render=args.skip_render, crf=args.crf)
+                 scale=args.scale, fresh=args.fresh, skip_render=args.skip_render, crf=args.crf,
+                 chunk=args.chunk)
 
 
 if __name__ == "__main__":
