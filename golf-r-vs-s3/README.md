@@ -1,43 +1,54 @@
 # Golf R vs Audi S3
 
 A 69-second narrated comparison (1920×1080, 30 fps, stereo) of the Volkswagen
-Golf R (Mk8.5) and the Audi S3 (8Y facelift). It's built from the
-manufacturers' own press photos of the real cars plus real-time 3D renders of
-both, with motion graphics and a chatty YouTuber-style voiceover on top. It opens on a split-screen hook that
-names and shows both cars, then covers what they share, 0–62 mph, each car's
-character, practicality and price, and ends with a verdict and a question for
-the comments.
+Golf R (Mk8.5) and the Audi S3 (8Y facelift). Every car on screen is a
+real-time 3D render; there are no photos. Motion graphics and a chatty
+YouTuber-style voiceover go on top.
+
+It opens on a split-screen hook that names and shows both cars. It then covers
+what they share, 0–62 mph, each car's character, practicality and price, and
+ends with a verdict and a question for the comments.
 
 **Watch:** [`golf-r-vs-s3.mp4`](golf-r-vs-s3.mp4)
 
-- **Cars:** 20 official press photos.
-  - Volkswagen: the Golf R in Lapiz Blue on track, the Black Edition, the
-    Estate, drift shots on snow, the engine bay and the driving-profile screen.
-  - Audi: the S3 Sportback and saloon in the Dolomites, and both together.
-  - `fetch_photos.sh` downloads them from the official URLs in `photos.tsv`.
-    They are **not committed** (see *Photo terms*).
-- **3D renders:** both cars are modelled from code with
+- **3D renders:** the cars are modelled from code with
   [three.js](https://threejs.org) and rendered frame by frame inside the film.
+  - Four models: the Golf R, the Golf R Estate, and the S3 as a Sportback
+    and a saloon.
   - The body is lofted from cross-sections built from the published
     dimensions and tyre sizes.
-  - The Golf was checked against Volkswagen's side-on press photo.
+  - The Golf was checked against Volkswagen's side-on press photo. That photo
+    was only a modelling reference and isn't in the film or the repository.
   - The S3 uses the same A3 Sportback shell as the RS3 in `../rs3-vs-m2`,
     with narrower arches and its own grille, quad exhausts and wheels.
+  - The saloon and the Estate share their hatchbacks' front halves, with their
+    own roofs, glass and tails.
   - Lights, grilles, glass, badges and UK plates are projected decals.
   - The models are close approximations, not manufacturer CAD.
   - The 3D code (`car3d.js`, `stage3d.js`, `decals.js`) is shared, unchanged,
     with the RS3 vs M2 and M5 films.
-- **3D shots:**
-  - the "twins" on one turntable as the studio lights clunk on
+- **3D shots**, in a dark studio or on a night road whose markings, lamp
+  posts and marker posts scroll past:
+  - a split-screen hook, each car turning as it's named
+  - the "twins" on one turntable as the studio lights clunk on, then nose to
+    nose with their engines glowing through the bonnets
   - both cars from above, with drive flowing to all four wheels and torque
     shuffling between the rear two
+  - a drag race off the start lights, the noses lifting
+  - the Golf chased through the snow, the drive-mode menu stepping down to
+    Drift, then sideways in its own tyre smoke
+  - the S3 cruising, a close-up of its grille, then the Sportback and saloon
+    on one turntable
+  - both tailgates behind the boot-space bars, then the Golf R Estate
+  - 3D portraits on the price scale
+  - a split-screen verdict: the Golf sliding, the S3 saloon composed
   - the end card
-- **Motion graphics:** drawn on an HTML canvas over the photos and 3D:
+- **Motion graphics:** drawn on an HTML canvas over the 3D:
   - a virtual camera with push-ins, zoom punches and shake
   - flash cuts on the beats, and stripe wipes, whip pans and zoom-throughs between scenes
   - colour snapping in as each car is named
-  - drag-race timers that land on 4.6 and 4.7 as they're spoken
-  - labels pointing at the real saloon and Sportback
+  - start lights, and drag-race timers that land on 4.6 and 4.7 as they're spoken
+  - labels pointing at the Sportback and the saloon
   - flying snow, ring bursts and rolling counters
   - a poll-style ending
 - **Voiceover:** [Chatterbox](https://github.com/resemble-ai/chatterbox)
@@ -53,19 +64,12 @@ the comments.
   crackle on each upshift), tyre squeal and effects, synthesised with
   NumPy/SciPy, mastered to −14 LUFS.
 
-## Photo terms
+## No photos
 
-The photos are press images from the [Volkswagen Newsroom](https://www.volkswagen-newsroom.com/en/the-new-golf-r-and-golf-r-variant-world-premiere-18466)
-and Audi's [MediaCenter album](https://www.audi.com/en/images/album/audi-s3-performance-experience-2530).
-
-- **Volkswagen:** its terms allow editorial use, including on social media,
-  but not commercial use, and the images may not be passed on to third
-  parties.
-- **Audi:** its images are marked "use for editorial purposes free of charge".
-
-So the photos stay out of the repository, and the end card credits Volkswagen
-AG and AUDI AG. A review-style post fits these terms. Ads, sponsored posts or
-other commercial use would need permission from Volkswagen and Audi first.
+The film contains no photos or footage. The 3D models were shaped against
+press photos from the [Volkswagen Newsroom](https://www.volkswagen-newsroom.com/en/the-new-golf-r-and-golf-r-variant-world-premiere-18466)
+and Audi's [MediaCenter](https://www.audi.com/en/images/album/audi-s3-performance-experience-2530),
+but those images aren't in the film or the repository.
 
 The 3D models carry simplified versions of each brand's badges, as you'd see
 on any model car, and are labelled on the end card as approximate models built
@@ -75,16 +79,16 @@ for this film.
 
 | Voiceover | On screen |
 |---|---|
-| "Right, Golf R or Audi S3? Honestly, this one's a proper head-scratcher." | Split screen of the real cars; each snaps into colour as it's named, then "VS". |
+| "Right, Golf R or Audi S3? Honestly, this one's a proper head-scratcher." | 3D split screen; each car snaps into colour as it's named, then "VS". |
 | "Same engine, same power, so which one actually deserves your money? Let's find out." | "WHICH ONE?" |
 | "Okay, so here's the thing: under the skin, these two are basically twins." | Studio lights flicker on: both cars in 3D on one turntable, then "TWINS". |
-| "Both get a 2.0-litre turbo with 333 horsepower, and clever four-wheel drive that can shove torque to either rear wheel." | Golf R engine bay with matching spec rows, then both 3D cars from above with torque flowing to the wheels. |
-| "So, 0–62? The Golf does it in 4.6 seconds. And the S3? 4.7. Literally a tenth apart!" | Split-lane drag race; each timer lands as its number is said. |
-| "But this is where it gets fun. The Golf's the hooligan: spec the R-Performance pack and you get an actual Drift mode. Yes, really!" | Golf R sliding on snow, the real driving-profile screen, then the drift shot with flying snow. |
-| "The Audi? It's the grown-up. A classier badge, and you can have it as a Sportback or a saloon." | S3 saloon, a close-up of the grille, then both bodies with labels. |
-| "Need space? The Golf's got the bigger boot, and you can even get it as an estate. Dog owners, you're welcome." | 341 vs 325 litres, then the Golf R Estate. |
-| "And price? Honestly, it's neck and neck. Both start at around £47k." | A balance scale: £46,930 vs £47,550. |
-| "So here's my take. Want the wilder drive? Get the Golf R. Want the badge? Get the S3." | Split-screen verdict. |
+| "Both get a 2.0-litre turbo with 333 horsepower, and clever four-wheel drive that can shove torque to either rear wheel." | Both cars nose to nose, engines glowing, with matching spec rows; then both from above with torque flowing to the wheels. |
+| "So, 0–62? The Golf does it in 4.6 seconds. And the S3? 4.7. Literally a tenth apart!" | Start lights, then a 3D drag race down a night road; each timer lands as its number is said. |
+| "But this is where it gets fun. The Golf's the hooligan: spec the R-Performance pack and you get an actual Drift mode. Yes, really!" | The 3D Golf chased through the snow, the drive-mode menu stepping down to Drift, then sideways in tyre smoke. |
+| "The Audi? It's the grown-up. A classier badge, and you can have it as a Sportback or a saloon." | The 3D S3 cruising, a close-up of its grille, then the Sportback and saloon on a turntable with labels. |
+| "Need space? The Golf's got the bigger boot, and you can even get it as an estate. Dog owners, you're welcome." | 341 vs 325 litres beside both tailgates, then the 3D Golf R Estate. |
+| "And price? Honestly, it's neck and neck. Both start at around £47k." | A balance scale with 3D portraits: £46,930 vs £47,550. |
+| "So here's my take. Want the wilder drive? Get the Golf R. Want the badge? Get the S3." | 3D split-screen verdict: the Golf sliding, the S3 saloon composed. |
 | "But which one would you take? Let me know in the comments!" | Both 3D cars turning, a poll bar and the end card. |
 
 ## Facts used and sources
@@ -111,13 +115,12 @@ labels them as 2025 list prices.
 
 The script:
 
-1. fetches the photos
-2. installs three.js
-3. records the narration (33 takes, about 25 minutes on four CPU cores)
-4. renders the frames (about 20 minutes, most of it the 3D shots on
-   Chromium's CPU WebGL renderer)
-5. synthesises the soundtrack
-6. writes `golf-r-vs-s3.mp4`
+1. installs three.js
+2. records the narration (33 takes, about 25 minutes on four CPU cores)
+3. renders the frames on Chromium's CPU WebGL renderer (about 45 minutes, as
+   every shot is 3D)
+4. synthesises the soundtrack
+5. writes `golf-r-vs-s3.mp4`
 
 - `ONLY=07 TAKES=4 .venv/bin/python voiceover.py` re-records selected lines.
 - `ONLY=layout` re-times the film without recording anything.
@@ -129,11 +132,10 @@ The script:
 | File | Purpose |
 |---|---|
 | `timeline.js` | Script: caption text, pronunciation, pauses and voice settings. |
-| `photos.tsv`, `fetch_photos.sh` | The press photos used, with their official URLs, and the script that downloads them. |
 | `voice-reference.wav` | Synthetic reference voice for Chatterbox. |
 | `voiceover.py` | Narration: three takes per line, checked with Whisper, laid out into `out/vo/timing.js`. |
-| `film.html` | The edit: photos, 3D, motion graphics and captions, timed from the narration. |
-| `cars.js` | The 3D Golf R and S3: dimensions, silhouettes, and their lights, grilles and glass. |
+| `film.html` | The edit: 3D shots, motion graphics and captions, timed from the narration. |
+| `cars.js` | The 3D Golf R, Golf R Estate, S3 Sportback and S3 saloon: dimensions, silhouettes, and their lights, grilles and glass. |
 | `car3d.js`, `stage3d.js`, `decals.js` | The shared 3D kit: body lofting, projected decals, wheels, studio, turntables and camera. |
 | `test3d.html` | A test page that renders either car from any angle. |
 | `render.mjs` | Serves the folder locally, steps through every frame in headless Chromium and pipes the frames to ffmpeg. |

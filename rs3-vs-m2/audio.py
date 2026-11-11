@@ -309,6 +309,7 @@ squeal(B.rwd + 0.1, CUT[4] - B.rwd - 0.05, 0.45, 0.2)
 groove(CUT[4], CUT[5], ['Dm', 'Bb'], kick_from=CUT[4], snare_from=B.r38, hat_from=CUT[4], hat_div=2, bass_from=CUT[4], pad_g=0.6, g=0.55, cutoff=1600)
 for k in range(3):
     blip(B.rS - 1.2 + k * 0.4, NOTE['A5'] if k < 2 else NOTE['A6'], 0.9)      # launch lights
+squeal(B.rS - 0.3, 1.3, 0.35, 0.3)                       # the rear-drive M2 spins its tyres off the line
 impact(B.r38, 0.4)
 impact(B.r40, 0.35)
 blip(B.r40 + 0.5, NOTE['D6'], 1.0)
@@ -438,7 +439,7 @@ m2.rpm[m] = 5600 + 400 * np.sin(2 * np.pi * 2.3 * (t[m] - B.rwd))
 m2.thr[m2.seg(B.rwd, CUT[4])] = 0.9
 m2.gain([(B.i6, 0), (B.i6 + 0.1, 0.8), (B.rwd, 0.4), (B.rwd + 0.3, 0.45), (OFF['04'], 0.45), (OFF['04'] + 0.15, 0.75), (CUT[4] - 0.15, 0.7), (CUT[4] + 0.1, 0)])
 # 0-62: each car pulls until its time is said
-for eng, st, fin in ((rs3, B.rS, B.r38), (m2, B.mS, B.r40)):
+for eng, st, fin in ((rs3, B.rS - 0.3, B.r38), (m2, B.rS - 0.3, B.r40)):   # both launch together, as on screen
     d = max(fin - st, 0.8)
     eng.ramp(st - 0.3, st, 1200, 3000)
     end = eng.pull(st, [(d * 0.24, 3400), (d * 0.24, 4600), (d * 0.26, 5000), (d * 0.26, 5300)])

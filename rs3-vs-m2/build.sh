@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Builds rs3-vs-m2.mp4: fetches the press photos, narrates with Chatterbox,
-# renders every frame of film.html (2D motion graphics plus the three.js 3D
-# cars, timed to the narration), synthesises the soundtrack, then muxes and
-# masters with ffmpeg.
+# Builds rs3-vs-m2.mp4: narrates with Chatterbox, renders every frame of
+# film.html (the three.js 3D cars plus 2D motion graphics, timed to the
+# narration), synthesises the soundtrack, then muxes and masters with ffmpeg.
 #
 # Needs: node + playwright (with Chromium), python3 + numpy + scipy, ffmpeg.
 # The first run installs three.js (npm) and Chatterbox (PyTorch, a few GB,
@@ -11,7 +10,6 @@ set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p out
 
-./fetch_photos.sh   # official Audi / BMW press photos -> out/photos/ (never committed)
 [ -d node_modules/three ] || npm ci --no-audit --no-fund
 
 VENV=${VENV:-.venv}

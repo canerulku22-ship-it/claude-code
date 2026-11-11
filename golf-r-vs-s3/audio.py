@@ -364,7 +364,9 @@ golf.blip(B.golf + 0.05, 5200)
 golf.gain([(B.golf - 0.05, 0), (B.golf + 0.05, 0.8), (B.golf + 1.2, 0.3), (CUT[1], 0)])
 audi.blip(B.audi + 0.05, 5000)
 audi.gain([(B.audi - 0.05, 0), (B.audi + 0.05, 0.8), (B.audi + 1.2, 0.3), (CUT[1], 0)])
-for eng, st, fin in ((golf, B.gS, B.g46), (audi, B.sS, B.s47)):   # each car pulls until its time is said
+for k in range(3):                                                  # start-light beeps
+    blip(B.gS - 1.2 + k * 0.4, NOTE['A5'] if k < 2 else NOTE['A6'], 0.9)
+for eng, st, fin in ((golf, B.gS - 0.3, B.g46), (audi, B.gS - 0.3, B.s47)):   # both launch together; each pulls until its time is said
     d = max(fin - st, 0.8)
     eng.ramp(st - 0.3, st, 1200, 2600)
     end = eng.pull(st, [(d * 0.24, 3000), (d * 0.24, 4400), (d * 0.26, 4800), (d * 0.26, 5100)])

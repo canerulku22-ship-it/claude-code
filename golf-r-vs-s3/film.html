@@ -430,45 +430,9 @@ function particles(t, n, seed, col, a, y0 = 0, y1 = H) { // drifting motes catch
 }
 
 /* =====================================================================
-   PHOTOS — official Volkswagen AG and AUDI AG press images, downloaded by
-   fetch_photos.sh into out/photos/ (editorial use; never committed).
-   `f` is where the car sits in each photo, as fractions of width/height.
+   No photos: every car on screen is a live 3D render (stage3d.js)
    ===================================================================== */
-const PHOTOS = {
-  golf_hero: [0.52, 0.68], golf_black_rear: [0.5, 0.65], golf_engine: [0.5, 0.45], golf_estate: [0.5, 0.64],
-  golf_modes: [0.53, 0.45], golf_wheel: [0.55, 0.5], golf_snow_front: [0.42, 0.47], golf_snow_rear: [0.5, 0.58],
-  golf_drift: [0.56, 0.55], golf_snow_spray: [0.47, 0.5], golf_bridge: [0.55, 0.63],
-  s3_both: [0.46, 0.6], s3_sedan_front: [0.41, 0.56], s3_sedan_drive: [0.47, 0.55], s3_sedan_rear: [0.55, 0.62],
-  s3_sb_front: [0.53, 0.56], s3_sb_drive: [0.5, 0.55], s3_sb_rear: [0.62, 0.6], s3_wheel: [0.42, 0.58], s3_pass: [0.55, 0.62],
-};
-const PH = {};
-const r3dReady = new Promise(res => (window.R3D ? res() : addEventListener('r3d-ready', res, { once: true })));
-window.ready = Promise.all([r3dReady, ...Object.keys(PHOTOS).map(n => new Promise(res => {
-  const im = new Image(); im.onload = () => im.decode().then(res, res); im.onerror = res; im.src = `out/photos/${n}.jpg`; PH[n] = im;
-}))]);
-// Draw a photo to cover a rectangle, centred on the car, with zoom/pan and grading.
-function photo(name, x = 0, y = 0, w = W, h = H, o = {}) {
-  const im = PH[name];
-  if (!im || !im.naturalWidth) { ctx.fillStyle = '#111'; ctx.fillRect(x, y, w, h); return { at: () => [x + w / 2, y + h / 2] }; }
-  const iw = im.naturalWidth, ih = im.naturalHeight;
-  const s = Math.max(w / iw, h / ih) * (o.z || 1);
-  const [fx, fy] = o.f || PHOTOS[name];
-  let dx = x + w / 2 - fx * iw * s + (o.dx || 0), dy = y + h / 2 - fy * ih * s + (o.dy || 0);
-  dx = Math.min(x, Math.max(x + w - iw * s, dx)); dy = Math.min(y, Math.max(y + h - ih * s, dy));
-  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
-  if (o.filter) ctx.filter = o.filter;
-  if (o.blur) { // directional motion blur: ghost copies along the travel direction
-    ctx.drawImage(im, dx, dy, iw * s, ih * s);
-    ctx.globalAlpha = 0.18;
-    for (let k = 1; k <= 4; k++) ctx.drawImage(im, dx + o.blur[0] * k, dy + o.blur[1] * k, iw * s, ih * s);
-    ctx.globalAlpha = 1;
-  } else ctx.drawImage(im, dx, dy, iw * s, ih * s);
-  ctx.filter = 'none';
-  if (o.dark) { ctx.fillStyle = `rgba(0,0,0,${o.dark})`; ctx.fillRect(x, y, w, h); }
-  if (o.tint) { ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = o.tint; ctx.fillRect(x, y, w, h); }
-  ctx.restore();
-  return { at: (px, py) => [dx + px * iw * s, dy + py * ih * s] };
-}
+window.ready = new Promise(res => (window.R3D ? res() : addEventListener('r3d-ready', res, { once: true })));
 // Ken Burns: zoom from z0 to z1 across [t0, t1]
 const kb = (t, t0, t1, z0 = 1.04, z1 = 1.14) => lerp(z0, z1, eIOS(prog(t, t0, t1)));
 // Pick the current shot from a list of [start, drawFn]; quick flash at each change.
@@ -515,11 +479,45 @@ function topShade(a = 0.65, h = 380) { const g = ctx.createLinearGradient(0, 0, 
    3D — both cars rendered live by stage3d.js (three.js); three() draws the
    frame and hands back screen positions of named points on the cars
    ===================================================================== */
-const D3 = { golf: { xf: 1.285, xr: -1.343, R: 0.3236, tw: 0.7725 }, s3: { xf: 1.2705, xr: -1.3605, R: 0.3236, tw: 0.775 } };
-function three(spec) {
+const D3 = { golf: { xf: 1.285, xr: -1.343, R: 0.3236, tw: 0.7725 }, s3: { xf: 1.2705, xr: -1.3605, R: 0.3236, tw: 0.775 },
+  golfe: { xf: 1.462, xr: -1.209, R: 0.3236, tw: 0.7725 }, s3s: { xf: 1.3425, xr: -1.2885, R: 0.3236, tw: 0.775 } };
+function wheelAnchors(id) {
+  const d = D3[id], o = {};
+  for (const [n, x] of [['f', d.xf], ['r', d.xr]]) { o[id + n + 'L'] = [id, x, d.R, d.tw + 0.12]; o[id + n + 'R'] = [id, x, d.R, -d.tw - 0.12]; }
+  return o;
+}
+function three(spec, filter) {
   const r = window.R3D.render(spec);
-  ctx.drawImage(r.canvas, 0, 0);
+  ctx.save(); if (filter) ctx.filter = filter; ctx.drawImage(r.canvas, 0, 0); ctx.restore();
   return r.at;
+}
+const STILL = {};
+function still3d(key, spec) { // render once, reuse: for static portraits
+  if (!STILL[key]) { const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(window.R3D.render(spec).canvas, 0, 0); STILL[key] = c; }
+  return STILL[key];
+}
+function launch(t, t0, t1, vmax = 28) { // metres covered: steady acceleration to vmax by t1, then cruise
+  const T = Math.max(0.1, t1 - t0), tau = Math.max(0, t - t0), a = vmax / T;
+  return tau <= T ? 0.5 * a * tau * tau : 0.5 * a * T * T + vmax * (tau - T);
+}
+function smoke(t, at, a, seed, dir = -1, scale = 1) { // tyre smoke puffs from a point
+  if (!at || a <= 0) return;
+  const r = rng(seed);
+  ctx.save();
+  for (let i = 0; i < 26; i++) {
+    const ph = (t * (0.9 + r() * 0.5) + r()) % 1, ang = r() * 0.8 - 0.4;
+    const x = at[0] + dir * ph * (260 + r() * 260) * scale + Math.sin(ang) * 40, y = at[1] - ph * (120 + r() * 120) * scale + 20;
+    const rad = (40 + ph * 170) * scale;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, `rgba(215,222,232,${0.3 * a * (1 - ph)})`); g.addColorStop(1, 'rgba(215,222,232,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  ctx.restore();
+}
+const behindRoad = (id, ry = 0) => [id, -6 * Math.cos(ry), 0.3, -6 * Math.sin(ry)];   // a point 6 m back down the road, in the car's frame
+function smokeFrom(t, at, behind, a, seed, scale = 1) {
+  if (!at || !behind || a <= 0) return;
+  smoke(t, at, a, seed, Math.sign(behind[0] - at[0]) || -1, scale);
 }
 const orbit = (u, a0, a1) => lerp(a0, a1, eIOS(u));
 function lightsOn(t, t0) { // studio lights clunking on: exposure ramp with a flicker
@@ -586,14 +584,18 @@ function vsBadge(t, t0, x = 960, y = 470, sz = 1) {
 const revealed = (t, t0) => { const p = eOC(prog(t, t0 - 0.05, t0 + 0.35)); return `grayscale(${1 - p}) brightness(${0.35 + 0.65 * p})`; };
 
 // 1 · HOOK — both real cars, colour snaps in as each is named
+// 1 · HOOK — both cars in 3D, side by side; colour snaps in as each is named
 function sHook(t) {
-  splitScreen(t,
-    () => photo('golf_hero', 0, 0, 1060, H, { z: kb(t, 0, CUT[1], 1.25, 1.45), dx: 60, filter: revealed(t, B.golf) }),
-    () => photo('s3_sb_front', 860, 0, 1060, H, { z: kb(t, 0, CUT[1], 1.55, 1.75), dx: -60, filter: revealed(t, B.audi) }),
-    prog(t, 0.1, 0.5));
+  const u = prog(t, 0, CUT[1]);
+  const half = (id, sx, az0, az1, fl) => three({
+    cars: [{ id, table: false, glow: 1 }],
+    cam: { az: lerp(az0, az1, eIOS(u)), el: lerp(7, 5, u), dist: lerp(11, 10, eIOS(u)), fov: 30, target: [0, 0.62, 0], shift: [sx, 90] },
+    rim: { [id]: 1 },
+  }, fl);
+  splitScreen(t, () => half('golf', -470, 26, 40, revealed(t, B.golf)), () => half('s3', 470, -26, -40, revealed(t, B.audi)), prog(t, 0.1, 0.5));
   topShade(0.6, 330);
   ringBurst(500, 640, t, B.golf, '120,175,255', 460, 2, 0);
-  ringBurst(1420, 600, t, B.audi, '255,130,110', 460, 2, 0);
+  ringBurst(1420, 640, t, B.audi, '255,130,110', 460, 2, 0);
   nameplate('GOLF R', 420, 170, t, B.golf - 0.05, '80,150,255');
   line('VOLKSWAGEN', 420, 214, t, B.golf + 0.05, 999, { a: 'center', s: 24, w: 700, ls: 10, c: '#bcd5ff' });
   nameplate('AUDI S3', 1500, 170, t, B.audi - 0.05, '255,110,90');
@@ -603,7 +605,7 @@ function sHook(t) {
   flash(t, B.vs, 0.3, 0.35);
   const wq = eOB(prog(t, B.which, B.which + 0.3));
   if (wq > 0) {
-    ctx.save(); ctx.translate(960, 760); const sc = clamp(wq, 0, 1.3); ctx.scale(sc, sc); ctx.globalAlpha = clamp(prog(t, B.which, B.which + 0.1));
+    ctx.save(); ctx.translate(960, 800); const sc = clamp(wq, 0, 1.3); ctx.scale(sc, sc); ctx.globalAlpha = clamp(prog(t, B.which, B.which + 0.1));
     ctx.fillStyle = 'rgba(5,7,12,0.78)'; ctx.fill(roundPoly([[-330, -78], [330, -78], [330, 40], [-330, 40]], 18));
     text('WHICH ONE?', 0, 14, { a: 'center', s: 92, w: 900, ls: 2 });
     ctx.restore();
@@ -657,7 +659,15 @@ function sTwins(t) {
       }
     }],
     [B.turbo - 0.15, () => {
-      photo('golf_engine', 0, 0, W, H, { z: kb(t, B.turbo, CUT[2], 1.1, 1.3), dark: 0.55, f: [0.5, 0.42] });
+      const at = three({   // both noses, low and head-on, with their engines glowing through the bonnets
+        cars: [{ id: 'golf', z: 1.2, glow: 1, table: false }, { id: 's3', x: -0.1, z: -1.2, glow: 1, table: false }],
+        cam: { az: lerp(-6, 6, prog(t, B.turbo, B.awd)), el: 5, dist: 10.5, fov: 30, target: [0, 1.45, 0] },
+        rim: { golf: 0.8, s3: 0.8 }, exposure: 0.75,
+        anchors: { gE: ['golf', 1.6, 0.9, 0], sE: ['s3', 1.6, 0.9, 0] },
+      });
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (const q of [at.gE, at.sE]) if (q) glowDot(q[0], q[1], 150 + 30 * Math.sin(t * 7), '255,170,70', 0.35 * prog(t, B.turbo, B.turbo + 0.4));
+      ctx.restore();
       header(t, B.turbo, CUT[2], 'Under the skin');
       const rows = [['2.0 TSI turbo', '2.0 TFSI turbo', B.turbo], ['333 PS · 420 Nm', '333 PS · 420 Nm', B.hp], ['4MOTION', 'quattro', B.awd]];
       ctx.save(); ctx.fillStyle = 'rgba(5,8,14,0.7)'; ctx.fill(roundPoly([[420, 170], [1500, 170], [1500, 560], [420, 560]], 20)); ctx.restore();
@@ -705,50 +715,97 @@ function sTwins(t) {
 }
 
 // 3 · 0–62 — the timers hit 4.6 and 4.7 as they're said
+// 3 · 0–62 — a 3D drag race on a night road; the timers hit 4.6 and 4.7 as they're said
+function timerPanel(x, align, v, tF, fin, t, col, light, nm) {
+  const done = v >= tF, pop = done ? eOB(prog(t, fin, fin + 0.35)) : 1, sx = align === 'right' ? -1 : 1;
+  ctx.save(); ctx.translate(x, 300); const sc = lerp(1.3, 1, clamp(pop)); ctx.scale(sc, sc);
+  ctx.fillStyle = 'rgba(5,7,12,0.78)'; ctx.fill(roundPoly(sx > 0 ? [[-30, -150], [400, -150], [400, 70], [-30, 70]] : [[30, -150], [-400, -150], [-400, 70], [30, 70]], 18));
+  ctx.fillStyle = col; ctx.fillRect(sx > 0 ? -30 : 24, -150, 6, 220);
+  text(v.toFixed(1), sx > 0 ? 0 : -60, 0, { a: sx > 0 ? 'left' : 'right', s: 150, w: 900, c: done ? '#fff' : light, glow: done ? col : null, gb: 34 });
+  text('s', sx > 0 ? 300 : -20, 0, { s: 50, w: 800, c: col, a: sx > 0 ? 'left' : 'right' });
+  text(nm, sx > 0 ? 0 : -60, 50, { a: sx > 0 ? 'left' : 'right', s: 28, w: 900, c: col, ls: 6 });
+  ctx.restore();
+}
 function sRace(t) {
-  const t0 = CUT[2];
-  const gS = ON('05') + 0.3, sS = Math.max(B.s3 - 1.1, gS + 0.6);
-  const gT = Math.min(4.6, 4.6 * prog(t, gS, B.g46 + 0.05)), sT = Math.min(4.7, 4.7 * prog(t, sS, B.s47 + 0.05));
-  const lanes = [['golf_snow_spray', 0, gT, 4.6, C.vw, '#cfe0ff', 'GOLF R', gS, B.g46], ['s3_sedan_drive', 540, sT, 4.7, C.audi, '#ffd0c8', 'AUDI S3', sS, B.s47]];
-  lanes.forEach(([name, y, v, tF, col, light, nm, st, fin]) => {
-    const u = prog(t, st, fin + 0.05), go = eIC(u);
-    photo(name, 0, y, W, 540, { z: (name.startsWith('golf') ? 1.0 : 1.2) + 0.3 * go + 0.03 * Math.sin(t * 30) * u * (1 - u), blur: u > 0 && u < 1 ? [0, 10 * u] : null, dark: 0.15 });
-    ctx.save(); ctx.beginPath(); ctx.rect(0, y, W, 540); ctx.clip();
-    zoomLines(960, y + 290, t, u > 0 && u < 1.0 ? 0.9 : 0, 60, name.length);
-    const g = ctx.createLinearGradient(1300, 0, W, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.75)');
-    ctx.fillStyle = g; ctx.fillRect(1300, y, 620, 540);
-    const done = v >= tF, pop = done ? eOB(prog(t, fin, fin + 0.35)) : 1;
-    ctx.save(); ctx.translate(1840, y + 330); const sc = lerp(1.3, 1, clamp(pop)); ctx.scale(sc, sc);
-    text(v.toFixed(1), 0, 0, { a: 'right', s: 150, w: 900, c: done ? '#fff' : light, glow: done ? col : null, gb: 34 });
-    text(nm, 0, 52, { a: 'right', s: 30, w: 900, c: col, ls: 6 });
-    ctx.restore();
-    text('s', 1850, y + 330, { s: 50, w: 800, c: col });
-    ctx.restore();
-    if (done) ringBurst(1700, y + 270, t, fin, col === C.vw ? '120,175,255' : '255,130,110', 280, 2, 16);
+  const t0 = CUT[2], u = prog(t, t0, CUT[3]);
+  const gS = ON('05') + 0.3, go = gS - 0.3;
+  const gT = Math.min(4.6, 4.6 * prog(t, gS, B.g46 + 0.05)), sT = Math.min(4.7, 4.7 * prog(t, gS, B.s47 + 0.05));
+  const dG = launch(t, go, B.g46), dS = launch(t, go, B.s47);
+  const lead = Math.min(1.2, (dG - dS) * 0.1), acc = env(t, go, B.s47 + 0.2, 0.15, 0.6), rumble = t > go - 1.4 && t < go ? 0.004 * Math.sin(t * 90) : 0;
+  const at = three({
+    cars: [{ id: 'golf', x: lead / 2, z: 1.75, spin: dG / 0.3236, pitch: 0.017 * acc + rumble, glow: 1 }, { id: 's3', x: -lead / 2, z: -1.75, spin: dS / 0.3236, pitch: 0.017 * acc - rumble, glow: 1 }],
+    road: { dist: (dG + dS) / 2 },
+    cam: { az: orbit(u, 20, 52), el: orbit(u, 4, 6), dist: orbit(u, 10.5, 12.5), fov: 30, target: [0.4, 0.55, 0], roll: Math.sin(t * 23) * 0.35 * acc },
+    rim: { golf: 0.8, s3: 0.8 }, exposure: 1.0,
+    anchors: { gRL: ['golf', -1.34, 0.3, 0.9], sRL: ['s3', -1.36, 0.3, 0.9], behind: behindRoad('golf') },
   });
-  ctx.fillStyle = '#fff'; ctx.fillRect(0, 538, W, 4);
-  header(t, t0 + 0.1, CUT[3], '0–62 mph');
-  if (t > B.tenth - 0.05) {
-    const p = eOB(prog(t, B.tenth, B.tenth + 0.3));
-    ctx.save(); ctx.translate(700, 560); ctx.scale(clamp(p, 0, 1.2), clamp(p, 0, 1.2));
-    ctx.fillStyle = C.amber; ctx.fill(roundPoly([[-260, -50], [260, -50], [260, 26], [-260, 26]], 14));
-    text('A TENTH APART', 0, 4, { a: 'center', s: 48, w: 900, c: '#1a1000', ls: 6 });
+  smokeFrom(t, at.gRL, at.behind, 0.35 * env(t, go, go + 0.9, 0.05, 0.5), 12, 0.8);
+  smokeFrom(t, at.sRL, at.behind, 0.35 * env(t, go, go + 0.9, 0.05, 0.5), 14, 0.8);
+  speedLines(t, 0.55 * prog(t, go, go + 0.5), 4, 120, 980, -1);
+  for (let k = 0; k < 3; k++) {   // start lights, in time with the beeps in the soundtrack
+    const on = t >= gS - 1.2 + k * 0.4, a = 1 - prog(t, gS + 0.4, gS + 0.8);
+    if (a <= 0) continue;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(5,7,12,0.8)'; ctx.beginPath(); ctx.arc(860 + k * 100, 130, 40, 0, Math.PI * 2); ctx.fill();
+    if (on) glowDot(860 + k * 100, 130, 70, k < 2 ? '255,60,40' : '90,255,120', 0.9);
+    ctx.fillStyle = on ? (k < 2 ? '#ff4630' : '#5eff7a') : '#20242b'; ctx.beginPath(); ctx.arc(860 + k * 100, 130, 30, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
+  timerPanel(120, 'left', gT, 4.6, B.g46, t, C.vw, '#cfe0ff', 'GOLF R');
+  timerPanel(1800, 'right', sT, 4.7, B.s47, t, C.audi, '#ffd0c8', 'AUDI S3');
+  if (gT >= 4.6) ringBurst(320, 260, t, B.g46, '120,175,255', 280, 2, 16);
+  if (sT >= 4.7) ringBurst(1600, 260, t, B.s47, '255,130,110', 280, 2, 16);
+  header(t, t0 + 0.1, CUT[3], '0–62 mph');
+  if (t > B.tenth - 0.05) banner(t, B.tenth, 960, 175, 'A TENTH APART', C.amber, '#1a1000', 48, 30);
 }
 
 // 4 · GOLF — the hooligan, the R-Performance pack, Drift mode
+// 4 · GOLF — the hooligan, the R-Performance pack, Drift mode
+function modeMenu(x, y, t, t0, t1, a) { // the drive-mode list, cursor stepping down to Drift with each click
+  if (a <= 0) return;
+  const items = ['Comfort', 'Sport', 'Race', 'Special', 'Drift'], step = (t1 - t0) / 4;
+  const sel = Math.min(4, Math.floor(Math.max(0, t - t0) / step));
+  ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y);
+  ctx.fillStyle = 'rgba(5,8,14,0.82)'; ctx.fill(roundPoly([[0, -40], [420, -40], [420, 440], [0, 440]], 20));
+  text('DRIVING PROFILE', 30, 10, { s: 20, w: 800, c: '#9aa3b2', ls: 4 });
+  items.forEach((it, i) => {
+    const yy = 80 + i * 76, on = i === sel;
+    if (on) { ctx.fillStyle = i === 4 ? C.amber : C.vw; ctx.fill(roundPoly([[18, yy - 46], [402, yy - 46], [402, yy + 18], [18, yy + 18]], 12)); }
+    text(it, 44, yy, { s: 38, w: on ? 900 : 600, c: on ? (i === 4 ? '#1a1000' : '#fff') : '#c9ced8' });
+  });
+  ctx.restore();
+}
 function sGolf(t) {
   const t0 = CUT[3];
   shots(t, [
-    [t0, () => { photo('golf_snow_rear', 0, 0, W, H, { z: kb(t, t0, B.pack, 1.1, 1.3), dx: -40 * prog(t, t0, B.pack) }); snow(t, 0.5, 7, 90); }],
+    [t0, () => {   // chased down the road, snow in the air
+      three({
+        cars: [{ id: 'golf', spin: t * 16, glow: 1, roll: 0.012 * Math.sin(t * 1.4) }],
+        road: { dist: t * 24 },
+        cam: { az: lerp(-150, -136, prog(t, t0, B.pack)), el: 6, dist: 8.4, fov: 32, target: [0.2, 0.6, 0], roll: -3 + Math.sin(t * 1.1) },
+        rim: { golf: 1.2 },
+      });
+      snow(t, 0.5, 7, 90);
+    }],
     [B.pack - 0.1, () => {
-      photo('golf_modes', 0, 0, W, H, { z: kb(t, B.pack, B.drift, 1.25, 1.6), f: [0.53, 0.42], dark: 0.1 });
+      three({
+        cars: [{ id: 'golf', spin: t * 10, glow: 1 }],
+        road: { dist: t * 12 },
+        cam: { az: lerp(26, 40, prog(t, B.pack, B.drift)), el: 4, dist: 7, fov: 30, target: [0.5, 0.55, 0], shift: [-330, 0] },
+        rim: { golf: 1 }, exposure: 0.85,
+      });
+      modeMenu(1360, 330, t, B.pack + 0.05, B.drift, prog(t, B.pack, B.pack + 0.25));
       chip(t, B.pack, 120, 300, '+ R-PERFORMANCE PACK', C.vw, 'rgba(61,139,255,0.35)');
     }],
-    [B.drift - 0.1, () => {
-      const p = prog(t, B.drift, CUT[4]);
-      photo('golf_drift', 0, 0, W, H, { z: kb(t, B.drift, CUT[4], 1.18, 1.38), dx: -120 * p, blur: [-8, 2] });
+    [B.drift - 0.1, () => {   // sideways in the snow
+      const yaw = 0.55 + 0.05 * Math.sin(t * 2.6);
+      const at = three({
+        cars: [{ id: 'golf', ry: yaw, steer: -0.45, spin: t * 20, roll: 0.035, glow: 1 }],
+        road: { dist: t * 15 },
+        cam: { az: lerp(64, 80, prog(t, B.drift, CUT[4])), el: 8, dist: 10, fov: 30, target: [0, 0.55, 0] },
+        rim: { golf: 1.2 }, anchors: { ...wheelAnchors('golf'), behind: behindRoad('golf', yaw) },
+      });
+      smokeFrom(t, at.golfrL, at.behind, 1, 21, 1.2); smokeFrom(t, at.golfrR, at.behind, 0.8, 23, 1.1);
       snow(t, 1, 11, 220);
       const q = eOB(prog(t, B.drift, B.drift + 0.3));
       ctx.save(); ctx.translate(960, 330); ctx.scale(clamp(q, 0, 1.25), clamp(q, 0, 1.25)); ctx.globalAlpha = clamp(prog(t, B.drift, B.drift + 0.1));
@@ -765,34 +822,56 @@ function sGolf(t) {
 }
 
 // 5 · AUDI — the grown-up, the badge, Sportback or saloon
+// 5 · AUDI — the grown-up, the badge, Sportback or saloon
 function sAudi(t) {
   const t0 = CUT[4];
-  let both = null;
+  let at = null;
   shots(t, [
-    [t0, () => photo('s3_sedan_front', 0, 0, W, H, { z: kb(t, t0, B.classier, 1.3, 1.45) })],
-    [B.classier - 0.1, () => {
-      photo('s3_sb_front', 0, 0, W, H, { z: kb(t, B.classier, B.sportback, 2.1, 2.5), f: [0.53, 0.54] });
+    [t0, () => three({   // cruising, composed
+      cars: [{ id: 's3', spin: t * 14, glow: 1 }],
+      road: { dist: t * 20 },
+      cam: { az: lerp(24, 36, prog(t, t0, B.classier)), el: 5, dist: 9.4, fov: 30, target: [0, 0.6, 0] },
+      rim: { s3: 1 },
+    })],
+    [B.classier - 0.1, () => {   // in close on the grille and rings
+      three({
+        cars: [{ id: 's3', table: false, glow: 1 }],
+        cam: { az: lerp(18, 30, prog(t, B.classier, B.sportback)), el: 4, dist: lerp(4.4, 3.9, prog(t, B.classier, B.sportback)), fov: 30, target: [1.9, 0.62, 0] },
+        rim: { s3: 1.2 },
+      });
       chip(t, B.classier, 120, 300, 'PREMIUM BADGE', C.audi, 'rgba(255,59,48,0.35)');
     }],
-    [B.sportback - 0.15, () => { both = photo('s3_both', 0, 0, W, H, { z: kb(t, B.sportback, CUT[5], 1.12, 1.22), f: [0.47, 0.6] }); }],
+    [B.sportback - 0.15, () => {   // Sportback and saloon, side by side
+      at = three({
+        cars: [{ id: 's3', x: 0.05, z: 1.4 }, { id: 's3s', x: -0.05, z: -1.4 }],
+        bigTable: { ry: -0.35 + 0.4 * prog(t, B.sportback, CUT[5]) },
+        cam: { az: 148, el: 10, dist: 12, fov: 30, target: [0, 0.4, 0] },
+        rim: { s3: 1, s3s: 1 },
+        anchors: { sb: ['s3', -1.5, 1.2, 0], sa: ['s3s', -1.9, 1.08, 0] },
+      });
+    }],
   ]);
   topShade(0.5, 300);
   header(t, t0 + 0.1, CUT[5], 'Audi S3');
   line('THE GROWN-UP', 120, 210, t, B.grown, B.sportback - 0.3, { s: 84, w: 900, glow: 'rgba(255,90,70,0.7)', out: 0.15 });
-  if (both) {
-    const [sx, sy] = both.at(0.6, 0.6), [bx, by] = both.at(0.3, 0.58);
-    label(t, B.sportback, sx, sy, Math.min(sx + 160, 1650), sy - 260, 'SPORTBACK', '#c9ced8');
-    label(t, B.saloon, bx, by, Math.max(bx - 120, 280), by - 300, 'SALOON', C.audi);
+  if (at && at.sb && at.sa) {
+    label(t, B.sportback, at.sb[0], at.sb[1], Math.min(at.sb[0] - 60, 700), at.sb[1] - 220, 'SPORTBACK', '#c9ced8');
+    label(t, B.saloon, at.sa[0], at.sa[1], Math.max(at.sa[0] + 120, 1250), at.sa[1] - 240, 'SALOON', C.audi);
   }
 }
 
 // 6 · BOOT — litres, then the Golf R Estate
+// 6 · BOOT — litres over both tailgates, then the Golf R Estate
 function sBoot(t) {
   const t0 = CUT[5];
   shots(t, [
     [t0, () => {
-      photo('golf_black_rear', 0, 0, W, H, { z: kb(t, t0, B.estate, 1.1, 1.25), dark: 0.45 });
-      [[341, 640, C.vw, 'GOLF R'], [325, 1280, C.audi, 'AUDI S3']].forEach(([L, x, col, nm], i) => {
+      three({
+        cars: [{ id: 'golf', z: -1.3, glow: 1, table: false }, { id: 's3', z: 1.3, glow: 1, table: false }],
+        cam: { az: 180 + lerp(-4, 4, prog(t, t0, B.estate)), el: 9, dist: 11, fov: 30, target: [0, 0.9, 0] },
+        rim: { golf: 0.8, s3: 0.8 }, exposure: 0.85,
+      });
+      [[341, 300, C.vw, 'GOLF R'], [325, 1620, C.audi, 'AUDI S3']].forEach(([L, x, col, nm], i) => {
         const p = eOC(prog(t, B.boot - 0.2 + i * 0.15, B.boot + 0.9 + i * 0.15));
         const bw = 300, bh = 360, top = 760 - bh;
         ctx.fillStyle = 'rgba(5,8,14,0.6)'; ctx.fillRect(x - bw / 2, top, bw, bh);
@@ -804,10 +883,14 @@ function sBoot(t) {
         text('LITRES', x, 380, { a: 'center', s: 22, w: 700, c: '#ddd', ls: 6 });
         text(nm, x, 810, { a: 'center', s: 32, w: 900, c: col, ls: 6 });
       });
-      chip(t, B.boot + 0.3, 520, 880, 'BIGGER BOOT', C.go, 'rgba(94,240,138,0.3)');
+      chip(t, B.boot + 0.3, 170, 880, 'BIGGER BOOT', C.go, 'rgba(94,240,138,0.3)');
     }],
     [B.estate - 0.1, () => {
-      photo('golf_estate', 0, 0, W, H, { z: kb(t, B.estate, CUT[6], 1.1, 1.25) });
+      three({
+        cars: [{ id: 'golfe', ry: lerp(0.25, -0.2, prog(t, B.estate, CUT[6])), glow: 1 }],
+        cam: { az: 34, el: 7, dist: 11, fov: 30, target: [0, 0.5, 0] },
+        rim: { golfe: 1.2 },
+      });
       topShade(0.55, 320);
       line('GOLF R ESTATE', 960, 200, t, B.estate, 999, { a: 'center', s: 96, w: 900, ls: 6, glow: 'rgba(80,150,255,0.6)' });
       if (t > B.dog - 0.05) chip(t, B.dog, 1180, 330, '🐕  DOG OWNERS, YOU’RE WELCOME', C.amber, 'rgba(255,178,74,0.35)');
@@ -817,20 +900,26 @@ function sBoot(t) {
 }
 
 // 7 · PRICE — neck and neck
-function circlePhoto(name, x, y, r, col) {
+function circlePhoto(id, x, y, r, col) { // a 3D head-on portrait in a ring
+  const img = still3d(id + '_portrait', { cars: [{ id, table: false, glow: 1 }], cam: { az: 14, el: 6, dist: 6.2, fov: 30, target: [0, 0.68, 0] }, rim: { [id]: 1 } });
   ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.clip();
-  photo(name, x - r, y - r, 2 * r, 2 * r, { z: 1.9 });
+  ctx.drawImage(img, 560, 140, 800, 800, x - r, y - r, 2 * r, 2 * r);
   ctx.restore();
   ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 6; ctx.shadowColor = col; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
 }
 function sPrice(t) {
   const t0 = CUT[6];
-  photo('s3_pass', 0, 0, W, H, { z: kb(t, t0, CUT[7], 1.05, 1.15), dark: 0.72, filter: 'grayscale(0.6)' });
+  three({   // both cars turning slowly behind the scale, dimmed
+    cars: [{ id: 'golf', x: 0.05, z: 1.4 }, { id: 's3', x: -0.1, z: -1.4 }],
+    bigTable: { ry: -0.3 + 0.35 * prog(t, t0, CUT[7]) },
+    cam: { az: 24, el: 8, dist: 12.5, fov: 30, target: [0, 0.2, 0] }, rim: { golf: 0.6, s3: 0.6 }, exposure: 0.55,
+  }, 'grayscale(0.35)');
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
   header(t, t0 + 0.1, CUT[7], 'UK price, from');
   const tilt = 0.035 * eOB(prog(t, B.prices, B.prices + 0.8)) + Math.sin(t * 3) * 0.004; // the S3 costs £620 more
   ctx.save(); ctx.translate(960, 400); ctx.rotate(tilt);
   ctx.fillStyle = '#c9ced8'; ctx.fillRect(-560, -6, 1120, 12);
-  for (const [sx, col, nm, price, img] of [[-500, C.vw, 'GOLF R', '£46,930', 'golf_hero'], [500, C.audi, 'AUDI S3', '£47,550', 's3_sb_front']]) {
+  for (const [sx, col, nm, price, img] of [[-500, C.vw, 'GOLF R', '£46,930', 'golf'], [500, C.audi, 'AUDI S3', '£47,550', 's3']]) {
     ctx.save(); ctx.translate(sx, 0); ctx.rotate(-tilt);
     ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-120, 150); ctx.moveTo(0, 0); ctx.lineTo(120, 150); ctx.stroke();
     ctx.fillStyle = col; ctx.fillRect(-160, 150, 320, 10);
@@ -846,11 +935,26 @@ function sPrice(t) {
 }
 
 // 8 · VERDICT
+// 8 · VERDICT
 function sVerdict(t) {
-  const t0 = CUT[7];
+  const t0 = CUT[7], u = prog(t, t0, CUT[8]);
   splitScreen(t,
-    () => { photo('golf_drift', 0, 0, 1060, H, { z: kb(t, t0, CUT[8], 1.35, 1.5), dx: 80, filter: revealed(t, B.wild) }); if (t > B.wild) snow(t, 0.6, 5, 90); },
-    () => photo('s3_sedan_front', 860, 0, 1060, H, { z: kb(t, t0, CUT[8], 1.45, 1.6), dx: -40, filter: revealed(t, B.badge) }), 1);
+    () => {   // the wilder drive: sideways in the snow
+      const yaw = 0.5 + 0.05 * Math.sin(t * 2.4);
+      const at = three({
+        cars: [{ id: 'golf', ry: yaw, steer: -0.42, spin: t * 20, roll: 0.035, glow: 1 }],
+        road: { dist: t * 14 },
+        cam: { az: lerp(34, 46, u), el: 7, dist: 10.6, fov: 30, target: [0, 0.6, 0], shift: [-470, 60] },
+        rim: { golf: 1.2 }, anchors: { ...wheelAnchors('golf'), behind: behindRoad('golf', yaw) },
+      }, revealed(t, B.wild));
+      if (t > B.wild) { smokeFrom(t, at.golfrL, at.behind, 0.8, 61, 1.1); snow(t, 0.6, 5, 90); }
+    },
+    () => three({   // the badge: the saloon, composed
+      cars: [{ id: 's3s', spin: t * 10, glow: 1 }],
+      road: { dist: t * 12 },
+      cam: { az: lerp(-30, -40, u), el: 6, dist: 10.6, fov: 30, target: [0, 0.6, 0], shift: [470, 60] },
+      rim: { s3s: 1.2 },
+    }, revealed(t, B.badge)), 1);
   topShade(0.65, 360);
   header(t, t0 + 0.1, CUT[8], 'The verdict');
   line('WANT THE WILDER DRIVE?', 420, 180, t, B.wild, 999, { a: 'center', s: 40, w: 800, c: '#dbe7ff', ls: 2 });
@@ -889,7 +993,7 @@ function sCTA(t) {
     text('LET ME KNOW IN THE COMMENTS', 0, 8, { a: 'center', s: 24, w: 900, c: '#062012', ls: 2 });
     ctx.restore();
   }
-  line('Photos: Volkswagen AG and AUDI AG press images, editorial use. 3D: approximate models built for this film. Figures: manufacturer data, UK list prices 2025. Independent film, not affiliated with Volkswagen or Audi.', 960, 1052, t, OFF('11') + 0.2, 999, { a: 'center', s: 17, w: 500, c: '#8d96a4', st: 0.005, d: 0.3 });
+  line('All cars shown are approximate 3D models built for this film. Figures: manufacturer data, UK list prices 2025. Independent film, not affiliated with Volkswagen or Audi.', 960, 1052, t, OFF('11') + 0.2, 999, { a: 'center', s: 17, w: 500, c: '#8d96a4', st: 0.005, d: 0.3 });
 }
 
 /* =====================================================================

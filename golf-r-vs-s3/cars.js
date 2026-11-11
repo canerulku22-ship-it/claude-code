@@ -202,4 +202,94 @@ export const S3 = {
   ],
 };
 
-export const CARS = { golf: { spec: GOLF, color: 0x3d8bff }, s3: { spec: S3, color: 0xff3b30 } };
+
+/* ---------------------------------------------------------------- variants: Audi S3 Saloon, Golf R Estate */
+// The front halves are the hatchbacks' (shifted so each car stays centred on its own length);
+// the roofs, glass and tails are their own.
+const shiftPts = (pts, dx, from) => pts.filter(([x]) => x >= from).map(([x, y]) => [x + dx, y]);
+
+const SS_SIDE = [-2.32, 0.08, 2.32, 1.44];
+export const S3S = {
+  ...S3, name: 'Audi S3 Saloon', L: 4.495, H: 1.41, xf: 1.3425, xr: 1.3425 - 2.631,
+  top: [...shiftPts(S3.top, 0.072, -0.42),
+        [-0.75, 1.4], [-1.1, 1.34], [-1.45, 1.21], [-1.78, 1.075], [-2.05, 1.055], [-2.2, 1.06], [-2.235, 0.98], [-2.245, 0.8], [-2.2475, 0.45]],
+  bottom: [[2.2475, 0.28], [2.22, 0.18], [2.05, 0.15], [1.5, 0.14], [-1.6, 0.15], [-2.1, 0.22], [-2.2475, 0.3]],
+  belt: [...shiftPts(S3.belt, 0.072, -1.0), [-1.3, 1.04], [-1.6, 1.055], [-2.2, 1.055]],
+  gh: [-1.78, 0.79],
+  roofRatio: [[0.75, 0.74], [-0.5, 0.72], [-1.3, 0.68], [-1.78, 0.64]],
+  extra(car, { paint, black }) {
+    const lip = new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape([[-2.08, 1.06], [-2.21, 1.075], [-2.22, 1.06], [-2.15, 1.052]].map(([x, y]) => new THREE.Vector2(x, y))), { depth: 1.1, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.005, bevelSegments: 2 }), paint);
+    lip.position.z = -0.55; car.add(lip);
+    const fin = new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape([[-0.85, 1.395], [-1.05, 1.37], [-1.03, 1.42]].map(([x, y]) => new THREE.Vector2(x, y))), { depth: 0.05, bevelEnabled: false }), black);
+    fin.position.z = -0.025; car.add(fin);
+  },
+  decals: [
+    { axis: '±z', kind: 'glass', rect: SS_SIDE, tw: 3072, th: 960, segs: [150, 44], order: 2, minFacing: 0.05,
+      draw(g, W, H, B) {
+        frame(g, W, H, SS_SIDE);
+        const o = glassOutline(B, -1.05, [[-1.36, 1.085], [-1.3, 1.045]], 0.085);
+        glassFill(g, o, [[-0.03, 1.19], [-1.05, 1.17]]); trimAround(g, o, 0.03);
+        poly(g, [[-0.51, 0.9], [-0.61, 0.9], [-0.61, 1.5], [-0.51, 1.5]], '#08090b');
+      } },
+    { axis: '±z', kind: 'trim', rect: SS_SIDE, tw: 3072, th: 960, segs: [150, 44], minFacing: 0.05,
+      draw(g, W, H, B) {
+        frame(g, W, H, SS_SIDE);
+        sideTrim(g, S3S, B, { sill: 0.22, handles: [[0.07, 0.9], [-1.0, 0.93]],
+          lines: [[[0.74, 0.98], [0.74, 0.3]], [[-0.55, 1.0], [-0.55, 0.3]], [[-1.33, 1.05], [-1.3, 0.78], [-1.0, 0.74], [-0.9, 0.62], [-0.9, 0.3]]] });
+        poly(g, [[-2.02, 1.0], [-2.25, 0.99], [-2.25, 0.9], [-2.08, 0.92]], '#7a0710', '#14151a', 0.006);
+        poly(g, [[1.91, 0.765], [2.25, 0.73], [2.25, 0.68], [1.97, 0.715]], '#0b0c0f', '#303338', 0.006);
+      } },
+    { axis: '+y', kind: 'glass', rect: [-1.9, -0.9, 0.9, 0.9], tw: 2048, th: 660, segs: [110, 44], order: 2,
+      draw(g, W, H, B) {
+        frame(g, W, H, [-1.9, -0.9, 0.9, 0.9]);
+        for (const o of [screenOutline(B, S3S, 0.02, 0.8), screenOutline(B, S3S, -1.76, -1.12, 0.07)]) { poly(g, o, '#0d1117'); trimAround(g, o, 0.025); }
+      } },
+    S3.decals.find(d => d.axis === '+x'),
+    { ...S3.decals.find(d => d.axis === '-x' && !d.kind) },
+  ],
+};
+
+const GE_SIDE = [-2.4, 0.08, 2.4, 1.52], GE_REAR = [-0.94, 0.12, 0.94, 1.5];
+export const GOLFE = {
+  ...GOLF, name: 'Volkswagen Golf R Estate', L: 4.644, H: 1.465, xf: 1.462, xr: 1.462 - 2.671,
+  top: [...shiftPts(GOLF.top, 0.177, -0.3),
+        [-0.7, 1.462], [-1.3, 1.44], [-1.8, 1.405], [-2.06, 1.37], [-2.17, 1.28], [-2.26, 1.12], [-2.3, 1.0], [-2.315, 0.75], [-2.322, 0.42]],
+  bottom: [[2.322, 0.3], [2.3, 0.18], [2.12, 0.15], [1.6, 0.14], [-1.8, 0.15], [-2.18, 0.22], [-2.322, 0.3]],
+  belt: [...shiftPts(GOLF.belt, 0.177, -0.6), [-1.0, 1.0], [-1.6, 1.03], [-2.1, 1.05], [-2.3, 1.03]],
+  gh: [-2.27, 1.03],
+  roofRatio: [[1.0, 0.74], [-0.5, 0.73], [-1.6, 0.69], [-2.27, 0.65]],
+  extra(car, { paint, black }) {
+    const sp = new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape([[-1.86, 1.44], [-2.19, 1.395], [-2.2, 1.375], [-2.06, 1.39]].map(([x, y]) => new THREE.Vector2(x, y))), { depth: 1.06, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.008, bevelSegments: 2 }), paint);
+    sp.position.z = -0.53; car.add(sp);
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x1a1c20, metalness: 0.6, roughness: 0.4 });
+    for (const sd of [1, -1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.03, 0.03), railMat); rail.position.set(-0.95, 1.47, sd * 0.5); rail.rotation.z = 0.012; car.add(rail); }
+  },
+  decals: [
+    { axis: '±z', kind: 'glass', rect: GE_SIDE, tw: 3200, th: 1000, segs: [160, 44], order: 2, minFacing: 0.05,
+      draw(g, W, H, B) {
+        frame(g, W, H, GE_SIDE);
+        const o = glassOutline(B, -2.0, [[-2.17, 1.06]], 0.07);
+        glassFill(g, o, [[0.17, 1.18], [-0.78, 1.2]]); trimAround(g, o, 0.03);
+        for (const [a, b] of [[-0.083, -0.163], [-1.07, -1.15]]) poly(g, [[a, 0.9], [b, 0.9], [b, 1.55], [a, 1.55]], '#08090b');
+      } },
+    { axis: '±z', kind: 'trim', rect: GE_SIDE, tw: 3200, th: 1000, segs: [160, 44], minFacing: 0.05,
+      draw(g, W, H, B) {
+        frame(g, W, H, GE_SIDE);
+        sideTrim(g, GOLFE, B, { sill: 0.21, handles: [[0.06, 0.88], [-0.86, 0.92]],
+          lines: [[[1.02, 0.96], [1.02, 0.3]], [[-0.12, 0.99], [-0.12, 0.3]], [[-1.09, 1.02], [-1.08, 0.75], [-0.9, 0.7], [-0.83, 0.6], [-0.83, 0.3]]] });
+        poly(g, [[-2.1, 0.99], [-2.32, 0.975], [-2.32, 0.9], [-2.16, 0.915]], '#5a0610', '#14151a', 0.006);
+        poly(g, [[2.0, 0.75], [2.32, 0.72], [2.32, 0.67], [2.06, 0.705]], '#0b0c0f', '#303338', 0.006);
+      } },
+    { axis: '+y', kind: 'glass', rect: [-0.3, -0.9, 1.1, 0.9], tw: 1024, th: 660, segs: [50, 50], order: 2,
+      draw(g, W, H, B) { frame(g, W, H, [-0.3, -0.9, 1.1, 0.9]); const o = screenOutline(B, GOLFE, -0.07, 1.03); poly(g, o, '#0d1117'); trimAround(g, o, 0.025); } },
+    { axis: '-x', kind: 'glass', rect: GE_REAR, tw: 1024, th: 800, segs: [50, 50], order: 2,
+      draw(g, W, H) { frame(g, W, H, GE_REAR); const o = [[-0.62, 1.05], [0.62, 1.05], [0.53, 1.36], [-0.53, 1.36]]; poly(g, o, '#0d1117'); trimAround(g, o, 0.02); } },
+    GOLF.decals.find(d => d.axis === '+x'),
+    GOLF.decals.find(d => d.axis === '-x' && !d.kind),
+  ],
+};
+
+export const CARS = {
+  golf: { spec: GOLF, color: 0x3d8bff }, s3: { spec: S3, color: 0xff3b30 },
+  s3s: { spec: S3S, color: 0xff3b30 }, golfe: { spec: GOLFE, color: 0x3d8bff },
+};
