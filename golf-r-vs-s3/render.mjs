@@ -19,6 +19,7 @@ async function openPage(browser) {
   page.on('pageerror', e => { console.error('page error:', e.message); process.exitCode = 1; });
   await page.goto(url);
   await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => window.ready || true); // photos decoded before the first frame
   return page;
 }
 

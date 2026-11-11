@@ -17,10 +17,11 @@
 <script>
 'use strict';
 /* =====================================================================
-   VW Golf R vs Audi S3 — narrated motion-graphics comparison, drawn frame
-   by frame on a canvas. drawFrame(t) is a pure function of time t. Every
-   scene cut and beat is keyed to the measured voiceover (out/vo/timing.js),
-   so re-recording a line re-times the film. Preview: open in a browser, ?t=12.
+   VW Golf R vs Audi S3 — narrated comparison built from the manufacturers'
+   own press photos, with motion graphics drawn frame by frame on a canvas.
+   drawFrame(t) is a pure function of time t. Every scene cut and beat is
+   keyed to the measured voiceover (out/vo/timing.js), so re-recording a line
+   re-times the film. Run ./fetch_photos.sh first; preview with ?t=12.
    ===================================================================== */
 const TL = window.TIMELINE, VOT = window.VO_TIMING || {};
 const W = 1920, H = 1080;
@@ -427,418 +428,85 @@ function particles(t, n, seed, col, a, y0 = 0, y1 = H) { // drifting motes catch
 }
 
 /* =====================================================================
-   CARS. Front views: local units ≈ 2 mm, centre x = 0, ground y = 0.
-   Side views face right: x 0 (rear) .. 1000 (nose), ground y = 0.
+   PHOTOS — official Volkswagen AG and AUDI AG press images, downloaded by
+   fetch_photos.sh into out/photos/ (editorial use; never committed).
+   `f` is where the car sits in each photo, as fractions of width/height.
    ===================================================================== */
-const PAL = {
-  golf: { a: '#0e2a66', b: '#2f6fd8', c: '#a9cbff', d: '#2a63c7', e: '#173f8f', f: '#0b2252', g: '#040d22', glow: '120,175,255' }, // Lapiz Blue
-  audi: { a: '#5a0c10', b: '#d2322b', c: '#ffb3a8', d: '#c72a25', e: '#8e151a', f: '#4d0a0d', g: '#1d0304', glow: '255,120,100' }, // Tango Red
+const PHOTOS = {
+  golf_hero: [0.52, 0.68], golf_black_rear: [0.5, 0.65], golf_engine: [0.5, 0.45], golf_estate: [0.5, 0.64],
+  golf_modes: [0.53, 0.45], golf_wheel: [0.55, 0.5], golf_snow_front: [0.42, 0.47], golf_snow_rear: [0.5, 0.58],
+  golf_drift: [0.56, 0.55], golf_snow_spray: [0.47, 0.5], golf_bridge: [0.55, 0.63],
+  s3_both: [0.46, 0.6], s3_sedan_front: [0.41, 0.56], s3_sedan_drive: [0.47, 0.55], s3_sedan_rear: [0.55, 0.62],
+  s3_sb_front: [0.53, 0.56], s3_sb_drive: [0.5, 0.55], s3_sb_rear: [0.62, 0.6], s3_wheel: [0.42, 0.58], s3_pass: [0.55, 0.62],
 };
-function paintV(P, y0, y1) {
-  const g = ctx.createLinearGradient(0, y0, 0, y1);
-  g.addColorStop(0, P.a); g.addColorStop(0.05, P.b); g.addColorStop(0.085, P.c); g.addColorStop(0.12, P.d);
-  g.addColorStop(0.22, P.e); g.addColorStop(0.55, P.e); g.addColorStop(0.8, P.f); g.addColorStop(1, P.g);
-  return g;
-}
-function roundness() {
-  const g = ctx.createLinearGradient(-500, 0, 500, 0);
-  g.addColorStop(0, 'rgba(0,0,0,0.5)'); g.addColorStop(0.2, 'rgba(0,0,0,0)'); g.addColorStop(0.8, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.5)');
-  ctx.fillStyle = g; ctx.fillRect(-520, -800, 1040, 800);
-}
-const silverGrad = (y0, y1) => { const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#eef1f5'); g.addColorStop(0.5, '#a6adb7'); g.addColorStop(1, '#6d737c'); return g; };
-function honeycomb(path, x0, y0, x1, y1, col = 'rgba(90,100,112,0.35)', s = 16) {
-  ctx.save(); ctx.clip(path); ctx.strokeStyle = col; ctx.lineWidth = 1.6;
-  const h = s * Math.sqrt(3) / 2;
-  ctx.beginPath();
-  for (let y = y0, row = 0; y < y1 + h; y += h, row++) {
-    for (let x = x0 + (row % 2) * s * 1.5; x < x1 + s * 3; x += s * 3) {
-      for (let k = 0; k < 6; k++) {
-        const a = k * Math.PI / 3, b = (k + 1) * Math.PI / 3;
-        ctx.moveTo(x + Math.cos(a) * s * 0.9, y + Math.sin(a) * s * 0.9); ctx.lineTo(x + Math.cos(b) * s * 0.9, y + Math.sin(b) * s * 0.9);
-      }
-    }
-  }
-  ctx.stroke(); ctx.restore();
-}
-function frontCommon(P, body, glass, mirror, o) { // tyres, paint, glass, mirrors
-  if (!o.noShadow) contactShadow(0, 560);
-  both(() => {
-    const tg = ctx.createLinearGradient(330, 0, 450, 0);
-    tg.addColorStop(0, '#060708'); tg.addColorStop(0.5, '#15171b'); tg.addColorStop(1, '#060708');
-    ctx.fillStyle = tg; ctx.fill(roundPoly([[332, -250], [452, -250], [452, 0], [332, 0]], [10, 10, 22, 22]));
-    ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 3;
-    for (const x of [356, 384, 412, 436]) { ctx.beginPath(); ctx.moveTo(x, -160); ctx.lineTo(x, -4); ctx.stroke(); }
-  });
-  ctx.fillStyle = paintV(P, -500, -37); ctx.fill(body);
-  ctx.save(); ctx.clip(body);
-  let g = ctx.createLinearGradient(0, -480, 0, -414);
-  g.addColorStop(0, `rgba(${P.glow},0.16)`); g.addColorStop(1, 'rgba(255,255,255,0.02)');
-  ctx.fillStyle = g; ctx.fillRect(-500, -480, 1000, 66);
-  roundness();
-  both(() => {
-    ctx.save(); ctx.translate(420, -320); ctx.scale(0.45, 1);
-    const fg = ctx.createRadialGradient(0, 0, 0, 0, 0, 160);
-    fg.addColorStop(0, 'rgba(255,255,255,0.15)'); fg.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(0, 0, 160, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  });
-  g = ctx.createLinearGradient(0, -320, 0, -270);
-  g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,0.10)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = g; ctx.fillRect(-500, -320, 1000, 50);
-  g = ctx.createLinearGradient(0, -760, 0, -476); g.addColorStop(0, '#1c2126'); g.addColorStop(1, '#0a0c0e');
-  ctx.fillStyle = g; ctx.fillRect(-600, -800, 1200, 322); // pillars + roof seen over the bonnet
-  g = ctx.createLinearGradient(0, -120, 0, -37); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)');
-  ctx.fillStyle = g; ctx.fillRect(-500, -120, 1000, 83);
+const PH = {};
+window.ready = Promise.all(Object.keys(PHOTOS).map(n => new Promise(res => {
+  const im = new Image(); im.onload = () => im.decode().then(res, res); im.onerror = res; im.src = `out/photos/${n}.jpg`; PH[n] = im;
+})));
+// Draw a photo to cover a rectangle, centred on the car, with zoom/pan and grading.
+function photo(name, x = 0, y = 0, w = W, h = H, o = {}) {
+  const im = PH[name];
+  if (!im || !im.naturalWidth) { ctx.fillStyle = '#111'; ctx.fillRect(x, y, w, h); return { at: () => [x + w / 2, y + h / 2] }; }
+  const iw = im.naturalWidth, ih = im.naturalHeight;
+  const s = Math.max(w / iw, h / ih) * (o.z || 1);
+  const [fx, fy] = o.f || PHOTOS[name];
+  let dx = x + w / 2 - fx * iw * s + (o.dx || 0), dy = y + h / 2 - fy * ih * s + (o.dy || 0);
+  dx = Math.min(x, Math.max(x + w - iw * s, dx)); dy = Math.min(y, Math.max(y + h - ih * s, dy));
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  if (o.filter) ctx.filter = o.filter;
+  if (o.blur) { // directional motion blur: ghost copies along the travel direction
+    ctx.drawImage(im, dx, dy, iw * s, ih * s);
+    ctx.globalAlpha = 0.18;
+    for (let k = 1; k <= 4; k++) ctx.drawImage(im, dx + o.blur[0] * k, dy + o.blur[1] * k, iw * s, ih * s);
+    ctx.globalAlpha = 1;
+  } else ctx.drawImage(im, dx, dy, iw * s, ih * s);
+  ctx.filter = 'none';
+  if (o.dark) { ctx.fillStyle = `rgba(0,0,0,${o.dark})`; ctx.fillRect(x, y, w, h); }
+  if (o.tint) { ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = o.tint; ctx.fillRect(x, y, w, h); }
   ctx.restore();
-  g = ctx.createLinearGradient(0, -712, 0, -480); g.addColorStop(0, '#465a6e'); g.addColorStop(0.3, '#1a232d'); g.addColorStop(1, '#06080b');
-  ctx.fillStyle = g; ctx.fill(glass);
-  ctx.save(); ctx.clip(glass);
-  ctx.fillStyle = 'rgba(190,215,240,0.08)';
-  ctx.beginPath(); ctx.moveTo(-240, -720); ctx.lineTo(-110, -720); ctx.lineTo(-280, -470); ctx.lineTo(-390, -470); ctx.fill();
-  ctx.fillStyle = '#040506'; ctx.fill(roundPoly([[-30, -696], [30, -696], [27, -660], [-27, -660]], 6));
-  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(-300, -505, 600, 28);
-  ctx.restore();
-  ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 4; ctx.stroke(glass);
-  both(() => { ctx.fillStyle = silverGrad(-528, -468); ctx.fill(mirror); ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 2; ctx.stroke(mirror); });
+  return { at: (px, py) => [dx + px * iw * s, dy + py * ih * s] };
 }
-function frontLights(o, x, y, glow) { // light spill + lens streaks (in local units)
-  if (!(o.drl > 0 || o.beam > 0)) return;
+// Ken Burns: zoom from z0 to z1 across [t0, t1]
+const kb = (t, t0, t1, z0 = 1.04, z1 = 1.14) => lerp(z0, z1, eIOS(prog(t, t0, t1)));
+// Pick the current shot from a list of [start, drawFn]; quick flash at each change.
+function shots(t, list) {
+  let i = 0;
+  for (let k = 0; k < list.length; k++) if (t >= list[k][0]) i = k;
+  list[i][1](t, list[i][0]);
+  if (i > 0) flash(t, list[i][0], 0.22, 0.45);
+}
+function snow(t, a, seed = 3, n = 160) { // flying snow / spray
+  if (a <= 0) return;
+  const r = rng(seed);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  both(() => { glowDot(x, y, 105, '210,230,255', 0.22 * (o.drl || 0) + 0.2 * (o.beam || 0)); glowDot(x - 30, y + 10, 50, '235,245,255', 0.45 * (o.beam || 0)); });
-  if (o.flare) { streak(-x, y, 800, glow, 0.32 * o.flare); streak(x, y, 800, glow, 0.32 * o.flare); }
-  ctx.restore();
-}
-
-// ---------- VW Golf R (Mk8.5) front ----------
-const GF = {
-  body: smoothClosed(sym([[0, -729], [140, -726], [222, -708], [262, -640], [300, -560], [338, -486], [410, -462], [438, -424], [448, -340], [450, -250], [447, -196], [424, -182], [350, -178], [340, -110], [328, -52], [276, -38], [0, -37]])),
-  glass: roundPoly([[-298, -488], [298, -488], [216, -700], [0, -712], [-216, -700]], [10, 10, 30, 60, 30]),
-  hl: roundPoly([[60, -380], [74, -402], [400, -420], [434, -404], [418, -372], [88, -366]], [6, 8, 12, 8, 10, 6]),
-  intake: roundPoly([[-262, -302], [262, -302], [244, -130], [208, -104], [-208, -104], [-244, -130]], 14),
-  side: roundPoly([[292, -330], [412, -346], [434, -250], [428, -150], [330, -126], [290, -200]], 12),
-  splitter: roundPoly([[-420, -42], [420, -42], [410, -22], [-410, -22]], 6),
-  mirror: smoothClosed([[334, -486], [420, -476], [500, -472], [516, -494], [506, -516], [460, -530], [384, -524], [342, -506]]),
-};
-function vwLogo(x, y, r, lit = 0) {
-  ctx.save(); ctx.translate(x, y);
-  ctx.fillStyle = '#0a0d14'; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = lit > 0 ? `rgba(240,248,255,${0.6 + 0.4 * lit})` : '#c9ced6'; ctx.lineWidth = r * 0.11; ctx.lineJoin = 'round';
-  if (lit > 0) { ctx.shadowColor = 'rgba(200,225,255,1)'; ctx.shadowBlur = 18 * lit; }
-  ctx.beginPath(); ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-r * 0.42, -r * 0.62); ctx.lineTo(0, r * 0.1); ctx.lineTo(r * 0.42, -r * 0.62); ctx.stroke();       // V
-  ctx.beginPath(); ctx.moveTo(-r * 0.72, -r * 0.2); ctx.lineTo(-r * 0.34, r * 0.72); ctx.lineTo(0, r * 0.12); ctx.lineTo(r * 0.34, r * 0.72); ctx.lineTo(r * 0.72, -r * 0.2); ctx.stroke(); // W
-  ctx.restore();
-}
-function rBadge(x, y, s = 1) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-  ctx.font = font(900, 22); ctx.fillStyle = '#dfe4ea'; ctx.fillText('R', -7, 8);
-  ctx.fillStyle = '#3d8bff'; ctx.fillRect(-12, 11, 24, 3);
-  ctx.restore();
-}
-function drawGolfFront(cx, gy, s, o = {}) {
-  ctx.save(); ctx.translate(cx, gy); ctx.scale(s, s);
-  if (o.alpha != null) ctx.globalAlpha *= o.alpha;
-  frontCommon(PAL.golf, GF.body, GF.glass, GF.mirror, o);
-  ctx.lineCap = 'round';
-  both(() => { // bonnet creases + shut line
-    ctx.strokeStyle = 'rgba(200,225,255,0.3)'; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(140, -486); ctx.quadraticCurveTo(122, -450, 96, -424); ctx.stroke();
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, -418); ctx.quadraticCurveTo(240, -424, 430, -440); ctx.stroke();
-  });
-  // slim upper grille band joining the headlights
-  ctx.fillStyle = '#05070b'; ctx.fill(roundPoly([[-90, -404], [90, -404], [90, -366], [-90, -366]], 8));
-  const drl = o.drl ?? 0, beam = o.beam ?? 0;
-  both(() => {
-    const hg = ctx.createLinearGradient(0, -420, 0, -366); hg.addColorStop(0, '#2a3038'); hg.addColorStop(1, '#0b0d10');
-    ctx.fillStyle = hg; ctx.fill(GF.hl);
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1.5; ctx.stroke(GF.hl);
-    ctx.fillStyle = beam > 0 ? `rgba(235,244,255,${0.4 + 0.6 * beam})` : '#3a4350'; // IQ.Light matrix LEDs
-    for (let i = 0; i < 9; i++) { ctx.beginPath(); ctx.arc(160 + i * 22, -380 - i * 1.2, 4.5, 0, Math.PI * 2); ctx.fill(); }
-    ctx.strokeStyle = drl > 0 ? `rgba(240,248,255,${0.45 + 0.55 * drl})` : 'rgba(120,130,145,0.6)'; ctx.lineWidth = 5;
-    if (drl > 0) { ctx.shadowColor = 'rgba(200,230,255,0.95)'; ctx.shadowBlur = 20 * drl; }
-    ctx.beginPath(); ctx.moveTo(84, -396); ctx.lineTo(404, -414); ctx.lineTo(424, -398); ctx.stroke();   // DRL along the lamp
-    ctx.beginPath(); ctx.moveTo(36, -388); ctx.lineTo(80, -392); ctx.stroke();                           // light bar to the logo
-    ctx.shadowBlur = 0;
-  });
-  vwLogo(0, -386, 33, drl);
-  ctx.fillStyle = '#040506'; ctx.fill(GF.intake);
-  honeycomb(GF.intake, -270, -306, 270, -100);
-  ctx.fillStyle = '#1b1f25'; ctx.fillRect(-250, -262, 500, 8); ctx.fillRect(-236, -200, 472, 6);
-  ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 4; ctx.stroke(GF.intake);
-  rBadge(-190, -276, 1.4);
-  both(() => {
-    ctx.fillStyle = '#040506'; ctx.fill(GF.side);
-    ctx.save(); ctx.clip(GF.side); ctx.strokeStyle = '#1c2026'; ctx.lineWidth = 9;
-    for (const x of [336, 382]) { ctx.beginPath(); ctx.moveTo(x, -350); ctx.lineTo(x + 14, -110); ctx.stroke(); }
-    ctx.restore();
-    ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 4; ctx.stroke(GF.side);
-    ctx.strokeStyle = 'rgba(200,225,255,0.22)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(268, -312); ctx.lineTo(410, -356); ctx.stroke();
-  });
-  ctx.fillStyle = '#0a0b0d'; ctx.fill(GF.splitter);
-  ctx.save(); ctx.clip(GF.body); ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 3; ctx.stroke(GF.body); ctx.restore();
-  frontLights(o, 300, -398, '120,175,255');
-  if (drl > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowDot(0, -386, 90, '200,225,255', 0.3 * drl); ctx.restore(); }
-  ctx.restore();
-}
-
-// ---------- Audi S3 (8Y, facelift) front ----------
-const AF = {
-  body: smoothClosed(sym([[0, -712], [140, -709], [218, -692], [262, -624], [302, -548], [344, -478], [424, -456], [448, -418], [458, -336], [461, -246], [458, -194], [432, -180], [356, -176], [344, -108], [332, -50], [282, -38], [0, -37]])),
-  glass: roundPoly([[-300, -482], [300, -482], [214, -686], [0, -698], [-214, -686]], [10, 10, 30, 60, 30]),
-  grille: roundPoly([[-150, -406], [150, -406], [206, -372], [216, -332], [206, -198], [166, -160], [-166, -160], [-206, -198], [-216, -332], [-206, -372]], 8),
-  hl: roundPoly([[222, -390], [232, -420], [430, -434], [454, -414], [438, -392], [246, -372]], [6, 6, 12, 8, 10, 6]),
-  side: roundPoly([[262, -348], [422, -368], [450, -250], [442, -160], [300, -148], [262, -232]], 12),
-  splitter: roundPoly([[-428, -42], [428, -42], [418, -22], [-418, -22]], 6),
-  mirror: smoothClosed([[340, -480], [424, -470], [506, -466], [522, -488], [512, -510], [466, -524], [390, -518], [348, -500]]),
-};
-function audiRings(x, y, r, col = '#dfe3e8') {
-  ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = r * 0.26;
-  for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(x + (i - 1.5) * r * 1.52, y, r, 0, Math.PI * 2); ctx.stroke(); }
-  ctx.restore();
-}
-function s3Badge(x, y, s = 1) {
-  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-  ctx.fillStyle = '#e1251b'; ctx.beginPath(); ctx.moveTo(-14, -9); ctx.lineTo(-2, -9); ctx.lineTo(-8, 5); ctx.lineTo(-20, 5); ctx.closePath(); ctx.fill();
-  ctx.font = font(900, 15); ctx.fillStyle = '#e3e7ec'; ctx.fillText('S3', -2, 5);
-  ctx.restore();
-}
-function drawAudiFront(cx, gy, s, o = {}) {
-  ctx.save(); ctx.translate(cx, gy); ctx.scale(s, s);
-  if (o.alpha != null) ctx.globalAlpha *= o.alpha;
-  frontCommon(PAL.audi, AF.body, AF.glass, AF.mirror, o);
-  ctx.lineCap = 'round';
-  both(() => { // power lines converging on the grille + shut line
-    ctx.strokeStyle = 'rgba(255,215,205,0.32)'; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(128, -480); ctx.quadraticCurveTo(140, -440, 150, -410); ctx.stroke();
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(150, -410); ctx.quadraticCurveTo(300, -424, 440, -444); ctx.stroke();
-  });
-  ctx.fillStyle = '#030405'; ctx.fill(AF.grille); // Singleframe grille
-  honeycomb(AF.grille, -220, -410, 220, -156, 'rgba(110,118,130,0.4)', 15);
-  ctx.strokeStyle = '#15181c'; ctx.lineWidth = 8; ctx.stroke(AF.grille);
-  ctx.strokeStyle = 'rgba(220,226,234,0.3)'; ctx.lineWidth = 1.5; ctx.stroke(AF.grille);
-  audiRings(0, -364, 16);
-  s3Badge(-170, -210, 1.5);
-  const drl = o.drl ?? 0, beam = o.beam ?? 0;
-  both(() => {
-    const hg = ctx.createLinearGradient(0, -434, 0, -372); hg.addColorStop(0, '#2a3038'); hg.addColorStop(1, '#0b0d10');
-    ctx.fillStyle = hg; ctx.fill(AF.hl);
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1.5; ctx.stroke(AF.hl);
-    ctx.fillStyle = beam > 0 ? `rgba(235,244,255,${0.4 + 0.6 * beam})` : '#3a4350';
-    ctx.beginPath(); ctx.arc(300, -404, 10, 0, Math.PI * 2); ctx.arc(352, -408, 9, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = drl > 0 ? `rgba(240,248,255,${0.45 + 0.55 * drl})` : 'rgba(120,130,145,0.6)';
-    if (drl > 0) { ctx.shadowColor = 'rgba(200,230,255,0.95)'; ctx.shadowBlur = 18 * drl; }
-    for (let i = 0; i < 6; i++) { // segmented digital daytime lights
-      const x = 252 + i * 30, y = -386 - i * 2.4;
-      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 20, y - 2); ctx.lineTo(x + 16, y - 12); ctx.lineTo(x - 4, y - 10); ctx.closePath(); ctx.fill();
-    }
-    ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(244, -414); ctx.lineTo(430, -428); ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#040506'; ctx.fill(AF.side); // side intakes with an aluminium-look blade
-    honeycomb(AF.side, 250, -372, 460, -140, 'rgba(110,118,130,0.35)', 13);
-    ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 4; ctx.stroke(AF.side);
-    ctx.save(); ctx.clip(AF.side); ctx.fillStyle = silverGrad(-268, -250);
-    ctx.beginPath(); ctx.moveTo(250, -262); ctx.lineTo(460, -280); ctx.lineTo(460, -266); ctx.lineTo(250, -248); ctx.fill(); ctx.restore();
-  });
-  ctx.fillStyle = '#0a0b0d'; ctx.fill(AF.splitter);
-  ctx.fillStyle = silverGrad(-46, -40); ctx.fillRect(-300, -46, 600, 5);
-  ctx.save(); ctx.clip(AF.body); ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 3; ctx.stroke(AF.body); ctx.restore();
-  frontLights(o, 330, -408, '255,150,130');
-  ctx.restore();
-}
-
-// ---------- side views ----------
-const SIDE = {
-  golf: {
-    RW: 182, FW: 795, r: 75, P: PAL.golf, caliper: '#2156c8', wheel: 'split5',
-    body(k) {
-      const p = new Path2D();
-      p.moveTo(30, -36); p.lineTo(90, -36); p.arc(182, -75, 88, 2.66, 0.48, false);
-      p.lineTo(707, -36); p.arc(795, -75, 88, 2.66, 0.48, false); p.lineTo(925, -36);
-      p.quadraticCurveTo(978, -38, 990, -58); p.lineTo(997, -92);
-      p.bezierCurveTo(1002, -118, 1000, -140, 990, -158); p.quadraticCurveTo(982, -170, 966, -174);
-      p.bezierCurveTo(890, -190, 780, -210, 690, -228);
-      p.bezierCurveTo(650, -258, 590, -300, 540, -324);
-      p.bezierCurveTo(...L2([480, -338, 330, -340, 230, -334], [480, -338, 250, -338, 90, -332], k));
-      p.bezierCurveTo(...L2([170, -330, 120, -322, 104, -314], [62, -330, 48, -320, 44, -302], k));
-      p.bezierCurveTo(...L2([84, -300, 66, -270, 56, -240], [40, -282, 36, -262, 34, -240], k));
-      p.lineTo(30, -232); p.bezierCurveTo(20, -200, 16, -160, 18, -120); p.lineTo(20, -70);
-      p.bezierCurveTo(22, -50, 26, -40, 30, -36); p.closePath(); return p;
-    },
-    glass(k) {
-      const p = new Path2D();
-      p.moveTo(680, -232); p.bezierCurveTo(640, -262, 590, -298, 548, -316);
-      p.bezierCurveTo(...L2([480, -327, 340, -328, 252, -322], [480, -327, 250, -327, 104, -320], k));
-      p.bezierCurveTo(...L2([232, -300, 262, -262, 292, -238], [92, -300, 90, -270, 94, -240], k));
-      p.lineTo(680, -232); p.closePath(); return p;
-    },
-    pillars: k => [[468, 0], [lerp(-1, 262, k), 1]],
-    shoulder: [[970, -178], [600, -196], [300, -204], [40, -210]],
-    tail: [[18, -228], [116, -232], [120, -212], [22, -206]],
-    head: [[996, -162], [930, -172], [922, -162], [994, -150]],
-    spoiler: k => [[lerp(110, 46, k), -334], [lerp(196, 120, k), -338], [lerp(186, 112, k), -330], [lerp(100, 40, k), -322]],
-    badge: (x, y) => rBadge(x, y, 0.9),
-  },
-  audi: {
-    RW: 190, FW: 795, r: 74, P: PAL.audi, caliper: '#c61f1f', wheel: 'star10',
-    body(k) {
-      const p = new Path2D();
-      p.moveTo(32, -36); p.lineTo(100, -36); p.arc(190, -74, 88, 2.66, 0.48, false);
-      p.lineTo(707, -36); p.arc(795, -74, 88, 2.66, 0.48, false); p.lineTo(928, -36);
-      p.quadraticCurveTo(982, -38, 993, -60); p.lineTo(999, -96);
-      p.bezierCurveTo(1003, -120, 1001, -142, 991, -160); p.quadraticCurveTo(983, -171, 966, -175);
-      p.bezierCurveTo(890, -190, 780, -210, 692, -224);
-      p.bezierCurveTo(650, -254, 592, -296, 540, -318);
-      p.bezierCurveTo(...L2([480, -330, 340, -332, 240, -322], [480, -330, 360, -332, 270, -318], k));
-      p.bezierCurveTo(...L2([180, -314, 130, -298, 104, -282], [220, -302, 170, -270, 140, -254], k));
-      p.bezierCurveTo(...L2([84, -268, 66, -254, 52, -240], [100, -250, 60, -248, 40, -246], k));
-      p.lineTo(30, -238); p.bezierCurveTo(20, -204, 16, -164, 18, -124); p.lineTo(20, -74);
-      p.bezierCurveTo(22, -52, 26, -42, 32, -36); p.closePath(); return p;
-    },
-    glass(k) {
-      const p = new Path2D();
-      p.moveTo(682, -228); p.bezierCurveTo(642, -258, 590, -292, 548, -310);
-      p.bezierCurveTo(...L2([480, -320, 350, -321, 262, -312], [480, -320, 360, -321, 290, -308], k));
-      p.bezierCurveTo(...L2([230, -300, 200, -270, 186, -248], [250, -290, 222, -262, 206, -246], k));
-      p.lineTo(682, -228); p.closePath(); return p;
-    },
-    pillars: k => [[470, 0], [lerp(300, 318, k), 1]],
-    shoulder: [[972, -182], [600, -198], [300, -206], [36, -214]],
-    tail: [[18, -232], [122, -240], [118, -220], [22, -214]],
-    head: [[997, -166], [924, -178], [916, -166], [995, -152]],
-    spoiler: k => [[100, -286], [140, -292], [128, -284], [96, -280]].map(([x, y]) => [lerp(x, x + 40, k), lerp(y, y + 30, k)]),
-    badge: null,
-  },
-};
-function sideWheel(spec, cx, cy, rot, blur) {
-  ctx.save(); ctx.translate(cx, cy);
-  const R = spec.r;
-  const tg = ctx.createRadialGradient(0, 0, R * 0.7, 0, 0, R);
-  tg.addColorStop(0, '#1a1c20'); tg.addColorStop(0.5, '#0d0e11'); tg.addColorStop(1, '#050506');
-  ctx.fillStyle = tg; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#0b0c0f'; ctx.beginPath(); ctx.arc(0, 0, R * 0.72, 0, Math.PI * 2); ctx.fill();
-  const dg = ctx.createRadialGradient(0, 0, 6, 0, 0, R * 0.56); dg.addColorStop(0, '#3d4046'); dg.addColorStop(1, '#6d7178');
-  ctx.fillStyle = dg; ctx.beginPath(); ctx.arc(0, 0, R * 0.55, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = spec.caliper;
-  ctx.beginPath(); ctx.arc(0, 0, R * 0.6, -2.5, -1.35); ctx.arc(0, 0, R * 0.4, -1.35, -2.5, true); ctx.closePath(); ctx.fill();
-  const sa = 1 - blur * 0.85;
-  ctx.save(); ctx.rotate(rot);
-  if (spec.wheel === 'split5') { // Golf R: five split spokes, dark grey
-    for (let i = 0; i < 5; i++) for (const off of [-0.15, 0.15]) {
-      ctx.save(); ctx.rotate(i * Math.PI * 2 / 5 + off);
-      const g = ctx.createLinearGradient(-6, 0, 6, 0); g.addColorStop(0, `rgba(45,48,54,${sa})`); g.addColorStop(0.5, `rgba(130,136,146,${sa})`); g.addColorStop(1, `rgba(45,48,54,${sa})`);
-      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-6, -10); ctx.lineTo(6, -10); ctx.lineTo(4, -R * 0.7); ctx.lineTo(-4, -R * 0.7); ctx.closePath(); ctx.fill(); ctx.restore();
-    }
-  } else { // S3: ten thin spokes, titanium
-    for (let i = 0; i < 10; i++) {
-      ctx.save(); ctx.rotate(i * Math.PI / 5);
-      const g = ctx.createLinearGradient(-4, 0, 4, 0); g.addColorStop(0, `rgba(80,84,90,${sa})`); g.addColorStop(0.5, `rgba(185,190,198,${sa})`); g.addColorStop(1, `rgba(80,84,90,${sa})`);
-      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-4, -10); ctx.lineTo(4, -10); ctx.lineTo(3, -R * 0.7); ctx.lineTo(-3, -R * 0.7); ctx.closePath(); ctx.fill(); ctx.restore();
-    }
+  for (let i = 0; i < n; i++) {
+    const sp = 0.5 + r(), x = ((r() * W - t * 900 * sp) % W + W) % W, y = ((r() * H + t * 260 * sp) % H + H) % H;
+    glowDot(x, y, 2 + r() * 6, '235,240,255', a * (0.25 + 0.6 * r()));
   }
   ctx.restore();
-  if (blur > 0) { ctx.fillStyle = `rgba(80,86,96,${blur * 0.5})`; ctx.beginPath(); ctx.arc(0, 0, R * 0.7, 0, Math.PI * 2); ctx.arc(0, 0, 10, 0, Math.PI * 2, true); ctx.fill(); }
-  ctx.strokeStyle = '#4c525b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, R * 0.71, 0, Math.PI * 2); ctx.stroke();
-  ctx.fillStyle = '#16181b'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+}
+function label(t, t0, ax, ay, lx, ly, str, col) { // leader line + label pointing at something in a photo
+  const p = eOC(prog(t, t0, t0 + 0.35)); if (p <= 0) return;
+  ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.shadowColor = col; ctx.shadowBlur = 12;
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(lerp(ax, lx, p), lerp(ay, ly, p)); ctx.stroke();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(ax, ay, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.arc(ax, ay, 8 + 16 * ((t * 1.4) % 1), 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+  const w = measure(str, { s: 40, w: 900, ls: 6 }) + 44;
+  ctx.save(); ctx.globalAlpha = p; ctx.fillStyle = 'rgba(5,7,12,0.82)'; ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(lx - w / 2, ly - 46, w, 62, 10); ctx.fill(); ctx.stroke(); ctx.restore();
+  text(str, lx, ly, { a: 'center', s: 40, w: 900, ls: 6, al: p });
+}
+function chip(t, t0, x, y, str, col, fill) {
+  const p = eOB(prog(t, t0, t0 + 0.3)); if (p <= 0) return;
+  const w = measure(str, { s: 26, w: 800, ls: 3 }) + 48;
+  ctx.save(); ctx.translate(x, y); ctx.scale(clamp(p, 0, 1.2), clamp(p, 0, 1.2));
+  ctx.fillStyle = fill; ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(0, -36, w, 52, 26); ctx.fill(); ctx.stroke();
+  text(str, w / 2, 0, { a: 'center', s: 26, w: 800, c: '#fff', ls: 3 });
   ctx.restore();
 }
-const L2 = (a, b, k) => a.map((v, i) => lerp(v, b[i], k));
-function poly(P) { const p = new Path2D(); p.moveTo(...P[0]); for (const q of P.slice(1)) p.lineTo(...q); p.closePath(); return p; }
-function drawSideCar(which, x, y, s, o = {}) {
-  const spec = SIDE[which], k = o.k || 0, P = spec.P;
-  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
-  if (o.alpha != null) ctx.globalAlpha *= o.alpha;
-  const body = spec.body(k), glass = spec.glass(k);
-  if (o.blueprint != null) {
-    ctx.lineWidth = 3 / s; ctx.strokeStyle = o.bpColor || 'rgba(120,200,255,0.9)';
-    ctx.shadowColor = o.bpColor || 'rgba(80,180,255,0.6)'; ctx.shadowBlur = 12;
-    ctx.setLineDash([3600, 3600]); ctx.lineDashOffset = 3600 * (1 - o.blueprint);
-    ctx.stroke(body); ctx.stroke(glass); ctx.setLineDash([]);
-    ctx.globalAlpha *= clamp(o.blueprint * 1.5 - 0.3);
-    for (const wx of [spec.RW, spec.FW]) for (const r of [spec.r, spec.r * 0.7, 10]) { ctx.beginPath(); ctx.arc(wx, -spec.r, r, 0, Math.PI * 2); ctx.stroke(); }
-    ctx.restore(); return;
-  }
-  if (!o.noShadow) contactShadow(500, 560);
-  ctx.fillStyle = '#020303';
-  ctx.beginPath(); ctx.arc(spec.RW, -spec.r, 85, Math.PI, 0); ctx.arc(spec.FW, -spec.r, 85, Math.PI, 0); ctx.fill();
-  sideWheel(spec, spec.RW, -spec.r, o.rot || 0, o.blur || 0); sideWheel(spec, spec.FW, -spec.r, o.rot || 0, o.blur || 0);
-  const pg = ctx.createLinearGradient(0, -340, 0, -30);
-  pg.addColorStop(0, P.c); pg.addColorStop(0.16, P.b); pg.addColorStop(0.36, P.e); pg.addColorStop(0.43, P.d); pg.addColorStop(0.47, P.e); pg.addColorStop(0.75, P.f); pg.addColorStop(1, P.g);
-  ctx.fillStyle = pg; ctx.fill(body);
-  ctx.save(); ctx.clip(body);
-  for (const wx of [spec.RW, spec.FW]) { // arch flares (pronounced on the S3's quattro blisters)
-    ctx.strokeStyle = which === 'audi' ? 'rgba(255,220,210,0.38)' : 'rgba(210,230,255,0.25)'; ctx.lineWidth = which === 'audi' ? 6 : 4;
-    ctx.beginPath(); ctx.arc(wx, -spec.r, 101, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
-    ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 9;
-    ctx.beginPath(); ctx.arc(wx, -spec.r, 93, Math.PI * 1.02, Math.PI * 1.98); ctx.stroke();
-  }
-  ctx.fillStyle = '#07090a'; ctx.fillRect(0, -50, 1010, 16); // side skirt
-  if (o.sweep > 0 && o.sweep < 1) {
-    const sx = lerp(-300, 1300, o.sweep);
-    const lg = ctx.createLinearGradient(sx - 160, 0, sx + 160, 0);
-    lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(255,255,255,0.42)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = lg; ctx.save(); ctx.transform(1, 0, -0.5, 1, 0, 0); ctx.fillRect(sx - 300, -360, 600, 360); ctx.restore();
-  }
-  ctx.restore();
-  ctx.lineWidth = 9; ctx.strokeStyle = '#050608'; ctx.stroke(glass);
-  const gg = ctx.createLinearGradient(0, -330, 0, -228); gg.addColorStop(0, '#3c4b58'); gg.addColorStop(0.45, '#141b22'); gg.addColorStop(1, '#07090c');
-  ctx.fillStyle = gg; ctx.fill(glass);
-  ctx.save(); ctx.clip(glass);
-  ctx.fillStyle = 'rgba(200,225,255,0.10)'; ctx.beginPath(); ctx.moveTo(580, -340); ctx.lineTo(640, -340); ctx.lineTo(520, -220); ctx.lineTo(460, -220); ctx.fill();
-  ctx.fillStyle = '#050608';
-  for (const [px, on] of spec.pillars(k)) if (px > 0 && (on === 0 || k > 0.05 || which === 'audi')) { ctx.beginPath(); ctx.moveTo(px - 4, -340); ctx.lineTo(px + 10, -340); ctx.lineTo(px + 2, -220); ctx.lineTo(px - 12, -220); ctx.fill(); }
-  ctx.restore();
-  ctx.fillStyle = '#08090b'; ctx.fill(poly(spec.spoiler(k)));
-  ctx.lineCap = 'round';
-  const sh = spec.shoulder; // sharp shoulder line
-  ctx.strokeStyle = which === 'audi' ? 'rgba(255,225,215,0.42)' : 'rgba(215,230,255,0.38)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(...sh[0]); ctx.bezierCurveTo(...sh[1], ...sh[2], ...sh[3]); ctx.stroke();
-  ctx.strokeStyle = 'rgba(0,0,0,0.38)'; ctx.beginPath(); ctx.moveTo(sh[0][0], sh[0][1] + 5); ctx.bezierCurveTo(sh[1][0], sh[1][1] + 5, sh[2][0], sh[2][1] + 5, sh[3][0], sh[3][1] + 5); ctx.stroke();
-  ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1.5; // shut lines
-  ctx.beginPath(); ctx.moveTo(684, -228); ctx.bezierCurveTo(696, -170, 700, -110, 700, -52); ctx.moveTo(466, -230); ctx.lineTo(468, -52); ctx.stroke();
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(588, -196, 40, 4); ctx.fillRect(380, -200, 40, 4);
-  ctx.fillStyle = silverGrad(-262, -230); // aluminium / matte-chrome mirror cap
-  ctx.beginPath(); ctx.moveTo(668, -230); ctx.quadraticCurveTo(654, -262, 622, -263); ctx.lineTo(604, -252); ctx.quadraticCurveTo(614, -234, 644, -230); ctx.closePath(); ctx.fill();
-  if (spec.badge) spec.badge(752, -150);
-  const lo = o.lights ?? 0;
-  ctx.fillStyle = lo > 0 ? `rgba(240,248,255,${0.5 + 0.5 * lo})` : '#262d34'; ctx.fill(poly(spec.head));
-  ctx.fillStyle = lo > 0 ? `rgba(255,40,40,${0.6 + 0.4 * lo})` : '#5a1414'; ctx.fill(poly(spec.tail));
-  ctx.fillStyle = '#060708'; ctx.beginPath(); ctx.moveTo(10, -70); ctx.lineTo(96, -64); ctx.lineTo(88, -34); ctx.lineTo(30, -32); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#7b8088'; ctx.beginPath(); ctx.ellipse(22, -50, 9, 11, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#0a0a0a'; ctx.beginPath(); ctx.ellipse(21, -50, 5, 7, 0, 0, Math.PI * 2); ctx.fill();
-  if (lo > 0) {
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    glowDot(990, -160, 90, '200,230,255', 0.5 * lo); glowDot(40, -220, 90, '255,40,40', 0.5 * lo);
-    if (o.beam) {
-      const g = ctx.createLinearGradient(1000, 0, 1700, 0); g.addColorStop(0, `rgba(210,230,255,${0.2 * lo})`); g.addColorStop(1, 'rgba(210,230,255,0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(995, -162); ctx.lineTo(1700, -70); ctx.lineTo(1700, 30); ctx.lineTo(995, -146); ctx.closePath(); ctx.fill();
-    }
-    ctx.restore();
-  }
-  ctx.save(); ctx.clip(body); ctx.strokeStyle = 'rgba(255,255,255,0.17)'; ctx.lineWidth = 3; ctx.stroke(body); ctx.restore();
-  ctx.restore();
-}
-// Golf R from above, for the Drift-mode scene (nose points along +x)
-function drawGolfTop(x, y, ang, s = 1) {
-  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(s, s);
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fill(roundPoly([[-210, -98], [222, -94], [222, 94], [-210, 98]], 40));
-  ctx.fillStyle = '#0b0c0e';
-  for (const [wx, wy] of [[-130, -92], [-130, 92], [140, -92], [140, 92]]) ctx.fillRect(wx - 32, wy - 13, 64, 26);
-  const body = roundPoly([[-206, -86], [150, -88], [214, -64], [214, 64], [150, 88], [-206, 86]], [26, 30, 22, 22, 30, 26]);
-  const g = ctx.createLinearGradient(0, -90, 0, 90); g.addColorStop(0, PAL.golf.f); g.addColorStop(0.3, PAL.golf.d); g.addColorStop(0.5, PAL.golf.c); g.addColorStop(0.7, PAL.golf.d); g.addColorStop(1, PAL.golf.f);
-  ctx.fillStyle = g; ctx.fill(body);
-  ctx.fillStyle = '#0d1218'; ctx.fill(roundPoly([[18, -70], [92, -60], [92, 60], [18, 70]], 12));   // windscreen
-  ctx.fillStyle = PAL.golf.e; ctx.fill(roundPoly([[-120, -66], [18, -68], [18, 68], [-120, 66]], 10)); // roof
-  ctx.fillStyle = '#0d1218'; ctx.fill(roundPoly([[-172, -60], [-120, -64], [-120, 64], [-172, 60]], 10)); // rear screen
-  ctx.fillStyle = '#08090b'; ctx.fillRect(-182, -62, 12, 124);                                        // spoiler
-  ctx.fillStyle = silverGrad(-10, 10); ctx.fillRect(30, -104, 22, 16); ctx.fillRect(30, 88, 22, 16);  // mirrors
-  ctx.fillStyle = 'rgba(240,248,255,0.95)'; ctx.fillRect(206, -60, 6, 36); ctx.fillRect(206, 24, 6, 36);
-  ctx.fillStyle = 'rgba(255,40,40,0.9)'; ctx.fillRect(-210, -70, 6, 30); ctx.fillRect(-210, 40, 6, 30);
-  ctx.strokeStyle = 'rgba(200,225,255,0.25)'; ctx.lineWidth = 2; ctx.stroke(body);
-  ctx.restore();
-}
+function topShade(a = 0.65, h = 380) { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, h); }
 
 /* =====================================================================
    SCENE TIMING — every beat hangs off the measured voiceover
@@ -849,368 +517,313 @@ function wt(id, word) { // start time of the first caption word containing `word
   return w ? w.s : VO[id].on;
 }
 const CUT = [0, ON('03') - 0.35, ON('05') - 0.35, ON('06') - 0.3, ON('07') - 0.3, ON('08') - 0.3, ON('09') - 0.3, ON('10') - 0.3, ON('11') - 0.3, DURATION];
-const B = { // named beats
-  golf: wt('01', 'Golf'), audi: wt('01', 'Audi'), vs: OFF('01') + 0.05, which: wt('02', 'which'),
+const B = {
+  golf: wt('01', 'Golf'), audi: wt('01', 'Audi'), vs: OFF('01') + 0.05, which: wt('02', 'which'), find: wt('02', 'find'),
   twins: wt('03', 'twins'), turbo: wt('04', '2.0'), hp: wt('04', '333'), awd: wt('04', 'four-wheel'), torque: wt('04', 'torque'),
-  race: ON('05') + 0.15, hoolig: wt('06', 'hooligan'), pack: wt('06', 'R-Performance'), drift: wt('06', 'Drift'),
-  premium: wt('07', 'premium'), sportback: wt('07', 'Sportback'), saloon: wt('07', 'saloon'),
-  boot: wt('08', 'boot'), estate: wt('08', 'estate'), prices: wt('09', 'Neck'), k47: wt('09', '£47k'),
-  wild: wt('10', 'wilder'), vGolf: wt('10', 'Golf'), badge: wt('10', 'badge'), vAudi: wt('10', 'Audi'), comments: wt('11', 'comments'),
+  g46: wt('05', '4.6'), s3: wt('05', 'S3'), s47: wt('05', '4.7'), tenth: wt('05', 'tenth'),
+  hoolig: wt('06', 'hooligan'), pack: wt('06', 'R-Performance'), drift: wt('06', 'Drift'), really: wt('06', 'really'),
+  grown: wt('07', 'grown-up'), classier: wt('07', 'classier'), sportback: wt('07', 'Sportback'), saloon: wt('07', 'saloon'),
+  boot: wt('08', 'boot'), estate: wt('08', 'estate'), dog: wt('08', 'Dog'), prices: wt('09', 'neck'), k47: wt('09', '£47k'),
+  wild: wt('10', 'wilder'), vGolf: wt('10', 'Golf'), badge: wt('10', 'badge'), vAudi: wt('10', 'S3'), comments: wt('11', 'comments'),
 };
 
 /* =====================================================================
    SCENES
    ===================================================================== */
-function studioBg(tint = '70,110,150') {
-  ctx.fillStyle = '#04060a'; ctx.fillRect(0, 0, W, H);
-  const g = ctx.createRadialGradient(960, 240, 0, 960, 240, 1100);
-  g.addColorStop(0, `rgba(${tint},0.28)`); g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-}
-// split-screen with a glowing diagonal seam; left = Golf, right = Audi
-function splitScreen(t, drawL, drawR, seam = 1, tintL = '40,90,200', tintR = '200,40,40') {
+function splitScreen(t, drawL, drawR, seam = 1) {
   const sl = 0.18, cx = 960;
   const clipSide = left => { ctx.beginPath(); if (left) { ctx.moveTo(0, 0); ctx.lineTo(cx + H * sl / 2, 0); ctx.lineTo(cx - H * sl / 2, H); ctx.lineTo(0, H); } else { ctx.moveTo(cx + H * sl / 2, 0); ctx.lineTo(W, 0); ctx.lineTo(W, H); ctx.lineTo(cx - H * sl / 2, H); } ctx.closePath(); ctx.clip(); };
-  for (const left of [true, false]) {
-    ctx.save(); clipSide(left);
-    ctx.fillStyle = '#04060a'; ctx.fillRect(0, 0, W, H);
-    const g = ctx.createRadialGradient(left ? 480 : 1440, 300, 0, left ? 480 : 1440, 300, 900);
-    g.addColorStop(0, `rgba(${left ? tintL : tintR},0.32)`); g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    (left ? drawL : drawR)();
-    ctx.restore();
-  }
+  for (const left of [true, false]) { ctx.save(); clipSide(left); (left ? drawL : drawR)(); ctx.restore(); }
   if (seam > 0) {
-    ctx.save(); ctx.globalAlpha = seam; ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3; ctx.shadowColor = '#fff'; ctx.shadowBlur = 24;
+    ctx.save(); ctx.globalAlpha = seam; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4; ctx.shadowColor = '#fff'; ctx.shadowBlur = 24;
     ctx.beginPath(); ctx.moveTo(cx + H * sl / 2, 0); ctx.lineTo(cx - H * sl / 2, H); ctx.stroke(); ctx.restore();
   }
 }
-function nameplate(str, x, y, t, t0, col, align = 'center', s = 96) {
-  line(str, x, y, t, t0, 999, { a: align, s, w: 900, ls: 4, c: '#ffffff', glow: `rgba(${col},0.55)`, gb: 30, st: 0.04, d: 0.3 });
+function nameplate(str, x, y, t, t0, col, s = 96) {
+  line(str, x, y, t, t0, 999, { a: 'center', s, w: 900, ls: 4, c: '#ffffff', glow: `rgba(${col},0.7)`, gb: 30, st: 0.04, d: 0.25 });
 }
 function vsBadge(t, t0, x = 960, y = 470, sz = 1) {
-  const p = eOB(prog(t, t0, t0 + 0.35)); if (p <= 0) return;
+  const p = eOB(prog(t, t0, t0 + 0.3)); if (p <= 0) return;
   ctx.save(); ctx.translate(x, y); const sc = lerp(2.2, 1, clamp(p)) * sz; ctx.scale(sc, sc); ctx.globalAlpha = clamp(prog(t, t0, t0 + 0.1));
-  ctx.fillStyle = 'rgba(5,7,12,0.85)'; ctx.beginPath(); ctx.arc(0, 0, 86, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(5,7,12,0.88)'; ctx.beginPath(); ctx.arc(0, 0, 86, 0, Math.PI * 2); ctx.fill();
   ctx.lineWidth = 6; const g = ctx.createLinearGradient(-86, 0, 86, 0); g.addColorStop(0, C.vw); g.addColorStop(1, C.audi);
   ctx.strokeStyle = g; ctx.stroke();
   ctx.font = font(900, 82); ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(255,255,255,0.6)'; ctx.shadowBlur = 20;
   ctx.fillText('VS', 0, 29);
   ctx.restore();
 }
+const revealed = (t, t0) => { const p = eOC(prog(t, t0 - 0.05, t0 + 0.35)); return `grayscale(${1 - p}) brightness(${0.35 + 0.65 * p})`; };
 
-// 1 · HOOK — both cars, named, then the question
+// 1 · HOOK — both real cars, colour snaps in as each is named
 function sHook(t) {
-  const lg = t >= B.golf - 0.1, la = t >= B.audi - 0.1;
-  const fl = (t0) => t < t0 ? 0 : (t < t0 + 0.12 ? Math.floor(t * 40) % 2 : 1);
-  const zoom = lerp(0.7, 0.75, eIOS(prog(t, 0, CUT[1])));
   splitScreen(t,
-    () => { particles(t, 30, 3, '120,170,255', 0.25 * (lg ? 1 : 0), 100, 800);
-            floorReflect(() => drawGolfFront(520, 840, zoom, { drl: fl(B.golf - 0.1), beam: eOC(prog(t, B.golf, B.golf + 0.4)), noShadow: true }), 840, 0.18, 200);
-            drawGolfFront(520, 840, zoom, { drl: fl(B.golf - 0.1), beam: eOC(prog(t, B.golf, B.golf + 0.4)), flare: lg ? 0.8 : 0 }); },
-    () => { particles(t, 30, 4, '255,140,120', 0.25 * (la ? 1 : 0), 100, 800);
-            floorReflect(() => drawAudiFront(1400, 840, zoom, { drl: fl(B.audi - 0.1), beam: eOC(prog(t, B.audi, B.audi + 0.4)), noShadow: true }), 840, 0.18, 200);
-            drawAudiFront(1400, 840, zoom, { drl: fl(B.audi - 0.1), beam: eOC(prog(t, B.audi, B.audi + 0.4)), flare: la ? 0.8 : 0 }); },
+    () => photo('golf_hero', 0, 0, 1060, H, { z: kb(t, 0, CUT[1], 1.25, 1.45), dx: 60, filter: revealed(t, B.golf) }),
+    () => photo('s3_sb_front', 860, 0, 1060, H, { z: kb(t, 0, CUT[1], 1.55, 1.75), dx: -60, filter: revealed(t, B.audi) }),
     prog(t, 0.1, 0.5));
-  ringBurst(520, 560, t, B.golf, '120,175,255', 480, 2, 0);
-  ringBurst(1400, 560, t, B.audi, '255,130,110', 480, 2, 0);
+  topShade(0.6, 330);
+  ringBurst(500, 640, t, B.golf, '120,175,255', 460, 2, 0);
+  ringBurst(1420, 600, t, B.audi, '255,130,110', 460, 2, 0);
   nameplate('GOLF R', 420, 170, t, B.golf - 0.05, '80,150,255');
-  line('VOLKSWAGEN', 420, 214, t, B.golf + 0.05, 999, { a: 'center', s: 24, w: 700, ls: 10, c: '#9fc3ff' });
+  line('VOLKSWAGEN', 420, 214, t, B.golf + 0.05, 999, { a: 'center', s: 24, w: 700, ls: 10, c: '#bcd5ff' });
   nameplate('AUDI S3', 1500, 170, t, B.audi - 0.05, '255,110,90');
-  line('S3 · 333 PS', 1500, 214, t, B.audi + 0.05, 999, { a: 'center', s: 24, w: 700, ls: 10, c: '#ffb3a8' });
+  line('SPORTBACK · SALOON', 1500, 214, t, B.audi + 0.05, 999, { a: 'center', s: 24, w: 700, ls: 8, c: '#ffc4ba' });
   vsBadge(t, B.vs, 960, 520);
   ringBurst(960, 520, t, B.vs, '255,255,255', 600, 3, 24);
   flash(t, B.vs, 0.3, 0.35);
-  const wq = eOB(prog(t, B.which, B.which + 0.35));
+  const wq = eOB(prog(t, B.which, B.which + 0.3));
   if (wq > 0) {
     ctx.save(); ctx.translate(960, 760); const sc = clamp(wq, 0, 1.3); ctx.scale(sc, sc); ctx.globalAlpha = clamp(prog(t, B.which, B.which + 0.1));
-    ctx.fillStyle = 'rgba(5,7,12,0.72)'; ctx.fill(roundPoly([[-330, -78], [330, -78], [330, 40], [-330, 40]], 18));
+    ctx.fillStyle = 'rgba(5,7,12,0.78)'; ctx.fill(roundPoly([[-330, -78], [330, -78], [330, 40], [-330, 40]], 18));
     text('WHICH ONE?', 0, 14, { a: 'center', s: 92, w: 900, ls: 2 });
     ctx.restore();
   }
 }
 
-// 2 · TWINS — same platform, same numbers, torque to either rear wheel
-function topDiagram(x, y, t, a, t0) { // drivetrain from above, torque pulsing to each rear wheel
+// 2 · TWINS — two near-identical grey hatches, then the shared engine and drivetrain
+function topDiagram(x, y, t, a, t0) { // torque pulsing between the rear wheels
   if (a <= 0) return;
   ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y);
+  ctx.fillStyle = 'rgba(5,8,14,0.75)'; ctx.fill(roundPoly([[-290, -150], [310, -150], [310, 150], [-290, 150]], 20));
   ctx.strokeStyle = 'rgba(160,200,255,0.7)'; ctx.lineWidth = 2.5;
   ctx.stroke(roundPoly([[-230, -90], [200, -90], [250, -60], [250, 60], [200, 90], [-230, 90]], 30));
-  const wheels = [[-150, -100], [-150, 100], [170, -100], [170, 100]];
   const sideBias = Math.sin((t - t0) * 4.2);
-  wheels.forEach(([wx, wy], i) => {
+  [[-150, -100], [-150, 100], [170, -100], [170, 100]].forEach(([wx, wy], i) => {
     const rear = i < 2, v = rear ? clamp(0.5 + (i === 0 ? -sideBias : sideBias) * 0.5) : 0.35;
     ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(wx - 36, wy - 14, 72, 28);
     ctx.fillStyle = rear ? (v > 0.6 ? C.amber : C.vw) : 'rgba(160,200,255,0.6)'; ctx.fillRect(wx - 36, wy - 14, 72 * v, 28);
   });
   ctx.strokeStyle = 'rgba(160,200,255,0.5)'; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.moveTo(170, -86); ctx.lineTo(170, 86); ctx.moveTo(170, 0); ctx.lineTo(-150, 0); ctx.moveTo(-150, -86); ctx.lineTo(-150, 86); ctx.stroke();
-  ctx.fillStyle = C.amber; ctx.fillRect(130, -30, 80, 60);                     // engine
+  ctx.fillStyle = C.amber; ctx.fillRect(130, -30, 80, 60);
   ctx.restore();
   flow([[x + 170, y], [x - 150, y]], t, 'rgba(255,190,90,A)', 6, 1.4, 5, a);
   flow([[x - 150, y], [x - 150, y - 86]], t, 'rgba(255,190,90,A)', 4, 1.2, 5, a * clamp(0.5 - sideBias * 0.6));
   flow([[x - 150, y], [x - 150, y + 86]], t, 'rgba(255,190,90,A)', 4, 1.2, 5, a * clamp(0.5 + sideBias * 0.6));
 }
 function sTwins(t) {
-  blueprintBg(t);
-  header(t, CUT[1] + 0.1, CUT[2], 'Under the skin');
-  const t0 = CUT[1], shrink = eIOC(prog(t, B.turbo - 0.3, B.turbo + 0.3));
-  const slide = eOC(prog(t, t0, t0 + 0.8));
-  const S = lerp(1.0, 0.52, shrink), GY = lerp(760, 470, shrink), X = 960 - 500 * S;
-  drawSideCar('golf', X - (1 - slide) * 900, GY, S, { blueprint: eIOC(prog(t, t0, t0 + 0.9)), bpColor: 'rgba(110,170,255,0.95)' });
-  drawSideCar('audi', X + (1 - slide) * 900, GY, S, { blueprint: eIOC(prog(t, t0 + 0.1, t0 + 1.0)), bpColor: 'rgba(255,120,100,0.9)' });
-  scanBar(lerp(X - 60, X + 1010 * S, eIOC(prog(t, t0 + 0.4, t0 + 1.3))), GY - 360 * S, GY + 10, env(t, t0 + 0.4, t0 + 1.4, 0.1, 0.2));
-  const tw = eOB(prog(t, B.twins, B.twins + 0.35));
-  if (tw > 0 && shrink < 1) {
-    ctx.save(); ctx.globalAlpha = (1 - shrink) * clamp(prog(t, B.twins, B.twins + 0.1)); ctx.translate(960, 300); const sc = clamp(tw, 0, 1.2); ctx.scale(sc, sc);
-    text('TWINS', 0, 0, { a: 'center', s: 150, w: 900, ls: 20, glow: 'rgba(255,190,90,0.5)', gb: 40 });
-    ctx.restore();
-    text('Same MQB Evo platform', 960, 360, { a: 'center', s: 30, w: 600, c: C.mute, al: (1 - shrink) * prog(t, B.twins + 0.2, B.twins + 0.5) });
-  }
-  // spec rows: Golf | = | Audi
-  const rows = [['2.0 TSI turbo', '2.0 TFSI turbo', B.turbo], ['333 PS · 420 Nm', '333 PS · 420 Nm', B.hp], ['4MOTION', 'quattro', B.awd]];
-  rows.forEach(([gL, aL, tr], i) => {
-    const p = eOC(prog(t, tr, tr + 0.3)); if (p <= 0) return;
-    const y = 590 + i * 72;
-    ctx.save(); ctx.globalAlpha = p;
-    text(gL, 860 - (1 - p) * 60, y, { a: 'right', s: 40, w: 800, c: '#cfe0ff' });
-    text(aL, 1060 + (1 - p) * 60, y, { a: 'left', s: 40, w: 800, c: '#ffd0c8' });
-    text('=', 960, y, { a: 'center', s: 44, w: 900, c: C.amber });
-    ctx.restore();
-  });
-  topDiagram(1560, 300, t, prog(t, B.torque - 0.2, B.torque + 0.2) * (1 - prog(t, CUT[2] - 0.2, CUT[2])), B.torque);
-  if (t > B.torque) text('TORQUE TO EITHER REAR WHEEL', 1560, 450, { a: 'center', s: 22, w: 700, c: C.amber, ls: 4, al: prog(t, B.torque, B.torque + 0.3) });
+  const t0 = CUT[1];
+  shots(t, [
+    [t0, () => {
+      photo('golf_bridge', 0, 0, 958, H, { z: kb(t, t0, B.turbo, 1.5, 1.65), f: [0.55, 0.62] });
+      photo('s3_sb_drive', 962, 0, 958, H, { z: kb(t, t0, B.turbo, 1.75, 1.9) });
+      ctx.fillStyle = '#fff'; ctx.fillRect(958, 0, 4, H);
+      topShade(0.55, 300);
+      text('GOLF R', 479, 120, { a: 'center', s: 34, w: 900, ls: 8, c: '#cfe0ff', al: prog(t, t0 + 0.2, t0 + 0.5) });
+      text('AUDI S3', 1441, 120, { a: 'center', s: 34, w: 900, ls: 8, c: '#ffd0c8', al: prog(t, t0 + 0.2, t0 + 0.5) });
+      const tw = eOB(prog(t, B.twins, B.twins + 0.3));
+      if (tw > 0) {
+        ctx.save(); ctx.translate(960, 560); const sc = clamp(tw, 0, 1.2); ctx.scale(sc, sc); ctx.globalAlpha = clamp(prog(t, B.twins, B.twins + 0.1));
+        ctx.fillStyle = 'rgba(5,7,12,0.8)'; ctx.fill(roundPoly([[-300, -120], [300, -120], [300, 40], [-300, 40]], 18));
+        text('TWINS', 0, 0, { a: 'center', s: 150, w: 900, ls: 20, glow: 'rgba(255,190,90,0.5)', gb: 40 });
+        ctx.restore();
+        ringBurst(960, 500, t, B.twins, '255,200,120', 520, 2, 18);
+      }
+    }],
+    [B.turbo - 0.15, () => {
+      photo('golf_engine', 0, 0, W, H, { z: kb(t, B.turbo, CUT[2], 1.1, 1.3), dark: 0.55, f: [0.5, 0.42] });
+      header(t, B.turbo, CUT[2], 'Under the skin');
+      const rows = [['2.0 TSI turbo', '2.0 TFSI turbo', B.turbo], ['333 PS · 420 Nm', '333 PS · 420 Nm', B.hp], ['4MOTION', 'quattro', B.awd]];
+      ctx.save(); ctx.fillStyle = 'rgba(5,8,14,0.7)'; ctx.fill(roundPoly([[420, 170], [1500, 170], [1500, 560], [420, 560]], 20)); ctx.restore();
+      text('GOLF R', 860, 230, { a: 'right', s: 26, w: 900, ls: 6, c: C.vw });
+      text('AUDI S3', 1060, 230, { s: 26, w: 900, ls: 6, c: C.audi });
+      rows.forEach(([gL, aL, tr], i) => {
+        const p = eOC(prog(t, tr, tr + 0.25)); if (p <= 0) return;
+        const y = 330 + i * 86;
+        ctx.save(); ctx.globalAlpha = p;
+        text(gL, 860 - (1 - p) * 60, y, { a: 'right', s: 46, w: 800, c: '#e3ecff' });
+        text(aL, 1060 + (1 - p) * 60, y, { s: 46, w: 800, c: '#ffe0da' });
+        text('=', 960, y, { a: 'center', s: 50, w: 900, c: C.amber });
+        ctx.restore();
+      });
+      topDiagram(960, 760, t, prog(t, B.torque - 0.2, B.torque + 0.2), B.torque);
+      if (t > B.torque) text('TORQUE TO EITHER REAR WHEEL', 960, 940, { a: 'center', s: 24, w: 800, c: C.amber, ls: 5, al: prog(t, B.torque, B.torque + 0.3) * (1 - prog(t, OFF('04') - 0.2, OFF('04'))) });
+    }],
+  ]);
 }
 
-// 3 · DRAG RACE — 0–62 mph
+// 3 · 0–62 — the timers hit 4.6 and 4.7 as they're said
 function sRace(t) {
-  ctx.fillStyle = '#05070b'; ctx.fillRect(0, 0, W, H);
-  header(t, CUT[2] + 0.1, CUT[3], '0–62 mph');
-  const r0 = B.race, run = 2.5;                       // 4.7 s of car time in 2.5 s
-  const tau = Math.max(0, (t - r0) / run * 4.7);
-  const lanes = [['golf', 420, 4.6, C.vw, '#cfe0ff'], ['audi', 760, 4.7, C.audi, '#ffd0c8']];
-  const fin = 1300, x0 = 140, xF = fin - 250; // car x is its centre; its nose crosses the line at xF
-  ctx.fillStyle = '#0c0e12'; ctx.fillRect(0, 300, W, 560);
-  ctx.save(); ctx.setLineDash([60, 40]); ctx.lineDashOffset = -t * 900 * clamp(tau / 2); ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.moveTo(0, 590); ctx.lineTo(W, 590); ctx.stroke(); ctx.restore();
-  for (let k = 0; k < 14; k++) { ctx.fillStyle = k % 2 ? '#fff' : '#111'; ctx.fillRect(fin, 300 + k * 40, 20, 40); ctx.fillStyle = k % 2 ? '#111' : '#fff'; ctx.fillRect(fin + 20, 300 + k * 40, 20, 40); }
-  speedLines(t, clamp(tau / 3) * 0.6, 21, 320, 840, -1);
-  lanes.forEach(([which, gy, tF, col, light]) => {
-    const u = Math.min(tau / tF, 1.6);
-    const x = u <= 1 ? x0 + (xF - x0) * u * u : xF + 170 * eOC(clamp((u - 1) / 0.6)); // coast to a stop past the line
-    drawSideCar(which, x - 500 * 0.5, gy, 0.5, { rot: tau * 30, blur: clamp(tau / 2.5), lights: 1, beam: 0.5 });
-    const done = tau >= tF, shown = Math.min(tau, tF);
-    const pop = done ? eOB(prog(tau, tF, tF + 0.4)) : 1;
-    ctx.save(); ctx.translate(1830, gy - 60); const sc = lerp(1.25, 1, clamp(pop)); ctx.scale(sc, sc);
-    text(shown.toFixed(1), 0, 0, { a: 'right', s: 110, w: 900, c: done ? '#fff' : light, glow: done ? col : null, gb: 30 });
-    text('s', 8, 0, { s: 44, w: 800, c: col });
-    text(which === 'golf' ? 'GOLF R' : 'AUDI S3', 0, 40, { a: 'right', s: 24, w: 800, c: col, ls: 5 });
+  const t0 = CUT[2];
+  const gS = ON('05') + 0.3, sS = Math.max(B.s3 - 1.1, gS + 0.6);
+  const gT = Math.min(4.6, 4.6 * prog(t, gS, B.g46 + 0.05)), sT = Math.min(4.7, 4.7 * prog(t, sS, B.s47 + 0.05));
+  const lanes = [['golf_snow_spray', 0, gT, 4.6, C.vw, '#cfe0ff', 'GOLF R', gS, B.g46], ['s3_sedan_drive', 540, sT, 4.7, C.audi, '#ffd0c8', 'AUDI S3', sS, B.s47]];
+  lanes.forEach(([name, y, v, tF, col, light, nm, st, fin]) => {
+    const u = prog(t, st, fin + 0.05), go = eIC(u);
+    photo(name, 0, y, W, 540, { z: (name.startsWith('golf') ? 1.0 : 1.2) + 0.3 * go + 0.03 * Math.sin(t * 30) * u * (1 - u), blur: u > 0 && u < 1 ? [0, 10 * u] : null, dark: 0.15 });
+    ctx.save(); ctx.beginPath(); ctx.rect(0, y, W, 540); ctx.clip();
+    zoomLines(960, y + 290, t, u > 0 && u < 1.0 ? 0.9 : 0, 60, name.length);
+    const g = ctx.createLinearGradient(1300, 0, W, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.75)');
+    ctx.fillStyle = g; ctx.fillRect(1300, y, 620, 540);
+    const done = v >= tF, pop = done ? eOB(prog(t, fin, fin + 0.35)) : 1;
+    ctx.save(); ctx.translate(1840, y + 330); const sc = lerp(1.3, 1, clamp(pop)); ctx.scale(sc, sc);
+    text(v.toFixed(1), 0, 0, { a: 'right', s: 150, w: 900, c: done ? '#fff' : light, glow: done ? col : null, gb: 34 });
+    text(nm, 0, 52, { a: 'right', s: 30, w: 900, c: col, ls: 6 });
     ctx.restore();
-    if (done) ringBurst(1740, gy - 90, t, r0 + tF / 4.7 * run, which === 'golf' ? '120,175,255' : '255,130,110', 220, 2, 14);
+    text('s', 1850, y + 330, { s: 50, w: 800, c: col });
+    ctx.restore();
+    if (done) ringBurst(1700, y + 270, t, fin, col === C.vw ? '120,175,255' : '255,130,110', 280, 2, 16);
   });
-  if (tau >= 4.6) line('A TENTH APART', 960, 250, t, r0 + run * 4.6 / 4.7, 999, { a: 'center', s: 40, w: 900, ls: 8, c: C.amber });
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 538, W, 4);
+  header(t, t0 + 0.1, CUT[3], '0–62 mph');
+  if (t > B.tenth - 0.05) {
+    const p = eOB(prog(t, B.tenth, B.tenth + 0.3));
+    ctx.save(); ctx.translate(700, 560); ctx.scale(clamp(p, 0, 1.2), clamp(p, 0, 1.2));
+    ctx.fillStyle = C.amber; ctx.fill(roundPoly([[-260, -50], [260, -50], [260, 26], [-260, 26]], 14));
+    text('A TENTH APART', 0, 4, { a: 'center', s: 48, w: 900, c: '#1a1000', ls: 6 });
+    ctx.restore();
+  }
 }
 
-// 4 · GOLF — the hooligan, Drift mode
+// 4 · GOLF — the hooligan, the R-Performance pack, Drift mode
 function sGolf(t) {
   const t0 = CUT[3];
-  ctx.fillStyle = '#0e1013'; ctx.fillRect(0, 0, W, H); // asphalt from above
-  const r = rng(8);
-  for (let i = 0; i < 400; i++) { ctx.fillStyle = `rgba(255,255,255,${0.02 + r() * 0.03})`; ctx.fillRect(r() * W, r() * H, 2, 2); }
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 3; ctx.setLineDash([40, 30]);
-  ctx.beginPath(); ctx.arc(960, 560, 330, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-  const drifting = t >= B.drift;
-  const ang = (t - t0) * (drifting ? 2.6 : 1.2) - 1.2, rad = drifting ? 300 : 330;
-  const cx = 960 + Math.cos(ang) * rad, cy = 560 + Math.sin(ang) * rad * 0.62;
-  const heading = ang + Math.PI / 2 + (drifting ? 0.85 * clamp((t - B.drift) * 3) : 0.05);
-  if (drifting) { // tyre smoke and black marks
-    ctx.save();
-    for (let k = 0; k < 40; k++) {
-      const a2 = ang - k * 0.05, age = k / 40;
-      const px = 960 + Math.cos(a2) * rad, py = 560 + Math.sin(a2) * rad * 0.62;
-      if (a2 < (B.drift - t0) * 2.6 - 1.2) break;
-      ctx.fillStyle = `rgba(10,10,10,${0.35 * (1 - age)})`; ctx.fillRect(px - 6, py - 6, 12, 12);
-      glowDot(px + Math.sin(k * 3.1) * 30, py + Math.cos(k * 2.3) * 20, 40 + age * 90, '200,205,215', 0.18 * (1 - age));
-    }
-    ctx.restore();
-  }
-  drawGolfTop(cx, cy, heading, 0.8);
+  shots(t, [
+    [t0, () => { photo('golf_snow_rear', 0, 0, W, H, { z: kb(t, t0, B.pack, 1.1, 1.3), dx: -40 * prog(t, t0, B.pack) }); snow(t, 0.5, 7, 90); }],
+    [B.pack - 0.1, () => {
+      photo('golf_modes', 0, 0, W, H, { z: kb(t, B.pack, B.drift, 1.25, 1.6), f: [0.53, 0.42], dark: 0.1 });
+      chip(t, B.pack, 120, 300, '+ R-PERFORMANCE PACK', C.vw, 'rgba(61,139,255,0.35)');
+    }],
+    [B.drift - 0.1, () => {
+      const p = prog(t, B.drift, CUT[4]);
+      photo('golf_drift', 0, 0, W, H, { z: kb(t, B.drift, CUT[4], 1.18, 1.38), dx: -120 * p, blur: [-8, 2] });
+      snow(t, 1, 11, 220);
+      const q = eOB(prog(t, B.drift, B.drift + 0.3));
+      ctx.save(); ctx.translate(960, 330); ctx.scale(clamp(q, 0, 1.25), clamp(q, 0, 1.25)); ctx.globalAlpha = clamp(prog(t, B.drift, B.drift + 0.1));
+      ctx.fillStyle = 'rgba(255,178,74,0.92)'; ctx.fill(roundPoly([[-360, -86], [360, -86], [360, 30], [-360, 30]], 16));
+      text('DRIFT MODE', 0, 6, { a: 'center', s: 96, w: 900, c: '#1a1000', ls: 4 });
+      ctx.restore();
+      ringBurst(960, 300, t, B.drift, '255,200,120', 700, 3, 24);
+      if (t > B.really) line('YES, REALLY.', 960, 450, t, B.really, 999, { a: 'center', s: 44, w: 900, c: '#fff', ls: 8 });
+    }],
+  ]);
+  topShade(0.5, 300);
   header(t, t0 + 0.1, CUT[4], 'Golf R');
-  line('THE HOOLIGAN', 120, 210, t, B.hoolig, 999, { s: 70, w: 900, c: '#fff', glow: 'rgba(80,150,255,0.6)' });
-  bgType('HOOLIGAN ·', 980, t, 120, 0.04, 260);
-  if (t > B.pack - 0.05) { // R-Performance pack chip
-    const p = eOB(prog(t, B.pack, B.pack + 0.3));
-    ctx.save(); ctx.translate(120, 280); ctx.scale(clamp(p, 0, 1.2), clamp(p, 0, 1.2));
-    ctx.fillStyle = 'rgba(61,139,255,0.18)'; ctx.strokeStyle = C.vw; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(0, 0, 400, 56, 28); ctx.fill(); ctx.stroke();
-    text('+ R-PERFORMANCE PACK', 200, 37, { a: 'center', s: 24, w: 800, c: '#cfe0ff', ls: 3 });
-    ctx.restore();
-  }
-  // drive-mode selector
-  const modes = ['COMFORT', 'SPORT', 'RACE', 'SPECIAL', 'DRIFT'];
-  const sel = t < B.pack ? 1 : t < B.drift ? 1 + Math.min(3, Math.floor((t - B.pack) / Math.max(0.15, (B.drift - B.pack) / 3))) : 4;
-  const px = 1580, py = 300;
-  ctx.save(); ctx.globalAlpha = prog(t, t0 + 0.2, t0 + 0.5);
-  ctx.fillStyle = 'rgba(5,8,14,0.8)'; ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(px - 190, py - 150, 380, 330, 24); ctx.fill(); ctx.stroke();
-  text('DRIVING PROFILE', px, py - 110, { a: 'center', s: 18, w: 700, c: C.mute, ls: 4 });
-  modes.forEach((m, i) => {
-    const on = i === sel, y = py - 60 + i * 50;
-    if (on) { ctx.fillStyle = i === 4 ? 'rgba(255,178,74,0.25)' : 'rgba(61,139,255,0.25)'; ctx.fillRect(px - 170, y - 34, 340, 46); }
-    text(m, px, y, { a: 'center', s: on ? 34 : 26, w: on ? 900 : 600, c: on ? (i === 4 ? C.amber : '#fff') : C.dim, ls: 4 });
-  });
-  ctx.restore();
-  if (drifting) { ringBurst(px, py + 140, t, B.drift, '255,178,74', 260, 2, 16); flash(t, B.drift, 0.25, 0.25, '255,200,120'); }
+  line('THE HOOLIGAN', 120, 210, t, B.hoolig, B.pack - 0.25, { s: 84, w: 900, glow: 'rgba(80,150,255,0.7)', out: 0.15 });
 }
 
-// 5 · AUDI — the smart one, Sportback or saloon
+// 5 · AUDI — the grown-up, the badge, Sportback or saloon
 function sAudi(t) {
   const t0 = CUT[4];
-  studioBg('150,60,50');
+  let both = null;
+  shots(t, [
+    [t0, () => photo('s3_sedan_front', 0, 0, W, H, { z: kb(t, t0, B.classier, 1.3, 1.45) })],
+    [B.classier - 0.1, () => {
+      photo('s3_sb_front', 0, 0, W, H, { z: kb(t, B.classier, B.sportback, 2.1, 2.5), f: [0.53, 0.54] });
+      chip(t, B.classier, 120, 300, 'PREMIUM BADGE', C.audi, 'rgba(255,59,48,0.35)');
+    }],
+    [B.sportback - 0.15, () => { both = photo('s3_both', 0, 0, W, H, { z: kb(t, B.sportback, CUT[5], 1.12, 1.22), f: [0.47, 0.6] }); }],
+  ]);
+  topShade(0.5, 300);
   header(t, t0 + 0.1, CUT[5], 'Audi S3');
-  const toSide = eIOC(prog(t, B.sportback - 0.6, B.sportback - 0.1));
-  if (toSide < 1) { // front, the rings catch the light
-    ctx.save(); ctx.globalAlpha = 1 - toSide;
-    const s = lerp(0.95, 1.05, eIOS(prog(t, t0, B.sportback)));
-    floorReflect(() => drawAudiFront(960, 860, s, { drl: 1, beam: 1, noShadow: true }), 860, 0.18, 220);
-    drawAudiFront(960, 860, s, { drl: 1, beam: 1, flare: 0.5 });
-    const ringY = 860 - 364 * s;
-    if (t > B.premium) {
-      const sx = lerp(960 - 120 * s, 960 + 120 * s, eIOC(prog(t, B.premium, B.premium + 0.6)));
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowDot(sx, ringY, 60, '255,255,255', 0.8 * env(t, B.premium, B.premium + 0.7, 0.1, 0.2)); ctx.restore();
-      ringBurst(960, ringY, t, B.premium, '255,220,200', 260, 2, 0);
-    }
-    ctx.restore();
+  line('THE GROWN-UP', 120, 210, t, B.grown, B.sportback - 0.3, { s: 84, w: 900, glow: 'rgba(255,90,70,0.7)', out: 0.15 });
+  if (both) {
+    const [sx, sy] = both.at(0.6, 0.6), [bx, by] = both.at(0.3, 0.58);
+    label(t, B.sportback, sx, sy, Math.min(sx + 160, 1650), sy - 260, 'SPORTBACK', '#c9ced8');
+    label(t, B.saloon, bx, by, Math.max(bx - 120, 280), by - 300, 'SALOON', C.audi);
   }
-  if (toSide > 0) {
-    const k = eIOC(prog(t, B.saloon - 0.1, B.saloon + 0.45));
-    const S = 1.1, X = 960 - 500 * S, GY = 820;
-    ctx.save(); ctx.globalAlpha = toSide;
-    bgType(k < 0.5 ? 'SPORTBACK ·' : 'SALOON ·', 560, t, 140, 0.05, 260);
-    floorReflect(() => drawSideCar('audi', X, GY, S, { k, lights: 1, noShadow: true }), GY, 0.2, 240);
-    drawSideCar('audi', X, GY, S, { k, lights: 1, sweep: prog(t, B.saloon, B.saloon + 1.0) });
-    const wa = env(t, B.saloon - 0.15, B.saloon + 0.7, 0.1, 0.3);
-    if (wa > 0) { ctx.save(); ctx.globalAlpha *= wa; drawSideCar('audi', X, GY, S, { k, blueprint: 1, bpColor: 'rgba(255,170,150,0.9)' }); ctx.restore();
-      scanBar(lerp(X - 60, X + 1010 * S, eIOC(prog(t, B.saloon - 0.1, B.saloon + 0.45))), GY - 360 * S, GY + 10, wa, '255,170,150'); }
-    ctx.restore();
-    line('SPORTBACK', 960, 250, t, B.sportback, B.saloon - 0.15, { a: 'center', s: 100, w: 900, ls: 8, out: 0.15 });
-    line('SALOON', 960, 250, t, B.saloon, 999, { a: 'center', s: 100, w: 900, ls: 8, c: '#ff8a7a', glow: 'rgba(255,90,70,0.4)' });
-  }
-  line('THE SMART ONE', 120, 210, t, t0 + 0.4, B.sportback - 0.5, { s: 70, w: 900, glow: 'rgba(255,90,70,0.5)', out: 0.2 });
-  line('PREMIUM BADGE', 120, 270, t, B.premium, B.sportback - 0.5, { s: 34, w: 800, c: '#ffb3a8', ls: 6, out: 0.2 });
 }
 
 // 6 · BOOT — litres, then the Golf R Estate
 function sBoot(t) {
   const t0 = CUT[5];
-  ctx.fillStyle = '#06080d'; ctx.fillRect(0, 0, W, H);
+  shots(t, [
+    [t0, () => {
+      photo('golf_black_rear', 0, 0, W, H, { z: kb(t, t0, B.estate, 1.1, 1.25), dark: 0.45 });
+      [[341, 640, C.vw, 'GOLF R'], [325, 1280, C.audi, 'AUDI S3']].forEach(([L, x, col, nm], i) => {
+        const p = eOC(prog(t, B.boot - 0.2 + i * 0.15, B.boot + 0.9 + i * 0.15));
+        const bw = 300, bh = 360, top = 760 - bh;
+        ctx.fillStyle = 'rgba(5,8,14,0.6)'; ctx.fillRect(x - bw / 2, top, bw, bh);
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 3; ctx.strokeRect(x - bw / 2, top, bw, bh);
+        const fh = bh * (L / 360) * p;
+        const g = ctx.createLinearGradient(0, 760 - fh, 0, 760); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0.3)');
+        ctx.fillStyle = g; ctx.fillRect(x - bw / 2 + 3, 760 - fh, bw - 6, fh - 3);
+        text(String(Math.round(L * p)), x, 340, { a: 'center', s: 110, w: 900, glow: col, gb: 20 });
+        text('LITRES', x, 380, { a: 'center', s: 22, w: 700, c: '#ddd', ls: 6 });
+        text(nm, x, 810, { a: 'center', s: 32, w: 900, c: col, ls: 6 });
+      });
+      chip(t, B.boot + 0.3, 520, 880, 'BIGGER BOOT', C.go, 'rgba(94,240,138,0.3)');
+    }],
+    [B.estate - 0.1, () => {
+      photo('golf_estate', 0, 0, W, H, { z: kb(t, B.estate, CUT[6], 1.1, 1.25) });
+      topShade(0.55, 320);
+      line('GOLF R ESTATE', 960, 200, t, B.estate, 999, { a: 'center', s: 96, w: 900, ls: 6, glow: 'rgba(80,150,255,0.6)' });
+      if (t > B.dog - 0.05) chip(t, B.dog, 1180, 330, '🐕  DOG OWNERS, YOU’RE WELCOME', C.amber, 'rgba(255,178,74,0.35)');
+    }],
+  ]);
   header(t, t0 + 0.1, CUT[6], 'Boot space');
-  const out = eIOC(prog(t, B.estate - 0.5, B.estate - 0.1));
-  if (out < 1) {
-    ctx.save(); ctx.globalAlpha = 1 - out;
-    [['golf', 341, 600, C.vw, 'GOLF R'], ['audi', 325, 1320, C.audi, 'AUDI S3']].forEach(([w, L, x, col, nm], i) => {
-      const p = eOC(prog(t, t0 + 0.2 + i * 0.15, t0 + 1.4 + i * 0.15));
-      const bw = 360, bh = 420, top = 720 - bh;
-      ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3; ctx.strokeRect(x - bw / 2, top, bw, bh);
-      const fillH = bh * (L / 360) * p, wave = Math.sin(t * 5 + i) * 6 * (1 - p * 0.7);
-      ctx.save(); ctx.beginPath(); ctx.rect(x - bw / 2, top, bw, bh); ctx.clip();
-      const g = ctx.createLinearGradient(0, 720 - fillH, 0, 720); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0.4)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - bw / 2, 720);
-      for (let k = 0; k <= 20; k++) ctx.lineTo(x - bw / 2 + k * bw / 20, 720 - fillH + Math.sin(k * 0.8 + t * 6) * wave);
-      ctx.lineTo(x + bw / 2, 720); ctx.closePath(); ctx.fill(); ctx.restore();
-      const n = String(Math.round(L * p));
-      text(n, x, 236, { a: 'center', s: 120, w: 900, c: '#fff', glow: col, gb: 20 });
-      text('LITRES', x, 276, { a: 'center', s: 24, w: 700, c: C.mute, ls: 6 });
-      text(nm, x, 780, { a: 'center', s: 34, w: 900, c: col, ls: 6 });
-    });
-    if (t > B.boot) { const p = eOB(prog(t, B.boot, B.boot + 0.3)); ctx.save(); ctx.translate(600, 860); ctx.scale(clamp(p, 0, 1.2), clamp(p, 0, 1.2));
-      text('BIGGER BOOT', 0, 0, { a: 'center', s: 30, w: 900, c: C.go, ls: 6 }); ctx.restore(); }
-    ctx.restore();
-  }
-  if (out > 0) {
-    const k = eIOC(prog(t, B.estate, B.estate + 0.5)), S = 1.05, X = 960 - 500 * S, GY = 800;
-    ctx.save(); ctx.globalAlpha = out;
-    bgType('ESTATE ·', 560, t, 140, 0.05, 260);
-    floorReflect(() => drawSideCar('golf', X, GY, S, { k, lights: 1, noShadow: true }), GY, 0.2, 240);
-    drawSideCar('golf', X, GY, S, { k, lights: 1, sweep: prog(t, B.estate + 0.3, B.estate + 1.3) });
-    ctx.restore();
-    line('GOLF R ESTATE', 960, 250, t, B.estate + 0.1, 999, { a: 'center', s: 96, w: 900, ls: 6, glow: 'rgba(80,150,255,0.5)' });
-    line('The S3 isn’t offered as an estate', 960, 310, t, B.estate + 0.4, 999, { a: 'center', s: 28, w: 500, c: C.mute });
-  }
 }
 
 // 7 · PRICE — neck and neck
+function circlePhoto(name, x, y, r, col) {
+  ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.clip();
+  photo(name, x - r, y - r, 2 * r, 2 * r, { z: 1.9 });
+  ctx.restore();
+  ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 6; ctx.shadowColor = col; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+}
 function sPrice(t) {
   const t0 = CUT[6];
-  ctx.fillStyle = '#06080c'; ctx.fillRect(0, 0, W, H);
-  const g = ctx.createRadialGradient(960, 500, 0, 960, 500, 800); g.addColorStop(0, 'rgba(94,240,138,0.08)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  photo('s3_pass', 0, 0, W, H, { z: kb(t, t0, CUT[7], 1.05, 1.15), dark: 0.72, filter: 'grayscale(0.6)' });
   header(t, t0 + 0.1, CUT[7], 'UK price, from');
   const tilt = 0.035 * eOB(prog(t, B.prices, B.prices + 0.8)) + Math.sin(t * 3) * 0.004; // the S3 costs £620 more
-  ctx.save(); ctx.translate(960, 420); ctx.rotate(tilt);
+  ctx.save(); ctx.translate(960, 400); ctx.rotate(tilt);
   ctx.fillStyle = '#c9ced8'; ctx.fillRect(-560, -6, 1120, 12);
-  for (const [sx, col, nm, price, from] of [[-500, C.vw, 'GOLF R', '£46,930', null], [500, C.audi, 'AUDI S3', '£47,550', '£46,930']]) {
+  for (const [sx, col, nm, price, img] of [[-500, C.vw, 'GOLF R', '£46,930', 'golf_hero'], [500, C.audi, 'AUDI S3', '£47,550', 's3_sb_front']]) {
     ctx.save(); ctx.translate(sx, 0); ctx.rotate(-tilt);
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-120, 160); ctx.moveTo(0, 0); ctx.lineTo(120, 160); ctx.stroke();
-    ctx.fillStyle = col; ctx.fillRect(-160, 160, 320, 10);
-    slot(price, 0, 290, t, B.prices + (sx > 0 ? 0.25 : 0), { a: 'center', s: 84, w: 900, dur: 0.7, c: '#fff' });
-    text(nm, 0, 340, { a: 'center', s: 28, w: 900, c: col, ls: 6, al: prog(t, t0 + 0.2, t0 + 0.5) });
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-120, 150); ctx.moveTo(0, 0); ctx.lineTo(120, 150); ctx.stroke();
+    ctx.fillStyle = col; ctx.fillRect(-160, 150, 320, 10);
+    circlePhoto(img, 0, 260, 95, col);
+    slot(price, 0, 450, t, B.prices + (sx > 0 ? 0.25 : 0), { a: 'center', s: 84, w: 900, dur: 0.7, c: '#fff', from: '£00,000' });
+    text(nm, 0, 495, { a: 'center', s: 28, w: 900, c: col, ls: 6, al: prog(t, t0 + 0.2, t0 + 0.5) });
     ctx.restore();
   }
   ctx.restore();
-  ctx.fillStyle = '#c9ced8'; ctx.beginPath(); ctx.moveTo(960, 420); ctx.lineTo(920, 560); ctx.lineTo(1000, 560); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#c9ced8'; ctx.beginPath(); ctx.moveTo(960, 400); ctx.lineTo(920, 540); ctx.lineTo(1000, 540); ctx.closePath(); ctx.fill();
   line('NECK AND NECK', 960, 250, t, B.prices, 999, { a: 'center', s: 84, w: 900, ls: 6, c: C.go, glow: 'rgba(94,240,138,0.4)' });
-  line('UK list prices, 2025. Check current pricing before you buy.', 960, 860, t, B.k47, 999, { a: 'center', s: 24, w: 500, c: C.dim, st: 0.01 });
+  line('UK list prices, 2025. Check current pricing before you buy.', 960, 960, t, B.k47, 999, { a: 'center', s: 22, w: 500, c: '#8d96a4', st: 0.01 });
 }
 
-// 8 · VERDICT — each car's pick
+// 8 · VERDICT
 function sVerdict(t) {
   const t0 = CUT[7];
-  const gOn = t >= B.wild - 0.1, aOn = t >= B.badge - 0.1;
   splitScreen(t,
-    () => { const s = 0.64; floorReflect(() => drawGolfFront(520, 860, s, { drl: 1, beam: gOn ? 1 : 0.2, noShadow: true }), 860, 0.18, 200);
-            drawGolfFront(520, 860, s, { drl: 1, beam: gOn ? 1 : 0.2, flare: gOn ? 0.8 : 0, alpha: gOn ? 1 : 0.55 }); },
-    () => { const s = 0.64; floorReflect(() => drawAudiFront(1400, 860, s, { drl: 1, beam: aOn ? 1 : 0.2, noShadow: true }), 860, 0.18, 200);
-            drawAudiFront(1400, 860, s, { drl: 1, beam: aOn ? 1 : 0.2, flare: aOn ? 0.8 : 0, alpha: aOn ? 1 : 0.55 }); }, 1);
+    () => { photo('golf_drift', 0, 0, 1060, H, { z: kb(t, t0, CUT[8], 1.35, 1.5), dx: 80, filter: revealed(t, B.wild) }); if (t > B.wild) snow(t, 0.6, 5, 90); },
+    () => photo('s3_sedan_front', 860, 0, 1060, H, { z: kb(t, t0, CUT[8], 1.45, 1.6), dx: -40, filter: revealed(t, B.badge) }), 1);
+  topShade(0.65, 360);
   header(t, t0 + 0.1, CUT[8], 'The verdict');
-  line('WANT THE WILDER DRIVE?', 420, 180, t, B.wild, 999, { a: 'center', s: 40, w: 800, c: '#cfe0ff', ls: 2 });
-  nameplate('GOLF R', 420, 270, t, B.vGolf, '80,150,255', 'center', 110);
-  line('WANT THE BADGE?', 1500, 180, t, B.badge, 999, { a: 'center', s: 40, w: 800, c: '#ffd0c8', ls: 2 });
-  nameplate('AUDI S3', 1500, 270, t, B.vAudi, '255,110,90', 'center', 110);
-  ringBurst(420, 240, t, B.vGolf, '120,175,255', 300, 2, 16);
-  ringBurst(1500, 240, t, B.vAudi, '255,130,110', 300, 2, 16);
+  line('WANT THE WILDER DRIVE?', 420, 180, t, B.wild, 999, { a: 'center', s: 40, w: 800, c: '#dbe7ff', ls: 2 });
+  nameplate('GOLF R', 420, 280, t, B.vGolf, '80,150,255', 110);
+  line('WANT THE BADGE?', 1500, 180, t, B.badge, 999, { a: 'center', s: 40, w: 800, c: '#ffe0da', ls: 2 });
+  nameplate('AUDI S3', 1500, 280, t, B.vAudi, '255,110,90', 110);
+  ringBurst(420, 250, t, B.vGolf, '120,175,255', 300, 2, 16);
+  ringBurst(1500, 250, t, B.vAudi, '255,130,110', 300, 2, 16);
 }
 
 // 9 · CTA + END CARD
 function sCTA(t) {
   const t0 = CUT[8];
-  ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, W, H);
-  const g = ctx.createLinearGradient(0, 0, W, 0); g.addColorStop(0, 'rgba(40,90,200,0.25)'); g.addColorStop(0.5, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(200,40,40,0.25)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const a = prog(t, t0, t0 + 0.4);
-  ctx.save(); ctx.globalAlpha = a;
-  drawGolfFront(560, 640, 0.56, { drl: 1, beam: 0.6, flare: 0.4 });
-  drawAudiFront(1360, 640, 0.56, { drl: 1, beam: 0.6, flare: 0.4 });
-  ctx.restore();
-  vsBadge(t, t0 + 0.2, 960, 420, 0.8);
-  line('WHICH ONE ARE YOU TAKING?', 960, 150, t, ON('11'), 999, { a: 'center', s: 72, w: 900, ls: 2 });
-  // live-poll style bars
+  splitScreen(t,
+    () => photo('golf_hero', 0, 0, 1060, H, { z: kb(t, t0, DURATION, 1.3, 1.45), dx: 60, dark: 0.35 }),
+    () => photo('s3_sb_front', 860, 0, 1060, H, { z: kb(t, t0, DURATION, 1.6, 1.75), dx: -60, dark: 0.35 }), 1);
+  topShade(0.7, 360);
+  vsBadge(t, t0 + 0.15, 960, 470, 0.85);
+  line('WHICH ONE WOULD YOU TAKE?', 960, 150, t, ON('11'), 999, { a: 'center', s: 72, w: 900, ls: 2 });
   const p = eOC(prog(t, ON('11') + 0.4, ON('11') + 1.8)), pg = 0.5 + Math.sin(t * 2.1) * 0.06 * p;
   ctx.save(); ctx.globalAlpha = prog(t, ON('11') + 0.3, ON('11') + 0.6);
-  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(560, 720, 800, 22);
+  ctx.fillStyle = 'rgba(5,7,12,0.75)'; ctx.fill(roundPoly([[540, 660], [1380, 660], [1380, 760], [540, 760]], 14));
+  ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(560, 720, 800, 22);
   ctx.fillStyle = C.vw; ctx.fillRect(560, 720, 800 * pg * p, 22);
   ctx.fillStyle = C.audi; ctx.fillRect(560 + 800 * (1 - (1 - pg) * p), 720, 800 * (1 - pg) * p, 22);
-  text('GOLF R', 560, 706, { s: 22, w: 800, c: '#9fc3ff', ls: 4 }); text('AUDI S3', 1360, 706, { a: 'right', s: 22, w: 800, c: '#ffb3a8', ls: 4 });
+  text('GOLF R', 560, 706, { s: 22, w: 800, c: '#bcd5ff', ls: 4 }); text('AUDI S3', 1360, 706, { a: 'right', s: 22, w: 800, c: '#ffc4ba', ls: 4 });
   ctx.restore();
   if (t > B.comments - 0.1) {
     const q = eOB(prog(t, B.comments, B.comments + 0.35));
-    ctx.save(); ctx.translate(960, 820); ctx.scale(clamp(q, 0, 1.2), clamp(q, 0, 1.2));
-    ctx.fillStyle = C.go; ctx.beginPath(); ctx.roundRect(-210, -36, 420, 64, 32); ctx.fill();
+    ctx.save(); ctx.translate(960, 840); ctx.scale(clamp(q, 0, 1.2), clamp(q, 0, 1.2));
+    ctx.fillStyle = C.go; ctx.beginPath(); ctx.roundRect(-230, -36, 460, 64, 32); ctx.fill();
     ctx.beginPath(); ctx.moveTo(-150, 26); ctx.lineTo(-170, 52); ctx.lineTo(-120, 28); ctx.fill();
-    text('TELL US IN THE COMMENTS', 0, 8, { a: 'center', s: 24, w: 900, c: '#062012', ls: 2 });
+    text('LET ME KNOW IN THE COMMENTS', 0, 8, { a: 'center', s: 24, w: 900, c: '#062012', ls: 2 });
     ctx.restore();
   }
-  line('Figures: manufacturer data and UK list prices, 2025. Independent film, not affiliated with or endorsed by Volkswagen or Audi.', 960, 1048, t, OFF('11') + 0.2, 999, { a: 'center', s: 18, w: 500, c: C.dim, st: 0.006, d: 0.3 });
+  line('Photos: Volkswagen AG and AUDI AG press images, editorial use. Figures: manufacturer data, UK list prices 2025. Independent film, not affiliated with Volkswagen or Audi.', 960, 1052, t, OFF('11') + 0.2, 999, { a: 'center', s: 17, w: 500, c: '#8d96a4', st: 0.005, d: 0.3 });
 }
 
 /* =====================================================================
@@ -1219,7 +832,8 @@ function sCTA(t) {
 const SCENES = [sHook, sTwins, sRace, sGolf, sAudi, sBoot, sPrice, sVerdict, sCTA].map((fn, i) => [CUT[i], CUT[i + 1], fn]);
 const TRANS = [null, 'zoom', 'whip', 'stripe', 'whip', 'stripe', 'zoom', 'stripe', 'whip'];
 const TR = 0.2;
-const PUNCH = [[B.golf, 0.03], [B.audi, 0.03], [B.vs, 0.08], [B.twins, 0.04], [B.race + 2.45, 0.05], [B.drift, 0.07], [B.premium, 0.03], [B.saloon, 0.03], [B.estate, 0.03], [B.prices, 0.04], [B.vGolf, 0.05], [B.vAudi, 0.05], [B.comments, 0.03]];
+const PUNCH = [[B.golf, 0.03], [B.audi, 0.03], [B.vs, 0.08], [B.twins, 0.05], [B.turbo, 0.03], [B.g46, 0.05], [B.s47, 0.05], [B.tenth, 0.04], [B.pack, 0.03], [B.drift, 0.09],
+  [B.classier, 0.03], [B.sportback, 0.03], [B.estate, 0.04], [B.dog, 0.02], [B.prices, 0.04], [B.vGolf, 0.05], [B.vAudi, 0.05], [B.comments, 0.03]];
 const mkBuf = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return [c, c.getContext('2d')]; };
 const [bufA, ctxA] = mkBuf(), [bufB, ctxB] = mkBuf();
 function renderScene(target, i, t) {
@@ -1230,7 +844,7 @@ function renderScene(target, i, t) {
 }
 function camera(i, t) {
   const u = prog(t, SCENES[i][0], SCENES[i][1]);
-  let z = 1 + 0.035 * eIOS(u), x = Math.sin(t * 0.7 + i * 1.3) * 7, y = Math.cos(t * 0.5 + i) * 4, r = 0;
+  let z = 1 + 0.03 * eIOS(u), x = Math.sin(t * 0.7 + i * 1.3) * 6, y = Math.cos(t * 0.5 + i) * 4, r = 0;
   for (const [t0, amp] of PUNCH) {
     if (t < t0 || t > t0 + 1.5) continue;
     const d = Math.exp(-(t - t0) * 6), n = rng(Math.floor(t * 60) + 7);
@@ -1247,7 +861,7 @@ function blit(buf, c, alpha = 1, dx = 0) {
 function hud(t) {
   const a = 0.6 * prog(t, 0.5, 1.1) * (1 - prog(t, DURATION - 2.2, DURATION - 1.8));
   hudCorners(a);
-  if (a > 0) text(`R vs S3   ${t.toFixed(1).padStart(4, '0')}`, W - 104, 70, { a: 'right', s: 17, w: 600, f: 'JetBrains Mono', c: 'rgba(255,255,255,0.45)', al: a * 1.6 });
+  if (a > 0) text(`R vs S3   ${t.toFixed(1).padStart(4, '0')}`, W - 104, 70, { a: 'right', s: 17, w: 600, f: 'JetBrains Mono', c: 'rgba(255,255,255,0.55)', al: a * 1.6 });
 }
 function drawFrame(t) {
   ctx = main;
@@ -1273,7 +887,7 @@ function drawFrame(t) {
       if (p < 0.5) blit(bufA, { ...cOut, z: cOut.z * (1 + 0.35 * eIC(p * 2)) });
       else blit(bufB, { ...cIn, z: cIn.z * (1.3 - 0.3 * eOC((p - 0.5) * 2)) });
       ctx.fillStyle = `rgba(255,255,255,${0.8 * Math.pow(1 - Math.abs(p - 0.5) * 2, 2)})`; ctx.fillRect(0, 0, W, H);
-    } else { // blue / white / red stripe wipe
+    } else {
       blit(bufA, cOut);
       const x = lerp(-300, W + 900, eIOC(p)), sl = 0.42;
       ctx.save(); ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(x - 140, 0); ctx.lineTo(x - 140 - H * sl, H); ctx.lineTo(-10, H); ctx.closePath(); ctx.clip();
@@ -1286,8 +900,8 @@ function drawFrame(t) {
   }
   captions(t);
   hud(t);
-  vignette(0.55);
-  grain(t, 0.04);
+  vignette(0.5);
+  grain(t, 0.035);
   black(prog(t, DURATION - 0.6, DURATION));
   black(1 - prog(t, 0, 0.25));
   ctx.restore();
@@ -1298,7 +912,7 @@ window.DURATION = DURATION;
 if (!location.hash.includes('render')) {
   const start = performance.now() - (parseFloat(new URLSearchParams(location.search).get('t')) || 0) * 1000;
   const loop = () => { drawFrame(((performance.now() - start) / 1000) % DURATION); requestAnimationFrame(loop); };
-  requestAnimationFrame(loop);
+  window.ready.then(() => requestAnimationFrame(loop));
 }
 
 </script>

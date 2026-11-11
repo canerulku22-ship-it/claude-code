@@ -27,11 +27,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, 'out', 'vo')
 TAKES = int(os.environ.get('TAKES', 3))
 ONLY = set(filter(None, os.environ.get('ONLY', '').split(',')))
-EXAGGERATION, CFG, TEMPERATURE = 0.65, 0.45, 0.8   # lively ad read
 LEAD = 0.25                                        # silence at the start of each file
 
 src = open(os.path.join(HERE, 'timeline.js'), encoding='utf-8').read()
 TL = json.loads(src[src.index('{'):src.rindex('}') + 1])
+V = TL.get('voice', {})
+EXAGGERATION, CFG, TEMPERATURE = V.get('exaggeration', 0.65), V.get('cfg', 0.45), V.get('temperature', 0.8)
 os.makedirs(OUT, exist_ok=True)
 torch.set_num_threads(os.cpu_count() or 4)
 ref = os.path.join(HERE, 'voice-reference.wav')

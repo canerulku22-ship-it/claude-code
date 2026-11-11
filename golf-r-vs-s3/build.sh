@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Builds golf-r-vs-s3.mp4: narrates with Chatterbox, renders every frame of
-# film.html (timed to the narration), synthesises the soundtrack, then
+# Builds golf-r-vs-s3.mp4: fetches the press photos, narrates with Chatterbox,
+# renders every frame of film.html (timed to the narration), synthesises the soundtrack, then
 # muxes and masters with ffmpeg.
 #
 # Needs: node + playwright (with Chromium), python3 + numpy + scipy, ffmpeg.
@@ -9,6 +9,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p out
+
+./fetch_photos.sh   # official VW / Audi press photos -> out/photos/ (never committed)
 
 VENV=${VENV:-.venv}
 if [ ! -x "$VENV/bin/python" ]; then

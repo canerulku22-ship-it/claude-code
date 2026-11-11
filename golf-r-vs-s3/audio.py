@@ -48,11 +48,14 @@ ON = {i: VO[i]['on'] for i in VO}
 OFF = {i: VO[i]['off'] for i in VO}
 CUT = [0, ON['03'] - 0.35, ON['05'] - 0.35, ON['06'] - 0.3, ON['07'] - 0.3, ON['08'] - 0.3, ON['09'] - 0.3, ON['10'] - 0.3, ON['11'] - 0.3, DUR]
 B = SimpleNamespace(golf=wt('01', 'Golf'), audi=wt('01', 'Audi'), vs=OFF['01'] + 0.05, which=wt('02', 'which'), twins=wt('03', 'twins'),
-         turbo=wt('04', '2.0'), hp=wt('04', '333'), awd=wt('04', 'four-wheel'), torque=wt('04', 'torque'), race=ON['05'] + 0.15,
-         hoolig=wt('06', 'hooligan'), pack=wt('06', 'R-Performance'), drift=wt('06', 'Drift'), premium=wt('07', 'premium'),
-         sportback=wt('07', 'Sportback'), saloon=wt('07', 'saloon'), boot=wt('08', 'boot'), estate=wt('08', 'estate'),
-         prices=wt('09', 'Neck'), wild=wt('10', 'wilder'), vGolf=wt('10', 'Golf'), badge=wt('10', 'badge'), vAudi=wt('10', 'Audi'),
-         comments=wt('11', 'comments'))
+         turbo=wt('04', '2.0'), hp=wt('04', '333'), awd=wt('04', 'four-wheel'), torque=wt('04', 'torque'),
+         g46=wt('05', '4.6'), s3=wt('05', 'S3'), s47=wt('05', '4.7'), tenth=wt('05', 'tenth'),
+         hoolig=wt('06', 'hooligan'), pack=wt('06', 'R-Performance'), drift=wt('06', 'Drift'), really=wt('06', 'really'),
+         classier=wt('07', 'classier'), sportback=wt('07', 'Sportback'), saloon=wt('07', 'saloon'), boot=wt('08', 'boot'),
+         estate=wt('08', 'estate'), dog=wt('08', 'Dog'), prices=wt('09', 'neck'), wild=wt('10', 'wilder'), vGolf=wt('10', 'Golf'),
+         badge=wt('10', 'badge'), vAudi=wt('10', 'S3'), comments=wt('11', 'comments'))
+B.gS = ON['05'] + 0.3                         # same race timing as film.html: each timer lands on its spoken number
+B.sS = max(B.s3 - 1.1, B.gS + 0.6)
 
 
 # ---------------------------------------------------------------- helpers
@@ -267,8 +270,8 @@ for k in range(modes_n):
 click(B.drift, 1.3, 2000, 0.5)
 impact(B.drift, 0.3)
 groove(CUT[4], CUT[5], ['F', 'C', 'Dm', 'Bb'], kick_from=CUT[4], hat_from=CUT[4] + 0.5, bass_from=CUT[4], arp_from=CUT[4], g=0.65, cutoff=1500)
-shimmer(B.premium, 0.7, 900, 3600, 1.0)
-bell(B.premium + 0.05, 'A5', 1.0)
+shimmer(B.classier, 0.7, 900, 3600, 1.0)
+bell(B.classier + 0.05, 'A5', 1.0)
 whoosh(B.saloon - 0.2, 0.6, 0.8, 0.8, -0.8)
 groove(CUT[5], CUT[6], ['Dm', 'Bb', 'F', 'C'], kick_from=CUT[5], hat_from=CUT[5], bass_from=CUT[5], arp_from=B.estate, g=0.7, cutoff=1500)
 shimmer(CUT[5] + 0.2, 1.2, 300, 900, 0.7)  # boot volumes filling
@@ -361,13 +364,17 @@ golf.blip(B.golf + 0.05, 5200)
 golf.gain([(B.golf - 0.05, 0), (B.golf + 0.05, 0.8), (B.golf + 1.2, 0.3), (CUT[1], 0)])
 audi.blip(B.audi + 0.05, 5000)
 audi.gain([(B.audi - 0.05, 0), (B.audi + 0.05, 0.8), (B.audi + 1.2, 0.3), (CUT[1], 0)])
-r0, run = B.race, 2.5                                  # 4.7 s of car time in 2.5 s
-for eng, tF, sh in ((golf, 4.6, 0.0), (audi, 4.7, 0.03)):
-    eng.ramp(CUT[2], r0, 900, 2600)
-    end = eng.pull(r0, [(0.55 + sh, 3000), (0.6 + sh, 4400), (0.7, 4800), (0.75, 5100)])
+for eng, st, fin in ((golf, B.gS, B.g46), (audi, B.sS, B.s47)):   # each car pulls until its time is said
+    d = max(fin - st, 0.8)
+    eng.ramp(st - 0.3, st, 1200, 2600)
+    end = eng.pull(st, [(d * 0.24, 3000), (d * 0.24, 4400), (d * 0.26, 4800), (d * 0.26, 5100)])
     eng.ramp(end, end + 0.6, 6600, 3000, 0.6)
     eng.bov.append(end + 0.02)
-    eng.gain([(CUT[2], 0), (CUT[2] + 0.2, 0.3), (r0, 0.42), (r0 + run, 0.42), (CUT[3], 0.15), (CUT[3] + 0.2, 0)])
+    eng.gain([(st - 0.35, 0), (st, 0.42), (end, 0.42), (end + 0.6, 0.12), (end + 0.9, 0)])
+whoosh(B.tenth - 0.25, 0.4, 0.6)
+impact(B.drift, 0.2)
+for k in range(5):
+    click(B.dog + 0.3 + k * 0.09, 0.4, 3800, 0.3)
 golf.ramp(CUT[3], B.drift, 2500, 4200)                 # Golf drift scene
 golf.thr[golf.seg(B.drift, CUT[4])] = 0.8
 m = golf.seg(B.drift, CUT[4])
