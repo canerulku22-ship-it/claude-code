@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cupra 290 vs S3 vs Golf R</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  canvas { display: block; position: absolute; inset: 0; margin: auto;
+           width: min(100vw, 177.78vh); height: min(56.25vw, 100vh); }
+</style>
+<script src="timeline.js"></script>
+<script src="out/vo/timing.js" onerror="window.VO_TIMING = {}"></script>
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js" } }</script>
+<script type="module" src="stage3d.js"></script>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+'use strict';
+/* =====================================================================
+   Cupra 290 vs Audi S3 vs Golf R — a three-way narrated comparison where
+   every car on screen is a real-time 3D render (stage3d.js), with motion
+   graphics drawn frame by frame on a canvas. drawFrame(t) is a
+   pure function of time t. Every scene cut and beat is keyed to the measured
+   voiceover (out/vo/timing.js), so re-recording a line re-times the film.
+   Run ./fetch_photos.sh first; serve the folder over HTTP to preview
+   (?t=12 starts at 12 s).
+   ===================================================================== */
+const TL = window.TIMELINE, VOT = window.VO_TIMING || {};
+const W = 1920, H = 1080;
+const cv = document.getElementById('c');
+const main = cv.getContext('2d');
+let ctx = main; // scenes draw into whichever context this points at
+const C = {
+  ink: '#f3f5f8', mute: '#9aa3b2', dim: '#5a6476',
+  mBlue: '#3fa9f5', mNavy: '#3a5fc8', mRed: '#e5322d', ev: '#38d6ff', amber: '#ffb24a', warm: '#ffd38a', go: '#5ef08a',
+  cupra: '#f2a65a', s3: '#ff4a4a', golf: '#3d8bff',
+};
+
+
+/* ---------- maths & easing ---------- */
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const eOC = t => 1 - Math.pow(1 - t, 3);
+const eIC = t => t * t * t;
+const eIOC = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const eIOS = t => -(Math.cos(Math.PI * t) - 1) / 2;
+const eOB = t => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+function rng(seed) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let r = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const env = (t, a, b, fi = 0.3, fo = 0.3) => Math.min(prog(t, a, a + fi), 1 - prog(t, b - fo, b));
+
+/* ---------- voiceover timing (laid out by voiceover.py; estimated when previewing without a build) ---------- */
+const VO = {};
+{
+  let t = 0;
+  for (const l of TL.vo) {
+    const tm = VOT[l.id], d = tm || { on: 0.25, off: 0.25 + l.text.split(' ').length * 0.34 };
+    const at = tm ? tm.at : t + l.gap - d.on;
+    VO[l.id] = { ...l, at, on: at + d.on, off: at + d.off };
+    t = at + d.off;
+  }
+}
+const DURATION = window.VO_DURATION || (VO[TL.vo[TL.vo.length - 1].id].off + TL.tail);
+const SPOKEN = { '290': 12, '290?': 12, 'S3': 8, 'S3?': 8, 'R': 3, '333': 30, '2.0-litre': 10, '4.6': 14, '4.7': 14, '5.7': 14, '£20k': 12, '£46k': 14, 'R-Performance': 16 };
+function wordTimes(l) {
+  const words = l.text.split(' ');
+  const wts = words.map(w => (SPOKEN[w.replace(/[.,?:!]+$/, '')] ?? w.replace(/[^\p{L}\p{N}’']/gu, '').length + 2) + (/[.,?:]$/.test(w) ? 6 : 0));
+  const total = wts.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  return words.map((w, i) => { const s = l.on + (l.off - l.on) * acc / total; acc += wts[i]; return { w, s, e: l.on + (l.off - l.on) * acc / total }; });
+}
+
+/* ---------- text ---------- */
+const font = (w, s, f = 'Inter Display') => `${w} ${s}px '${f}'`;
+function text(str, x, y, o = {}) {
+  ctx.save();
+  ctx.font = font(o.w || 600, o.s || 48, o.f);
+  ctx.fillStyle = o.c || C.ink;
+  ctx.textAlign = o.a || 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.letterSpacing = (o.ls || 0) + 'px';
+  ctx.globalAlpha *= (o.al ?? 1);
+  if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.gb || 30; }
+  ctx.fillText(str, x, y);
+  ctx.restore();
+}
+function measure(str, o = {}) {
+  ctx.save(); ctx.font = font(o.w || 600, o.s || 48, o.f); ctx.letterSpacing = (o.ls || 0) + 'px';
+  const m = ctx.measureText(str).width; ctx.restore(); return m;
+}
+// Kinetic line: words rise in with a stagger from t0, leave from t1.
+function line(str, x, y, t, t0, t1, o = {}) {
+  const out = o.out ?? 0.22;
+  if (t < t0 || t > t1 + out) return;
+  ctx.save();
+  ctx.font = font(o.w || 600, o.s || 48, o.f);
+  ctx.letterSpacing = (o.ls || 0) + 'px';
+  const words = str.split(' ');
+  const space = ctx.measureText(' ').width;
+  const widths = words.map(w => ctx.measureText(w).width);
+  const total = widths.reduce((a, b) => a + b, 0) + space * (words.length - 1);
+  let cx = o.a === 'center' ? x - total / 2 : o.a === 'right' ? x - total : x;
+  const st = o.st ?? 0.03, d = o.d ?? 0.3, size = o.s || 48;
+  const ex = eIC(prog(t, t1, t1 + out));
+  const base = ctx.globalAlpha;
+  words.forEach((wd, i) => {
+    const p = eOC(prog(t, t0 + i * st, t0 + i * st + d));
+    ctx.fillStyle = (o.hl && o.hl[wd.replace(/[.,!?:;]/g, '')]) || o.c || C.ink;
+    ctx.globalAlpha = base * p * (1 - ex) * (o.al ?? 1);
+    if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.gb || 24; }
+    ctx.fillText(wd, cx, y + (1 - p) * size * 0.5 - ex * size * 0.3);
+    cx += widths[i] + space;
+  });
+  ctx.restore();
+}
+function tri(x, y, w, h, p, alpha = 1) {
+  const cols = [C.cupra, C.s3, C.golf];
+  ctx.save(); ctx.globalAlpha *= alpha;
+  cols.forEach((c, i) => {
+    const pp = eOC(prog(p, i * 0.15, 0.55 + i * 0.15));
+    const x0 = x + i * (w + 8);
+    ctx.fillStyle = c; ctx.beginPath();
+    ctx.moveTo(x0 + h * 0.6, y); ctx.lineTo(x0 + h * 0.6 + w * pp, y); ctx.lineTo(x0 + w * pp, y + h); ctx.lineTo(x0, y + h); ctx.closePath(); ctx.fill();
+  });
+  ctx.restore();
+}
+
+/* ---------- captions (spoken words pop in as they are said) ---------- */
+const CAP_HL = { Cupra: C.cupra, 'Cupra’s': C.cupra, '290': C.cupra, front: C.cupra, Audi: C.s3, S3: C.s3, Golf: C.golf, R: C.golf, Drift: C.golf, 'R-Performance': C.golf, '333': C.amber, '2.0-litre': C.amber, 'four-wheel': C.amber, '4.6': C.golf, '4.7': C.s3, '5.7': C.cupra, '£20k': C.go, '£46k': C.amber, bargain: C.cupra, badge: C.s3, 'all-rounder': C.golf, kicker: C.go, comments: C.go };
+function layoutWords(words, s, w, maxW) {
+  ctx.save(); ctx.font = font(w, s); const sp = ctx.measureText(' ').width;
+  const lines = [[]]; let lw = 0;
+  for (const it of words) {
+    const ww = ctx.measureText(it.w).width;
+    if (lw > 0 && lw + sp + ww > maxW) { lines.push([]); lw = 0; }
+    lines[lines.length - 1].push({ ...it, ww }); lw += (lw > 0 ? sp : 0) + ww;
+  }
+  ctx.restore();
+  return { lines, sp };
+}
+function speak(l, t, cx, cy, o = {}) {
+  const s = o.s || 50, wgt = o.w || 800, hold = o.hold ?? 0.35;
+  const fade = 1 - prog(t, l.off + hold, l.off + hold + 0.25);
+  if (fade <= 0 || t < l.on - 0.1) return;
+  const { lines, sp } = layoutWords(wordTimes(l), s, wgt, o.maxW || 1500);
+  const lh = s * 1.22;
+  ctx.save();
+  ctx.font = font(wgt, s); ctx.textBaseline = 'alphabetic';
+  lines.forEach((ln, li) => {
+    const total = ln.reduce((a, b) => a + b.ww, 0) + sp * (ln.length - 1);
+    let x = cx - total / 2;
+    const y = cy - (lines.length - 1 - li) * lh;
+    for (const it of ln) {
+      const p = eOB(prog(t, it.s - 0.05, it.s + 0.08));
+      const now = t >= it.s && t < it.e + 0.05;
+      const key = it.w.replace(/[.,!?:;]/g, '');
+      const hl = (o.hl && o.hl[key]) || CAP_HL[key];
+      ctx.globalAlpha = clamp(prog(t, it.s - 0.05, it.s + 0.02)) * fade;
+      ctx.save();
+      ctx.translate(x + it.ww / 2, y + (1 - clamp(p)) * 14);
+      const sc = 0.8 + 0.2 * p;
+      ctx.scale(sc, sc);
+      ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 3;
+      ctx.fillStyle = hl || (now && !o.noCurrent ? '#9fd8ff' : (o.c || 'rgba(240,243,248,0.95)'));
+      ctx.fillText(it.w, -it.ww / 2, 0);
+      ctx.restore();
+      if (o.ul && o.ul[key]) { // underline swipe under a key word
+        ctx.fillStyle = o.ul[key];
+        ctx.fillRect(x, y + s * 0.15, it.ww * eOC(prog(t, it.s + 0.08, it.s + 0.3)), s * 0.08);
+      }
+      x += it.ww + sp;
+    }
+  });
+  ctx.restore();
+}
+function captions(t) {
+  const lines = Object.values(VO);
+  lines.forEach((l, i) => {
+    const next = lines[i + 1], hold = next ? clamp(next.on - l.off - 0.3, -0.25, 0.35) : 0.35; // clear before the next line
+    if (l.cap === false || t < l.on - 0.1 || t > l.off + hold + 0.25) return;
+    const g = ctx.createLinearGradient(0, 860, 0, H);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.6)');
+    ctx.save(); ctx.globalAlpha = env(t, l.on - 0.1, l.off + hold + 0.25, 0.2, 0.25); ctx.fillStyle = g; ctx.fillRect(0, 860, W, 220); ctx.restore();
+    speak(l, t, 960, 1012, { s: 52, hold });
+  });
+}
+
+/* ---------- overlays ---------- */
+const grainCv = document.createElement('canvas');
+grainCv.width = grainCv.height = 256;
+{
+  const g = grainCv.getContext('2d'), id = g.createImageData(256, 256), r = rng(99);
+  for (let i = 0; i < id.data.length; i += 4) { const v = Math.floor(r() * 255); id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
+  g.putImageData(id, 0, 0);
+}
+function grain(t, a = 0.045) {
+  const r = rng(Math.floor(t * 30) + 1);
+  ctx.save(); ctx.globalAlpha = a; ctx.globalCompositeOperation = 'overlay';
+  ctx.translate(-Math.floor(r() * 256), -Math.floor(r() * 256));
+  ctx.fillStyle = ctx.createPattern(grainCv, 'repeat'); ctx.fillRect(0, 0, W + 256, H + 256);
+  ctx.restore();
+}
+function vignette(a = 0.6) {
+  const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.05);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${a})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function black(a) { if (a <= 0) return; ctx.fillStyle = `rgba(0,0,0,${clamp(a)})`; ctx.fillRect(0, 0, W, H); }
+function flash(t, t0, d = 0.35, a = 0.8, col = '255,255,255') {
+  const p = prog(t, t0, t0 + d); if (p <= 0 || p >= 1) return;
+  ctx.fillStyle = `rgba(${col},${a * (1 - eOC(p))})`; ctx.fillRect(0, 0, W, H);
+}
+function glowDot(x, y, r, col, a) {
+  if (a <= 0 || r <= 0) return;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`);
+  ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+}
+function streak(x, y, len, col, a) { // anamorphic lens streak
+  if (a <= 0) return;
+  const g = ctx.createLinearGradient(x - len, 0, x + len, 0);
+  g.addColorStop(0, `rgba(${col},0)`); g.addColorStop(0.5, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`);
+  ctx.fillStyle = g; ctx.fillRect(x - len, y - 2, len * 2, 4);
+  ctx.save(); ctx.globalAlpha *= 0.4; ctx.fillRect(x - len * 0.6, y - 7, len * 1.2, 14); ctx.restore();
+}
+
+/* ---------- motion-graphics kit ---------- */
+function ringBurst(x, y, t, t0, col = '255,255,255', maxR = 420, n = 3, lines = 24) {
+  for (let k = 0; k < n; k++) {
+    const p = prog(t, t0 + k * 0.07, t0 + k * 0.07 + 0.75);
+    if (p <= 0 || p >= 1) continue;
+    ctx.save(); ctx.strokeStyle = `rgba(${col},${0.7 * (1 - p)})`; ctx.lineWidth = 1 + 5 * (1 - p);
+    ctx.beginPath(); ctx.arc(x, y, eOC(p) * maxR * (1 - k * 0.18), 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  const p = prog(t, t0, t0 + 0.55);
+  if (p > 0 && p < 1 && lines) {
+    ctx.save(); ctx.strokeStyle = `rgba(${col},${0.8 * (1 - p)})`; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    for (let i = 0; i < lines; i++) {
+      const a = i / lines * Math.PI * 2 + 0.13, r1 = maxR * (0.25 + 0.55 * eOC(p)), r2 = maxR * (0.35 + 0.75 * eOC(p));
+      ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); ctx.lineTo(x + Math.cos(a) * r2, y + Math.sin(a) * r2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+function bgType(str, y, t, speed, a = 0.05, s = 300) { // giant outlined type drifting behind a scene
+  ctx.save(); ctx.font = font(900, s); ctx.textBaseline = 'alphabetic';
+  const w = ctx.measureText(str + '  ').width;
+  let x = -((t * speed) % w);
+  ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = 2;
+  for (; x < W; x += w) ctx.strokeText(str, x, y);
+  ctx.restore();
+}
+function slot(str, x, y, t, t0, o = {}) { // rolling-digit counter; returns its width
+  const s = o.s || 200, dur = o.dur ?? 0.7, lh = s * 1.05, ls = o.ls || 0;
+  ctx.save(); ctx.font = font(o.w || 900, s); ctx.textBaseline = 'alphabetic';
+  const chars = [...str], ws = chars.map(ch => ctx.measureText(ch).width + ls);
+  const total = ws.reduce((a, b) => a + b, 0);
+  let cx = o.a === 'center' ? x - total / 2 : o.a === 'right' ? x - total : x;
+  ctx.beginPath(); ctx.rect(cx - 30, y - s * 0.9, total + 60, s * 1.12); ctx.clip();
+  ctx.fillStyle = o.c || C.ink;
+  if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.gb || 40; }
+  ctx.globalAlpha *= clamp(prog(t, t0 - 0.02, t0 + 0.1));
+  chars.forEach((ch, i) => {
+    if (/\d/.test(ch)) {
+      const e = eOC(prog(t, t0 + i * 0.05, t0 + i * 0.05 + dur));
+      let start = +ch + 10 + i * 4; // spin in from far away...
+      if (o.from && /\d/.test(o.from[i] || '')) { start = +o.from[i]; if (start > +ch) start -= 10; } // ...or roll on from the previous value
+      const pos = lerp(start, +ch, e), n = Math.floor(pos), f = pos - n;
+      ctx.fillText(String(((n % 10) + 10) % 10), cx, y + f * lh);
+      ctx.fillText(String((((n + 1) % 10) + 10) % 10), cx, y + (f - 1) * lh);
+    } else ctx.fillText(ch, cx, y);
+    cx += ws[i];
+  });
+  ctx.restore();
+  return total;
+}
+function scanBar(x, y0, y1, a, col = '120,200,255') {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createLinearGradient(x - 140, 0, x + 6, 0);
+  g.addColorStop(0, `rgba(${col},0)`); g.addColorStop(0.85, `rgba(${col},${0.22 * a})`); g.addColorStop(1, `rgba(${col},${0.95 * a})`);
+  ctx.fillStyle = g; ctx.fillRect(x - 140, y0, 146, y1 - y0);
+  ctx.restore();
+}
+function zoomLines(cx, cy, t, a, n = 60, seed = 9) { // radial speed burst
+  if (a <= 0) return;
+  const r = rng(seed);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const ang = r() * Math.PI * 2, sp = 0.8 + r() * 1.4, f = (t * sp + r()) % 1;
+    const r1 = 140 + f * 1100, r2 = r1 + 60 + f * 300;
+    ctx.strokeStyle = `rgba(225,235,255,${a * 0.4 * f})`; ctx.lineWidth = 1 + 2.5 * f;
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1); ctx.lineTo(cx + Math.cos(ang) * r2, cy + Math.sin(ang) * r2); ctx.stroke();
+  }
+  ctx.restore();
+}
+function stripes(t, t0, dur = 0.55, y = 540, ang = -0.32, a = 1) { // M-tricolour bars shoot across
+  const p = prog(t, t0, t0 + dur); if (p <= 0 || p >= 1) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.translate(960, y); ctx.rotate(ang);
+  [C.cupra, C.s3, C.golf].forEach((c, i) => {
+    const x = lerp(-2600, 2600, eIOC(clamp(p * 1.25 - i * 0.1)));
+    ctx.fillStyle = c; ctx.fillRect(x - 900, -62 + i * 42, 1800, 30);
+  });
+  ctx.restore();
+}
+function sparks(x, y, t, t0, n = 28, col = '120,230,255') {
+  const lt = t - t0; if (lt < 0 || lt > 0.9) return;
+  const r = rng(Math.round(t0 * 100));
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const a = r() * Math.PI * 2, v = 200 + r() * 650;
+    const px = x + Math.cos(a) * v * lt, py = y + Math.sin(a) * v * lt + 600 * lt * lt;
+    ctx.strokeStyle = `rgba(${col},${1 - lt / 0.9})`;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - Math.cos(a) * 20, py - Math.sin(a) * 20 - 14 * lt); ctx.stroke();
+  }
+  ctx.restore();
+}
+function hudCorners(a, inset = 46, arm = 44) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+  const k = inset + (1 - a) * 30;
+  for (const [x, y, dx, dy] of [[k, k, 1, 1], [W - k, k, -1, 1], [k, H - k, 1, -1], [W - k, H - k, -1, -1]]) {
+    ctx.beginPath(); ctx.moveTo(x, y + dy * arm); ctx.lineTo(x, y); ctx.lineTo(x + dx * arm, y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---------- path helpers ---------- */
+function smoothClosed(P, k = 1) { // closed Catmull-Rom spline through the points
+  const p = new Path2D(), n = P.length;
+  p.moveTo(...P[0]);
+  for (let i = 0; i < n; i++) {
+    const p0 = P[(i - 1 + n) % n], p1 = P[i], p2 = P[(i + 1) % n], p3 = P[(i + 2) % n];
+    p.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6 * k, p1[1] + (p2[1] - p0[1]) / 6 * k,
+                    p2[0] - (p3[0] - p1[0]) / 6 * k, p2[1] - (p3[1] - p1[1]) / 6 * k, p2[0], p2[1]);
+  }
+  p.closePath(); return p;
+}
+function roundPoly(P, r) {
+  const p = new Path2D(), n = P.length;
+  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  p.moveTo(...mid(P[n - 1], P[0]));
+  for (let i = 0; i < n; i++) { const m = mid(P[i], P[(i + 1) % n]); p.arcTo(P[i][0], P[i][1], m[0], m[1], Array.isArray(r) ? r[i] : r); }
+  p.closePath(); return p;
+}
+// right half from top-centre clockwise to bottom-centre -> full symmetric loop
+const sym = half => [...half, ...half.slice(1, -1).reverse().map(([x, y]) => [-x, y])];
+function both(fn) { fn(1); ctx.save(); ctx.scale(-1, 1); fn(-1); ctx.restore(); }
+
+function contactShadow(cx, w) {
+  ctx.save(); ctx.scale(1, 0.06);
+  const sg = ctx.createRadialGradient(cx, 0, 50, cx, 0, w); sg.addColorStop(0, 'rgba(0,0,0,0.9)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(cx, 0, w, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+}
+function floorReflect(draw, gy, a = 0.2, fadeH = 300) {
+  ctx.save(); ctx.translate(0, 2 * gy); ctx.scale(1, -1); ctx.globalAlpha = a; draw(); ctx.restore();
+  const g = ctx.createLinearGradient(0, gy, 0, gy + fadeH);
+  g.addColorStop(0, 'rgba(4,6,9,0.2)'); g.addColorStop(1, 'rgba(4,6,9,1)');
+  ctx.fillStyle = g; ctx.fillRect(0, gy, W, H - gy);
+}
+function speedLines(t, a, seed = 3, y0 = 200, y1 = 900, dir = -1) {
+  if (a <= 0) return;
+  const r = rng(seed);
+  ctx.save(); ctx.globalAlpha = a;
+  for (let i = 0; i < 46; i++) {
+    const y = y0 + r() * (y1 - y0), len = 200 + r() * 600, sp = 2600 + r() * 2600, ph = r() * 3000;
+    let x = ((ph + t * sp) % (W + len * 2)) - len;
+    if (dir < 0) x = W - x;
+    const g = ctx.createLinearGradient(x, 0, x + len * -dir, 0);
+    g.addColorStop(0, 'rgba(200,225,255,0.35)'); g.addColorStop(1, 'rgba(200,225,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(Math.min(x, x - len * dir), y, len, 1.5 + r() * 1.5);
+  }
+  ctx.restore();
+}
+function header(t, a, b, label) {
+  const al = env(t, a, b, 0.3, 0.25); if (al <= 0) return;
+  ctx.save(); ctx.globalAlpha = al;
+  tri(120, 84, 22, 6, prog(t, a, a + 0.6));
+  text(label.toUpperCase(), 222, 96, { s: 22, w: 700, c: C.mute, ls: 5 });
+  ctx.restore();
+}
+function blueprintBg(t) {
+  ctx.fillStyle = '#040a14'; ctx.fillRect(0, 0, W, H);
+  const off = (t * 12) % 40;
+  ctx.strokeStyle = 'rgba(90,150,220,0.07)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let x = -off; x < W; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = 0; y < H; y += 40) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+  const g = ctx.createRadialGradient(960, 560, 0, 960, 560, 900);
+  g.addColorStop(0, 'rgba(40,110,200,0.16)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function polyPoint(pts, f) {
+  let total = 0; const seg = [];
+  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
+  let d = f * total;
+  for (let i = 0; i < seg.length; i++) { if (d <= seg[i]) { const k = d / seg[i]; return [lerp(pts[i][0], pts[i + 1][0], k), lerp(pts[i][1], pts[i + 1][1], k)]; } d -= seg[i]; }
+  return pts[pts.length - 1];
+}
+function flow(pts, t, col, n = 10, speed = 0.6, size = 5, a = 1) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = col.replace('A', '0.25'); ctx.lineWidth = 3;
+  ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+  for (let i = 0; i < n; i++) {
+    const [x, y] = polyPoint(pts, (t * speed + i / n) % 1);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, size * 3);
+    g.addColorStop(0, col.replace('A', '1')); g.addColorStop(1, col.replace('A', '0'));
+    ctx.fillStyle = g; ctx.fillRect(x - size * 3, y - size * 3, size * 6, size * 6);
+  }
+  ctx.restore();
+}
+
+function particles(t, n, seed, col, a, y0 = 0, y1 = H) { // drifting motes catching the light
+  if (a <= 0) return;
+  const r = rng(seed);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < n; i++) {
+    const sp = 0.4 + r(), x = ((r() * W + t * 14 * sp) % W + W) % W, y = y0 + ((r() * (y1 - y0) - t * 9 * sp) % (y1 - y0) + (y1 - y0)) % (y1 - y0);
+    glowDot(x, y, 2 + r() * 5, col, a * (0.3 + 0.7 * r()) * (0.6 + 0.4 * Math.sin(t * 3 + i)));
+  }
+  ctx.restore();
+}
+
+/* =====================================================================
+   No photos: every car on screen is a live 3D render (stage3d.js)
+   ===================================================================== */
+window.ready = new Promise(res => (window.R3D ? res() : addEventListener('r3d-ready', res, { once: true })));
+// Ken Burns: zoom from z0 to z1 across [t0, t1]
+const kb = (t, t0, t1, z0 = 1.04, z1 = 1.14) => lerp(z0, z1, eIOS(prog(t, t0, t1)));
+// Pick the current shot from a list of [start, drawFn]; quick flash at each change.
+function shots(t, list) {
+  let i = 0;
+  for (let k = 0; k < list.length; k++) if (t >= list[k][0]) i = k;
+  list[i][1](t, list[i][0]);
+  if (i > 0) flash(t, list[i][0], 0.22, 0.45);
+}
+function snow(t, a, seed = 3, n = 160) { // flying snow / spray
+  if (a <= 0) return;
+  const r = rng(seed);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < n; i++) {
+    const sp = 0.5 + r(), x = ((r() * W - t * 900 * sp) % W + W) % W, y = ((r() * H + t * 260 * sp) % H + H) % H;
+    glowDot(x, y, 2 + r() * 6, '235,240,255', a * (0.25 + 0.6 * r()));
+  }
+  ctx.restore();
+}
+function label(t, t0, ax, ay, lx, ly, str, col) { // leader line + label pointing at something in a photo
+  const p = eOC(prog(t, t0, t0 + 0.35)); if (p <= 0) return;
+  ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.shadowColor = col; ctx.shadowBlur = 12;
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(lerp(ax, lx, p), lerp(ay, ly, p)); ctx.stroke();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(ax, ay, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.arc(ax, ay, 8 + 16 * ((t * 1.4) % 1), 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+  const w = measure(str, { s: 40, w: 900, ls: 6 }) + 44;
+  ctx.save(); ctx.globalAlpha = p; ctx.fillStyle = 'rgba(5,7,12,0.82)'; ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(lx - w / 2, ly - 46, w, 62, 10); ctx.fill(); ctx.stroke(); ctx.restore();
+  text(str, lx, ly, { a: 'center', s: 40, w: 900, ls: 6, al: p });
+}
+function chip(t, t0, x, y, str, col, fill) {
+  const p = eOB(prog(t, t0, t0 + 0.3)); if (p <= 0) return;
+  const w = measure(str, { s: 26, w: 800, ls: 3 }) + 48;
+  ctx.save(); ctx.translate(x, y); ctx.scale(clamp(p, 0, 1.2), clamp(p, 0, 1.2));
+  ctx.fillStyle = fill; ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(0, -36, w, 52, 26); ctx.fill(); ctx.stroke();
+  text(str, w / 2, 0, { a: 'center', s: 26, w: 800, c: '#fff', ls: 3 });
+  ctx.restore();
+}
+function topShade(a = 0.65, h = 380) { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, h); }
+/* =====================================================================
+   3D — the two cars rendered live by stage3d.js (three.js); this draws the
+   returned frame and hands back screen positions of named points on the cars
+   ===================================================================== */
+const D3 = { leon: { xf: 1.2555, xr: -1.3805, R: 0.3236, tw: 0.76, side: 0.91 }, s3: { xf: 1.2705, xr: -1.3605, R: 0.3236, tw: 0.775, side: 0.91 }, golf: { xf: 1.285, xr: -1.343, R: 0.3236, tw: 0.7725, side: 0.9 } };
+function wheelAnchors(id, s = 1) {
+  const d = D3[id], o = {};
+  for (const [n, x] of [['f', d.xf], ['r', d.xr]]) { o[id + n + 'L'] = [id, x, d.R, d.tw + 0.12]; o[id + n + 'R'] = [id, x, d.R, -d.tw - 0.12]; }
+  return o;
+}
+function three(spec, filter) {
+  const r = window.R3D.render(spec);
+  ctx.save(); if (filter) ctx.filter = filter; ctx.drawImage(r.canvas, 0, 0); ctx.restore();
+  return r.at;
+}
+const STILL = {};
+function still3d(key, spec) { // render once, reuse: for static portraits
+  if (!STILL[key]) { const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').drawImage(window.R3D.render(spec).canvas, 0, 0); STILL[key] = c; }
+  return STILL[key];
+}
+function launch(t, t0, t1, vmax = 28) { // metres covered: steady acceleration to vmax by t1, then cruise
+  const T = Math.max(0.1, t1 - t0), tau = Math.max(0, t - t0), a = vmax / T;
+  return tau <= T ? 0.5 * a * tau * tau : 0.5 * a * T * T + vmax * (tau - T);
+}
+const behindRoad = (id, ry = 0) => [id, -6 * Math.cos(ry), 0.3, -6 * Math.sin(ry)];   // a point 6 m back down the road, in the car's frame
+function smokeFrom(t, at, behind, a, seed, scale = 1) { // tyre smoke trailing away from the car
+  if (!at || !behind || a <= 0) return;
+  smoke(t, at, a, seed, Math.sign(behind[0] - at[0]) || -1, scale);
+}
+const orbit = (u, a0, a1) => lerp(a0, a1, eIOS(u));
+function lightsOn(t, t0) { // studio lights clunking on: exposure ramp with a flicker
+  const u = prog(t, t0, t0 + 0.7);
+  const flick = u < 0.35 ? (Math.floor((t - t0) * 30) % 3 === 1 ? 0.25 : 0.7) : 1;
+  return lerp(0.08, 1.05, eOC(u)) * flick;
+}
+function tag3d(t, t0, at, str, col, dy = -90, t1 = 1e9) { // small label hovering over a point on a car
+  if (!at || !at[2]) return;
+  const p = eOB(prog(t, t0, t0 + 0.3)) * (1 - prog(t, t1, t1 + 0.2)); if (p <= 0) return;
+  const [x, y] = at, w = measure(str, { s: 30, w: 900, ls: 5 }) + 40, al = clamp(prog(t, t0, t0 + 0.12)) * (1 - prog(t, t1, t1 + 0.2));
+  ctx.save(); ctx.globalAlpha = al;
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + dy * clamp(p) + 22); ctx.stroke();
+  ctx.translate(x, y + dy); ctx.scale(clamp(p, 0, 1.2), clamp(p, 0, 1.2));
+  ctx.fillStyle = 'rgba(5,7,12,0.85)'; ctx.beginPath(); ctx.roundRect(-w / 2, -34, w, 52, 26); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  text(str, x, y + dy + 2, { a: 'center', s: 30, w: 900, ls: 5, c: '#fff', al });
+}
+function wheelGlow(t, t0, at, col, k = 1) {
+  if (!at || !at[2]) return;
+  const p = prog(t, t0, t0 + 0.4); if (p <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  glowDot(at[0], at[1], 120 * k, col, 0.55 * eOC(p) * (0.8 + 0.2 * Math.sin(t * 9)));
+  ctx.strokeStyle = `rgba(${col},${0.9 * (1 - (((t - t0) * 1.2) % 1))})`; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(at[0], at[1], (60 + 70 * (((t - t0) * 1.2) % 1)) * k, (24 + 28 * (((t - t0) * 1.2) % 1)) * k, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+function smoke(t, at, a, seed, dir = -1, scale = 1) { // tyre smoke puffs from a point
+  if (!at || a <= 0) return;
+  const r = rng(seed);
+  ctx.save();
+  for (let i = 0; i < 26; i++) {
+    const ph = (t * (0.9 + r() * 0.5) + r()) % 1, ang = r() * 0.8 - 0.4;
+    const x = at[0] + dir * ph * (260 + r() * 260) * scale + Math.sin(ang) * 40, y = at[1] - ph * (120 + r() * 120) * scale + 20;
+    const rad = (40 + ph * 170) * scale;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, `rgba(215,222,232,${0.3 * a * (1 - ph)})`); g.addColorStop(1, 'rgba(215,222,232,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  ctx.restore();
+}
+
+/* =====================================================================
+   SCENE TIMING — every beat hangs off the measured voiceover
+   ===================================================================== */
+const ON = id => VO[id].on, OFF = id => VO[id].off;
+function wt(id, word) { // start time of the first caption word containing `word`
+  const w = wordTimes(VO[id]).find(it => it.w.toLowerCase().includes(word.toLowerCase()));
+  return w ? w.s : VO[id].on;
+}
+const CUT = [0, ...['02', '03', '04', '05', '06', '07', '08', '09'].map(id => ON(id) - 0.3), DURATION];
+const B = {
+  three: wt('01', 'Three'), hot: wt('01', 'hot'), hatches: wt('01', 'hatches'), question: wt('01', 'question'),
+  cupra: wt('01', 'Cupra'), s3: wt('01', 'Audi'), golf: wt('01', 'Golf'),
+  turbo: wt('02', '2.0'), different: wt('02', 'different'), go: wt('02', 'go'),
+  oldsch: wt('03', 'old-school'), hp290: wt('03', '290'), front: wt('03', 'front'),
+  hp333: wt('04', '333'), awd: wt('04', 'four-wheel'),
+  grip: wt('05', 'grip'), g46: wt('05', '4.6'), s47: wt('05', '4.7'), c57: wt('05', '5.7'),
+  drift: wt('06', 'Drift'), pack: wt('06', 'R-Performance'),
+  kicker: wt('07', 'kicker'), used: wt('07', 'used'), p20: wt('07', '£20k'), other: wt('07', 'other'), p46: wt('07', '£46k'),
+  bargain: wt('08', 'bargain'), vC: wt('08', 'Cupra'), badge: wt('08', 'badge'), vS: wt('08', 'S3'), allr: wt('08', 'all-rounder'), vG: wt('08', 'Golf'),
+  comments: wt('09', 'comments'),
+};
+const GO = Math.max(CUT[4] + 0.75, ON('05') + 0.2);   // the race launches as "Off the line" is said
+
+/* =====================================================================
+   SCENES
+   ===================================================================== */
+const NAMES = { leon: 'CUPRA 290', s3: 'AUDI S3', golf: 'GOLF R' };
+const SUBS = { leon: 'SEAT LEON · 2016', s3: 'SPORTBACK · 2025', golf: 'MK8.5 · 2025' };
+const COLS = { leon: C.cupra, s3: C.s3, golf: C.golf };
+const RGB = { leon: '242,166,90', s3: '255,90,90', golf: '90,150,255' };
+const ORDER = ['leon', 's3', 'golf'];
+const revealed = (t, t0) => { const p = eOC(prog(t, t0 - 0.05, t0 + 0.35)); return `grayscale(${1 - p}) brightness(${0.3 + 0.7 * p})`; };
+function nameplate(str, x, y, t, t0, col, s = 96) {
+  line(str, x, y, t, t0, 999, { a: 'center', s, w: 900, ls: 4, c: '#ffffff', glow: `rgba(${col},0.7)`, gb: 30, st: 0.04, d: 0.25 });
+}
+function banner(t, t0, x, y, str, fill, ink, s = 92, pad = 46) { // pop-in slab of text
+  const p = eOB(prog(t, t0, t0 + 0.3)); if (p <= 0) return;
+  const w = measure(str, { s, w: 900, ls: 3 }) + pad * 2;
+  ctx.save(); ctx.translate(x, y); ctx.scale(clamp(p, 0, 1.25), clamp(p, 0, 1.25)); ctx.globalAlpha = clamp(prog(t, t0, t0 + 0.1));
+  ctx.fillStyle = fill; ctx.fill(roundPoly([[-w / 2, -s * 0.95], [w / 2, -s * 0.95], [w / 2, s * 0.33], [-w / 2, s * 0.33]], 16));
+  text(str, 0, 0, { a: 'center', s, w: 900, c: ink, ls: 3 });
+  ctx.restore();
+}
+// three slanted panels; draw(i, x0, x1) renders panel i, clipped
+const SL = 90;
+function triptych(t, draws, seams = 1) {
+  const edges = [-SL, 640, 1280, W + SL];
+  draws.forEach((fn, i) => {
+    const a = edges[i], b = edges[i + 1];
+    ctx.save(); ctx.beginPath();
+    ctx.moveTo(a + SL / 2, 0); ctx.lineTo(b + SL / 2, 0); ctx.lineTo(b - SL / 2, H); ctx.lineTo(a - SL / 2, H); ctx.closePath(); ctx.clip();
+    fn(i, Math.max(0, a - SL / 2), Math.min(W, b + SL / 2));
+    ctx.restore();
+  });
+  if (seams > 0) for (const x of [640, 1280]) {
+    ctx.save(); ctx.globalAlpha = seams; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4; ctx.shadowColor = '#fff'; ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.moveTo(x + SL / 2, 0); ctx.lineTo(x - SL / 2, H); ctx.stroke(); ctx.restore();
+  }
+}
+const panelSpec = (id, i, x0, x1, extra = {}) => ({ scissor: [Math.floor(x0), 0, Math.ceil(x1 - x0), H], ...extra,
+  cam: { ...extra.cam, shift: [(i - 1) * 640, (extra.cam && extra.cam.shift ? extra.cam.shift[1] : 0)] } });
+
+// 1 · INTRO — three silhouettes in the dark; each lights up as it's named
+function sIntro(t) {
+  const tri = B.cupra - 0.12;
+  if (t < tri) {   // the line-up in the dark: headlights snap on, one car per word
+    const u = prog(t, 0, tri);
+    const lit = [B.three, B.hot, B.hatches];
+    const glow = i => t < lit[i] ? 0 : (t < lit[i] + 0.12 ? (Math.floor(t * 40) % 2 ? 1 : 0.2) : 1);
+    three({
+      cars: [{ id: 'leon', z: 2.25, glow: glow(0) }, { id: 's3', z: 0, glow: glow(1) }, { id: 'golf', z: -2.25, glow: glow(2) }],
+      bigTable: { ry: 0 },
+      cam: { az: lerp(20, 8, eIOS(u)), el: lerp(2, 4, u), dist: lerp(12.2, 10.6, eIOS(u)), fov: 30, target: [0, 0.6, 0] },
+      rim: { leon: 1.3, s3: 1.3, golf: 1.3 }, exposure: 0.1 + 0.2 * prog(t, B.three, B.hatches + 0.3) + 0.35 * prog(t, B.question, tri),
+    });
+    // a light bar sweeps across before anything else
+    const sw = prog(t, 0.1, 1.2);
+    if (sw > 0 && sw < 1) scanBar(lerp(-100, W + 100, eIOC(sw)), 200, 980, 1 - Math.abs(sw - 0.5) * 2);
+    line('THREE HOT HATCHES.', 960, 210, t, B.three, B.question - 0.1, { a: 'center', s: 96, w: 900, ls: 6, hl: { THREE: C.cupra, HOT: C.s3, 'HATCHES.': C.golf }, st: 0.12, out: 0.15 });
+    line('ONE QUESTION.', 960, 210, t, B.question, 999, { a: 'center', s: 96, w: 900, ls: 6, glow: 'rgba(255,255,255,0.4)' });
+    [B.three, B.hot, B.hatches].forEach(b => flash(t, b, 0.18, 0.2));
+    ringBurst(960, 520, t, B.question, '255,255,255', 700, 2, 24);
+    return;
+  }
+  // the triptych: each panel bursts in on its name
+  const hits = [B.cupra, B.s3, B.golf];
+  triptych(t, ORDER.map((id, i) => (k, x0, x1) => {
+    if (t < hits[i] - 0.06) { ctx.fillStyle = '#030406'; ctx.fillRect(x0, 0, x1 - x0, H); return; }
+    const u = prog(t, hits[i], CUT[1]);
+    three(panelSpec(id, i, x0, x1, {
+      cars: [{ id, table: false, glow: 1, ry: lerp(-0.25, 0.1, eIOS(u)) }],
+      cam: { az: 22, el: 6, dist: lerp(9.2, 8.4, eIOS(u)), fov: 30, target: [0, 0.65, 0] },
+      rim: { [id]: 1.4 },
+    }), revealed(t, hits[i] + 0.05));
+    ringBurst(320 + i * 640, 560, t, hits[i], RGB[id], 420, 2, 18);
+  }), prog(t, tri, tri + 0.3));
+  topShade(0.65, 330);
+  ORDER.forEach((id, i) => {
+    nameplate(NAMES[id], 320 + i * 640, 170, t, hits[i] - 0.05, RGB[id], 74);
+    line(SUBS[id], 320 + i * 640, 214, t, hits[i] + 0.08, 999, { a: 'center', s: 22, w: 700, ls: 6, c: '#cfd6e2' });
+    flash(t, hits[i], 0.2, 0.22);
+  });
+  if (t > OFF('01') - 0.15) banner(t, OFF('01') - 0.15, 960, 800, 'WHICH ONE?', 'rgba(5,7,12,0.85)', '#fff', 96);
+}
+
+// 2 · THE FAMILY — same 2.0 turbo, very different characters
+function sFamily(t) {
+  const t0 = CUT[1], u = prog(t, t0, CUT[2]);
+  const at = three({
+    cars: [{ id: 'leon', z: 2.25 }, { id: 's3', z: 0 }, { id: 'golf', z: -2.25 }],
+    bigTable: { ry: -0.35 + 0.5 * u },
+    cam: { az: orbit(u, 36, 20), el: orbit(u, 9, 13), dist: orbit(u, 13.5, 14.5), fov: 30, target: [0, 0.4, 0] },
+    rim: { leon: 1, s3: 1, golf: 1 }, exposure: lightsOn(t, t0 + 0.05),
+    anchors: { leon: ['leon', -0.4, 1.7, 0], s3: ['s3', -0.4, 1.7, 0], golf: ['golf', -0.4, 1.72, 0] },
+  });
+  flash(t, t0 + 0.05, 0.25, 0.5);
+  header(t, t0 + 0.2, CUT[2], 'Three-way test');
+  const diff = t > B.different - 0.1;
+  ORDER.forEach((id, i) => {
+    tag3d(t, B.turbo + i * 0.12, at[id], '2.0 TURBO', C.amber, -70, B.different - 0.2);
+    if (diff) tag3d(t, B.different + i * 0.12, at[id], id === 'leon' ? '2016 · FWD' : '2025 · AWD', COLS[id], i === 1 ? -130 : -70);
+  });
+  if (t > B.go) { ringBurst(960, 560, t, B.go, '255,255,255', 800, 3, 24); banner(t, B.go, 960, 240, 'LET’S GO', C.go, '#062012', 70); }
+}
+
+// 3 · CUPRA — the old-school one: 290 PS through the front wheels
+function sCupra(t) {
+  const t0 = CUT[2], u = prog(t, t0, CUT[3]);
+  const spin = t > B.front ? (t - B.front) * 14 : 0;
+  const at = three({
+    cars: [{ id: 'leon', ry: -0.2 + 0.45 * u, spin, glow: 1, pitch: t > B.front ? -0.008 : 0 }],
+    cam: { az: orbit(u, 30, 74), el: orbit(u, 9, 5), dist: orbit(u, 8.6, 7.8), fov: 30, target: [0, 0.6, 0] },
+    rim: { leon: 1.3 },
+    anchors: { ...wheelAnchors('leon'), behind: ['leon', -7, 0.3, 0] },
+  });
+  header(t, t0 + 0.1, CUT[3], 'SEAT Leon Cupra 290');
+  line('THE OLD-SCHOOL ONE', 120, 210, t, B.oldsch, 999, { s: 76, w: 900, glow: 'rgba(242,166,90,0.6)' });
+  if (t > B.hp290 - 0.05) {
+    const w = slot('290', 120, 400, t, B.hp290, { s: 170, w: 900, c: '#fff', glow: 'rgba(242,166,90,0.6)' });
+    text('PS', 132 + w, 400, { s: 64, w: 900, c: C.cupra, al: prog(t, B.hp290 + 0.2, B.hp290 + 0.4) });
+    ringBurst(290, 340, t, B.hp290, RGB.leon, 360, 2, 18);
+  }
+  for (const k of ['leonfL', 'leonfR']) { wheelGlow(t, B.front, at[k], RGB.leon, 1.1); smoke(t, at[k], prog(t, B.front + 0.15, B.front + 0.7), k.length * 5, -1, 0.7); }
+  if (t > B.front) chip(t, B.front + 0.1, 120, 500, 'FRONT-WHEEL DRIVE', C.cupra, 'rgba(242,166,90,0.3)');
+}
+
+// 4 · S3 + GOLF R — 333 PS each and four-wheel drive
+function sAWD(t) {
+  const t0 = CUT[3], u = prog(t, t0, CUT[4]);
+  const spin = t > B.awd ? (t - B.awd) * 8 : 0;
+  const at = three({
+    cars: [{ id: 's3', z: 1.3, spin, glow: 1 }, { id: 'golf', z: -1.3, spin, glow: 1 }],
+    bigTable: { ry: 0.25 - 0.45 * u },
+    cam: { az: orbit(u, -30, -62), el: orbit(u, 10, 7), dist: orbit(u, 11.5, 10.8), fov: 30, target: [0, 0.5, 0] },
+    rim: { s3: 1, golf: 1 },
+    anchors: { s3: ['s3', -0.4, 1.7, 0], golf: ['golf', -0.4, 1.72, 0], ...wheelAnchors('s3'), ...wheelAnchors('golf') },
+  });
+  header(t, t0 + 0.1, CUT[4], 'Audi S3 · VW Golf R');
+  for (const [id, dx] of [['s3', 0], ['golf', 0]]) {
+    const q = at[id]; if (!q || t < B.hp333 - 0.05) continue;
+    slot('333', q[0] + dx, q[1] - 30, t, B.hp333 + (id === 'golf' ? 0.1 : 0), { a: 'center', s: 110, w: 900, c: '#fff', glow: `rgba(${RGB[id]},0.6)` });
+    text('PS', q[0], q[1] + 18, { a: 'center', s: 34, w: 900, c: COLS[id], al: prog(t, B.hp333 + 0.2, B.hp333 + 0.4), ls: 6 });
+  }
+  for (const id of ['s3', 'golf']) for (const k of ['fL', 'fR', 'rL', 'rR']) wheelGlow(t, B.awd + (k[0] === 'r' ? 0.08 : 0), at[id + k], RGB[id], 0.8);
+  if (t > B.awd) { chip(t, B.awd + 0.05, 120, 300, 'QUATTRO', C.s3, 'rgba(255,74,74,0.3)'); chip(t, B.awd + 0.2, 120, 380, '4MOTION', C.golf, 'rgba(61,139,255,0.3)'); }
+}
+
+// 5 · 0–62 — a three-lane drag race; each timer lands as its time is said
+function timerTile(x, v, tF, fin, t, id) {
+  const done = v >= tF, pop = done ? eOB(prog(t, fin, fin + 0.35)) : 1, col = COLS[id];
+  ctx.save(); ctx.translate(x, 270); const sc = lerp(1.3, 1, clamp(pop)); ctx.scale(sc, sc);
+  ctx.fillStyle = 'rgba(5,7,12,0.8)'; ctx.fill(roundPoly([[-200, -130], [200, -130], [200, 60], [-200, 60]], 18));
+  ctx.fillStyle = col; ctx.fillRect(-200, 54, 400, 6);
+  text(v.toFixed(1), 10, 0, { a: 'center', s: 130, w: 900, c: done ? '#fff' : '#cfd6e2', glow: done ? col : null, gb: 30 });
+  text('s', 150, 0, { s: 44, w: 800, c: col });
+  text(NAMES[id], 0, 40, { a: 'center', s: 24, w: 900, c: col, ls: 6 });
+  ctx.restore();
+  if (done) ringBurst(x, 230, t, fin, RGB[id], 260, 2, 16);
+}
+function sRace(t) {
+  const t0 = CUT[4], u = prog(t, t0, CUT[5]);
+  const fins = { golf: B.g46, s3: B.s47, leon: B.c57 }, tF = { golf: 4.6, s3: 4.7, leon: 5.7 };
+  const d = Object.fromEntries(ORDER.map(id => [id, launch(t, GO, fins[id])]));
+  const mean = (d.golf + d.s3 + d.leon) / 3, acc = env(t, GO, B.c57 + 0.2, 0.15, 0.6), rumble = t > GO - 1.2 && t < GO ? 0.004 * Math.sin(t * 90) : 0;
+  const lane = { golf: 3.7, s3: 0, leon: -3.7 };
+  const at = three({
+    cars: ORDER.map(id => ({ id, x: clamp((d[id] - mean) * 0.12, -2.4, 2.4), z: lane[id], spin: d[id] / 0.3236, pitch: (id === 'leon' ? 0.012 : 0.017) * acc + rumble, glow: 1 })),
+    road: { dist: mean },
+    cam: { az: orbit(u, 16, 40), el: orbit(u, 5, 8), dist: orbit(u, 15, 16.5), fov: 32, target: [0.6, 0.5, 0], roll: Math.sin(t * 23) * 0.35 * acc },
+    rim: { leon: 0.7, s3: 0.7, golf: 0.7 }, exposure: 1.0,
+    anchors: { lfL: ['leon', 1.2555, 0.3, 0.9], lfR: ['leon', 1.2555, 0.3, -0.9], behind: behindRoad('leon') },
+  });
+  smokeFrom(t, at.lfL, at.behind, 0.85 * env(t, GO, GO + 1.4, 0.05, 0.6), 17, 0.9);   // the front-driver spins its fronts
+  smokeFrom(t, at.lfR, at.behind, 0.6 * env(t, GO, GO + 1.4, 0.05, 0.6), 19, 0.8);
+  speedLines(t, 0.55 * prog(t, GO, GO + 0.5), 4, 380, 1000, -1);
+  for (let k = 0; k < 3; k++) {   // start lights
+    const on = t >= GO - 0.9 + k * 0.3, a = (1 - prog(t, GO + 0.3, GO + 0.7)) * prog(t, t0, t0 + 0.15);
+    if (a <= 0) continue;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(5,7,12,0.8)'; ctx.beginPath(); ctx.arc(860 + k * 100, 470, 40, 0, Math.PI * 2); ctx.fill();
+    if (on) glowDot(860 + k * 100, 470, 70, k < 2 ? '255,60,40' : '90,255,120', 0.9);
+    ctx.fillStyle = on ? (k < 2 ? '#ff4630' : '#5eff7a') : '#20242b'; ctx.beginPath(); ctx.arc(860 + k * 100, 470, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  [['golf', 330], ['s3', 960], ['leon', 1590]].forEach(([id, x]) => timerTile(x, Math.min(tF[id], tF[id] * prog(t, GO, fins[id] + 0.05)), tF[id], fins[id], t, id));
+  header(t, t0 + 0.1, CUT[5], '0–62 mph');
+  if (t > B.grip) chip(t, B.grip, 120, 470, 'FOUR-WHEEL-DRIVE GRIP', C.amber, 'rgba(255,178,74,0.3)');
+  if (t > B.c57 + 0.1) chip(t, B.c57 + 0.1, 1420, 470, 'DSG · FRONT-DRIVE', C.cupra, 'rgba(242,166,90,0.3)');
+}
+
+// 6 · DRIFT — only one of them has an actual Drift mode
+function sDrift(t) {
+  const t0 = CUT[5];
+  const wheels = (id, ry) => ({ ...wheelAnchors(id), behind: behindRoad(id, ry) });
+  shots(t, [
+    [t0, () => {
+      const yaw = 0.52 + 0.06 * Math.sin(t * 2.4);
+      const at = three({
+        cars: [{ id: 'golf', ry: yaw, steer: -0.44, spin: t * 18, roll: 0.035, glow: 1 }],
+        road: { dist: t * 15 },
+        cam: { az: lerp(64, 80, prog(t, t0, B.drift)), el: 9, dist: 10.5, fov: 30, target: [0, 0.55, 0] },
+        rim: { golf: 1.2 }, anchors: wheels('golf', yaw),
+      });
+      smokeFrom(t, at.golfrL, at.behind, 0.9, 21, 1.1); smokeFrom(t, at.golfrR, at.behind, 0.6, 23, 1.0);
+    }],
+    [B.drift - 0.1, () => {
+      const yaw = 0.58 + 0.05 * Math.sin(t * 3);
+      const at = three({
+        cars: [{ id: 'golf', ry: yaw, steer: -0.5, spin: t * 20, roll: 0.04, glow: 1 }],
+        road: { dist: t * 16 },
+        cam: { az: lerp(-148, -128, prog(t, B.drift, CUT[6])), el: 6, dist: 9.5, fov: 32, target: [0, 0.6, 0], roll: 2 },
+        rim: { golf: 1.3 }, anchors: wheels('golf', yaw),
+      });
+      smokeFrom(t, at.golfrL, at.behind, 1, 31, 1.3); smokeFrom(t, at.golfrR, at.behind, 1, 33, 1.2);
+      banner(t, B.drift, 960, 330, 'DRIFT MODE', 'rgba(61,139,255,0.92)', '#fff', 96);
+      ringBurst(960, 300, t, B.drift, RGB.golf, 700, 3, 24);
+      if (t > B.pack) chip(t, B.pack, 760, 440, '+ R-PERFORMANCE PACK', C.golf, 'rgba(61,139,255,0.35)');
+    }],
+  ]);
+  topShade(0.5, 300);
+  header(t, t0 + 0.1, CUT[6], 'Golf R');
+}
+
+// 7 · PRICE — the kicker: a used Cupra for less than half
+function sPrice(t) {
+  const t0 = CUT[6], u = prog(t, t0, CUT[7]);
+  three({
+    cars: [{ id: 'leon', z: 2.25 }, { id: 's3', z: 0 }, { id: 'golf', z: -2.25 }],
+    bigTable: { ry: -0.25 + 0.3 * u },
+    cam: { az: 22, el: 9, dist: 14.5, fov: 30, target: [0, 0.2, 0] },
+    rim: { leon: 0.7, s3: 0.7, golf: 0.7 }, exposure: 0.5,
+  }, 'grayscale(0.3)');
+  ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.fillRect(0, 0, W, H);
+  header(t, t0 + 0.1, CUT[7], 'UK price');
+  if (t > B.kicker - 0.05) banner(t, B.kicker, 960, 190, 'THE KICKER', C.go, '#062012', 60);
+  const base = 860, max = 520;
+  [['leon', 560, 20000, '<£20K', 'USED', B.p20], ['golf', 960, 46930, '£46,930', 'NEW', B.p46], ['s3', 1360, 47550, '£47,550', 'NEW', B.p46 + 0.15]].forEach(([id, x, v, lab, sub, t1]) => {
+    const p = eOC(prog(t, t1 - 0.1, t1 + 0.6)), h = max * v / 50000 * p, col = COLS[id];
+    ctx.save(); ctx.globalAlpha = 0.25 + 0.75 * prog(t, B.used - 0.3, B.used);
+    ctx.fillStyle = 'rgba(5,8,14,0.6)'; ctx.fillRect(x - 130, base - max, 260, max);
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2; ctx.strokeRect(x - 130, base - max, 260, max);
+    const g = ctx.createLinearGradient(0, base - h, 0, base); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0.3)');
+    ctx.fillStyle = g; ctx.fillRect(x - 127, base - h, 254, h);
+    ctx.restore();
+    text(NAMES[id], x, base + 44, { a: 'center', s: 28, w: 900, c: col, ls: 5, al: prog(t, t0 + 0.2, t0 + 0.5) });
+    if (p > 0) {
+      text(lab, x, base - h - 40, { a: 'center', s: 64, w: 900, c: '#fff', glow: col, gb: 24, al: p });
+      text(sub, x, base - h - 4, { a: 'center', s: 22, w: 800, c: '#cfd6e2', ls: 6, al: p });
+    }
+  });
+  if (t > B.p20 + 0.4) {
+    const q = eOB(prog(t, B.p20 + 0.4, B.p20 + 0.7));
+    ctx.save(); ctx.translate(560, 380); ctx.rotate(-0.18); ctx.scale(clamp(q, 0, 1.3), clamp(q, 0, 1.3));
+    ctx.strokeStyle = C.go; ctx.lineWidth = 6; ctx.strokeRect(-150, -42, 300, 70); text('BARGAIN', 0, 12, { a: 'center', s: 48, w: 900, c: C.go, ls: 6 });
+    ctx.restore();
+  }
+  line('Used: typical UK asking prices, 2026. New: UK list prices from, 2025. Check current pricing before you buy.', 960, 1000 - 40, t, B.p46, 999, { a: 'center', s: 20, w: 500, c: '#8d96a4', st: 0.01 });
+}
+
+// 8 · VERDICT — one panel per car, each lights up as it's picked
+function sVerdict(t) {
+  const t0 = CUT[7];
+  const picks = { leon: B.vC, s3: B.vS, golf: B.vG }, asks = { leon: ['WANT A BARGAIN?', B.bargain], s3: ['WANT THE BADGE?', B.badge], golf: ['BEST ALL-ROUNDER?', B.allr] };
+  triptych(t, ORDER.map((id, i) => (k, x0, x1) => {
+    const spec = id === 'golf'
+      ? { cars: [{ id, ry: 0.5 + 0.05 * Math.sin(t * 2.5), steer: -0.42, spin: t * 18, roll: 0.035, glow: 1 }], road: { dist: t * 14 }, cam: { az: 70, el: 8, dist: 9.5, fov: 30, target: [0, 0.55, 0] }, rim: { golf: 1.2 } }
+      : { cars: [{ id, spin: t * 14, glow: 1 }], road: { dist: t * 18 }, cam: { az: id === 'leon' ? 26 : -28, el: 6, dist: 8.6, fov: 30, target: [0, 0.62, 0] }, rim: { [id]: 1.2 } };
+    three(panelSpec(id, i, x0, x1, spec), revealed(t, picks[id]));
+  }), 1);
+  topShade(0.7, 360);
+  header(t, t0 + 0.1, CUT[8], 'The verdict');
+  ORDER.forEach((id, i) => {
+    const [q, tq] = asks[id];
+    line(q, 320 + i * 640, 170, t, tq - 0.05, 999, { a: 'center', s: 34, w: 800, c: '#e6ebf2', ls: 2 });
+    nameplate(NAMES[id], 320 + i * 640, 262, t, picks[id], RGB[id], 80);
+    ringBurst(320 + i * 640, 240, t, picks[id], RGB[id], 280, 2, 16);
+  });
+}
+
+// 9 · CTA + END CARD
+function sCTA(t) {
+  const t0 = CUT[8], u = prog(t, t0, DURATION);
+  three({
+    cars: [{ id: 'leon', z: 2.25, glow: 1 }, { id: 's3', z: 0, glow: 1 }, { id: 'golf', z: -2.25, glow: 1 }],
+    bigTable: { ry: -0.35 + 0.4 * u },
+    cam: { az: orbit(u, 30, 18), el: 10, dist: orbit(u, 14.5, 15.5), fov: 30, target: [0, 0.2, 0] },
+    rim: { leon: 1, s3: 1, golf: 1 },
+  });
+  topShade(0.7, 360);
+  line('WHICH ONE ARE YOU TAKING?', 960, 140, t, ON('09'), 999, { a: 'center', s: 72, w: 900, ls: 2 });
+  const p = eOC(prog(t, ON('09') + 0.4, ON('09') + 1.8)), wob = Math.sin(t * 2.1) * 0.04 * p;
+  const shares = [0.36 + wob, 0.26 - wob * 0.5, 0.38 - wob * 0.5];
+  ctx.save(); ctx.globalAlpha = prog(t, ON('09') + 0.3, ON('09') + 0.6);
+  ctx.fillStyle = 'rgba(5,7,12,0.75)'; ctx.fill(roundPoly([[540, 185], [1380, 185], [1380, 275], [540, 275]], 14));
+  ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(560, 238, 800, 20);
+  let x = 560;
+  ORDER.forEach((id, i) => { const w = 800 * shares[i] * p; ctx.fillStyle = COLS[id]; ctx.fillRect(x, 238, w, 20); x += w; });
+  text('CUPRA 290', 560, 226, { s: 22, w: 800, c: C.cupra, ls: 4 }); text('AUDI S3', 960, 226, { a: 'center', s: 22, w: 800, c: C.s3, ls: 4 }); text('GOLF R', 1360, 226, { a: 'right', s: 22, w: 800, c: C.golf, ls: 4 });
+  ctx.restore();
+  if (t > B.comments - 0.1) {
+    const q = eOB(prog(t, B.comments, B.comments + 0.35));
+    ctx.save(); ctx.translate(960, 880); ctx.scale(clamp(q, 0, 1.2), clamp(q, 0, 1.2));
+    ctx.fillStyle = C.go; ctx.beginPath(); ctx.roundRect(-230, -36, 460, 64, 32); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-150, 26); ctx.lineTo(-170, 52); ctx.lineTo(-120, 28); ctx.fill();
+    text('LET ME KNOW IN THE COMMENTS', 0, 8, { a: 'center', s: 24, w: 900, c: '#062012', ls: 2 });
+    ctx.restore();
+  }
+  line('All cars shown are approximate 3D models built for this film. Figures: manufacturer data; prices as stated. Independent film, not affiliated with SEAT, CUPRA, Audi or Volkswagen.', 960, 1052, t, OFF('09') + 0.2, 999, { a: 'center', s: 17, w: 500, c: '#8d96a4', st: 0.005, d: 0.3 });
+}
+
+/* =====================================================================
+   COMPOSITOR — scene buffers, camera moves, transitions, HUD
+   ===================================================================== */
+const SCENES = [sIntro, sFamily, sCupra, sAWD, sRace, sDrift, sPrice, sVerdict, sCTA].map((fn, i) => [CUT[i], CUT[i + 1], fn]);
+const TRANS = [null, 'zoom', 'whip', 'whip', 'stripe', 'whip', 'stripe', 'zoom', 'whip'];
+const TR = 0.2;
+const PUNCH = [[B.three, 0.03], [B.hot, 0.03], [B.hatches, 0.03], [B.question, 0.05], [B.cupra, 0.05], [B.s3, 0.05], [B.golf, 0.06], [CUT[1] + 0.05, 0.05], [B.go, 0.07],
+  [B.hp290, 0.06], [B.front, 0.03], [B.hp333, 0.06], [B.awd, 0.03], [GO, 0.04], [B.g46, 0.05], [B.s47, 0.05], [B.c57, 0.05], [B.drift, 0.09],
+  [B.kicker, 0.04], [B.p20, 0.05], [B.p46, 0.05], [B.vC, 0.05], [B.vS, 0.05], [B.vG, 0.06], [B.comments, 0.03]];
+const mkBuf = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return [c, c.getContext('2d')]; };
+const [bufA, ctxA] = mkBuf(), [bufB, ctxB] = mkBuf();
+function renderScene(target, i, t) {
+  const prev = ctx; ctx = target;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  SCENES[i][2](t);
+  ctx.restore(); ctx = prev;
+}
+function camera(i, t) {
+  const u = prog(t, SCENES[i][0], SCENES[i][1]);
+  let z = 1 + 0.03 * eIOS(u), x = Math.sin(t * 0.7 + i * 1.3) * 6, y = Math.cos(t * 0.5 + i) * 4, r = 0;
+  for (const [t0, amp] of PUNCH) {
+    if (t < t0 || t > t0 + 1.5) continue;
+    const d = Math.exp(-(t - t0) * 6), n = rng(Math.floor(t * 60) + 7);
+    z += amp * d; x += (n() - 0.5) * 260 * amp * d; y += (n() - 0.5) * 200 * amp * d; r += (n() - 0.5) * 0.05 * amp * d;
+  }
+  return { z, x, y, r };
+}
+function blit(buf, c, alpha = 1, dx = 0) {
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.translate(W / 2 + c.x + dx, H / 2 + c.y); ctx.rotate(c.r); ctx.scale(c.z, c.z);
+  ctx.drawImage(buf, -W / 2, -H / 2);
+  ctx.restore();
+}
+function hud(t) {
+  const a = 0.6 * prog(t, 0.5, 1.1) * (1 - prog(t, DURATION - 2.2, DURATION - 1.8));
+  hudCorners(a);
+  if (a > 0) text(`CUPRA · S3 · R   ${t.toFixed(1).padStart(4, '0')}`, W - 104, 70, { a: 'right', s: 17, w: 600, f: 'JetBrains Mono', c: 'rgba(255,255,255,0.55)', al: a * 1.6 });
+}
+function drawFrame(t) {
+  ctx = main;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  let i = SCENES.findIndex(([a, b]) => t >= a && t < b);
+  if (i < 0) i = SCENES.length - 1;
+  let j = -1, p = 0;
+  if (i > 0 && t - SCENES[i][0] < TR) { j = i; p = 0.5 + (t - SCENES[i][0]) / (2 * TR); }
+  else if (i < SCENES.length - 1 && SCENES[i][1] - t < TR) { j = i + 1; p = 0.5 - (SCENES[i][1] - t) / (2 * TR); }
+  if (j < 0) {
+    renderScene(ctxA, i, t); blit(bufA, camera(i, t));
+  } else {
+    const c = SCENES[j][0], tOut = Math.min(t, c - 0.001), tIn = Math.max(t, c);
+    renderScene(ctxA, j - 1, tOut); renderScene(ctxB, j, tIn);
+    const cOut = camera(j - 1, tOut), cIn = camera(j, tIn), type = TRANS[j];
+    if (type === 'whip') {
+      const off = eIOC(p) * W, v = Math.sin(Math.PI * p);
+      for (let k = 4; k >= 0; k--) blit(bufA, cOut, k ? 0.2 * v : 1, -off + k * 45 * v);
+      for (let k = 4; k >= 0; k--) blit(bufB, cIn, k ? 0.2 * v : 1, W - off + k * 45 * v);
+    } else if (type === 'zoom') {
+      if (p < 0.5) blit(bufA, { ...cOut, z: cOut.z * (1 + 0.35 * eIC(p * 2)) });
+      else blit(bufB, { ...cIn, z: cIn.z * (1.3 - 0.3 * eOC((p - 0.5) * 2)) });
+      ctx.fillStyle = `rgba(255,255,255,${0.8 * Math.pow(1 - Math.abs(p - 0.5) * 2, 2)})`; ctx.fillRect(0, 0, W, H);
+    } else {
+      blit(bufA, cOut);
+      const x = lerp(-300, W + 900, eIOC(p)), sl = 0.42;
+      ctx.save(); ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(x - 140, 0); ctx.lineTo(x - 140 - H * sl, H); ctx.lineTo(-10, H); ctx.closePath(); ctx.clip();
+      blit(bufB, cIn); ctx.restore();
+      [C.golf, C.s3, C.cupra].forEach((col, k) => {
+        const x0 = x - k * 70; ctx.fillStyle = col;
+        ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0 + 60, 0); ctx.lineTo(x0 + 60 - H * sl, H); ctx.lineTo(x0 - H * sl, H); ctx.closePath(); ctx.fill();
+      });
+    }
+  }
+  captions(t);
+  hud(t);
+  vignette(0.5);
+  grain(t, 0.035);
+  black(prog(t, DURATION - 0.6, DURATION));
+  black(1 - prog(t, 0, 0.25));
+  ctx.restore();
+}
+window.drawFrame = drawFrame;
+window.DURATION = DURATION;
+
+if (!location.hash.includes('render')) {
+  const start = performance.now() - (parseFloat(new URLSearchParams(location.search).get('t')) || 0) * 1000;
+  const loop = () => { drawFrame(((performance.now() - start) / 1000) % DURATION); requestAnimationFrame(loop); };
+  window.ready.then(() => requestAnimationFrame(loop));
+}
+
+</script>
+</body>
+</html>

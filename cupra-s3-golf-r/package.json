@@ -1,0 +1,9 @@
+{
+  "name": "cupra-s3-golf-r",
+  "private": true,
+  "type": "module",
+  "description": "Builds the Cupra 290 vs Audi S3 vs Golf R film (see README.md)",
+  "dependencies": {
+    "three": "0.187.0"
+  }
+}

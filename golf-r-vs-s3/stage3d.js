@@ -120,6 +120,7 @@ function project(obj, p) {
      bigTable: { ry } | null,
      road: { dist } | null,                                 // night road scrolled by `dist` metres
      cam: { az, el, dist, fov, target: [x, y, z], shift: [px, py], roll },  // orbit camera (degrees); shift moves the image
+     scissor: [x, y, w, h] | null,                          // only draw this part of the frame (pixels, top-left origin)
      rim: { rs3: k, m2: k }, exposure,
      anchors: { name: [carId, x, y, z] },
    }  ->  { canvas, at: { name: [sx, sy] } } */
@@ -164,7 +165,9 @@ function render(spec) {
   }
   st.renderer.toneMappingExposure = spec.exposure ?? 1.05;
   st.scene.updateMatrixWorld(true);
+  if (spec.scissor) { const [x, y, w, h] = spec.scissor; st.renderer.setScissorTest(true); st.renderer.setScissor(x, H - y - h, w, h); }
   st.renderer.render(st.scene, st.camera);
+  st.renderer.setScissorTest(false);
   const at = {};
   for (const [name, [id, ...p]] of Object.entries(spec.anchors || {})) at[name] = project(actors[id].root, p);
   return { canvas, at };
