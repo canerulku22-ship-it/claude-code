@@ -697,33 +697,36 @@ function sAWD(t) {
   const t0 = CUT[3], u = prog(t, t0, CUT[4]);
   const spin = t > B.awd ? (t - B.awd) * 8 : 0;
   const at = three({
-    cars: [{ id: 's3', z: 1.3, spin, glow: 1 }, { id: 'golf', z: -1.3, spin, glow: 1 }],
-    bigTable: { ry: 0.25 - 0.45 * u },
-    cam: { az: orbit(u, -30, -62), el: orbit(u, 10, 7), dist: orbit(u, 11.5, 10.8), fov: 30, target: [0, 0.5, 0] },
+    cars: [{ id: 's3', z: 1.55, spin, glow: 1 }, { id: 'golf', z: -1.55, spin, glow: 1 }],
+    bigTable: { ry: 0.1 - 0.2 * u },
+    cam: { az: orbit(u, 22, 36), el: orbit(u, 10, 7), dist: orbit(u, 12.2, 11.4), fov: 30, target: [0, 0.45, 0] },
     rim: { s3: 1, golf: 1 },
     anchors: { s3: ['s3', -0.4, 1.7, 0], golf: ['golf', -0.4, 1.72, 0], ...wheelAnchors('s3'), ...wheelAnchors('golf') },
   });
   header(t, t0 + 0.1, CUT[4], 'Audi S3 · VW Golf R');
-  for (const [id, dx] of [['s3', 0], ['golf', 0]]) {
-    const q = at[id]; if (!q || t < B.hp333 - 0.05) continue;
-    slot('333', q[0] + dx, q[1] - 30, t, B.hp333 + (id === 'golf' ? 0.1 : 0), { a: 'center', s: 110, w: 900, c: '#fff', glow: `rgba(${RGB[id]},0.6)` });
-    text('PS', q[0], q[1] + 18, { a: 'center', s: 34, w: 900, c: COLS[id], al: prog(t, B.hp333 + 0.2, B.hp333 + 0.4), ls: 6 });
+  for (const [id, x] of [['s3', 520], ['golf', 1400]]) {
+    if (t < B.hp333 - 0.05) continue;
+    const t1 = B.hp333 + (id === 'golf' ? 0.12 : 0);
+    slot('333', x, 330, t, t1, { a: 'center', s: 130, w: 900, c: '#fff', glow: `rgba(${RGB[id]},0.6)` });
+    text('PS · ' + NAMES[id], x, 380, { a: 'center', s: 28, w: 900, c: COLS[id], al: prog(t, t1 + 0.2, t1 + 0.4), ls: 6 });
+    ringBurst(x, 280, t, t1, RGB[id], 300, 2, 16);
   }
   for (const id of ['s3', 'golf']) for (const k of ['fL', 'fR', 'rL', 'rR']) wheelGlow(t, B.awd + (k[0] === 'r' ? 0.08 : 0), at[id + k], RGB[id], 0.8);
-  if (t > B.awd) { chip(t, B.awd + 0.05, 120, 300, 'QUATTRO', C.s3, 'rgba(255,74,74,0.3)'); chip(t, B.awd + 0.2, 120, 380, '4MOTION', C.golf, 'rgba(61,139,255,0.3)'); }
+  if (t > B.awd) { chip(t, B.awd + 0.05, 440, 460, 'QUATTRO', C.s3, 'rgba(255,74,74,0.3)'); chip(t, B.awd + 0.2, 1310, 460, '4MOTION', C.golf, 'rgba(61,139,255,0.3)'); }
 }
 
 // 5 · 0–62 — a three-lane drag race; each timer lands as its time is said
-function timerTile(x, v, tF, fin, t, id) {
+function timerTile(x, v, tF, fin, t, id, a = 1) {
+  if (a <= 0) return;
   const done = v >= tF, pop = done ? eOB(prog(t, fin, fin + 0.35)) : 1, col = COLS[id];
-  ctx.save(); ctx.translate(x, 270); const sc = lerp(1.3, 1, clamp(pop)); ctx.scale(sc, sc);
+  ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, 250); const sc = lerp(1.3, 1, clamp(pop)) * lerp(0.8, 1, a); ctx.scale(sc, sc);
   ctx.fillStyle = 'rgba(5,7,12,0.8)'; ctx.fill(roundPoly([[-200, -130], [200, -130], [200, 60], [-200, 60]], 18));
   ctx.fillStyle = col; ctx.fillRect(-200, 54, 400, 6);
   text(v.toFixed(1), 10, 0, { a: 'center', s: 130, w: 900, c: done ? '#fff' : '#cfd6e2', glow: done ? col : null, gb: 30 });
   text('s', 150, 0, { s: 44, w: 800, c: col });
-  text(NAMES[id], 0, 40, { a: 'center', s: 24, w: 900, c: col, ls: 6 });
+  text(id === 'leon' ? 'CUPRA 290 · DSG' : NAMES[id], 0, 40, { a: 'center', s: 24, w: 900, c: col, ls: 6 });
   ctx.restore();
-  if (done) ringBurst(x, 230, t, fin, RGB[id], 260, 2, 16);
+  if (done) ringBurst(x, 210, t, fin, RGB[id], 260, 2, 16);
 }
 function sRace(t) {
   const t0 = CUT[4], u = prog(t, t0, CUT[5]);
@@ -745,15 +748,14 @@ function sRace(t) {
     const on = t >= GO - 0.9 + k * 0.3, a = (1 - prog(t, GO + 0.3, GO + 0.7)) * prog(t, t0, t0 + 0.15);
     if (a <= 0) continue;
     ctx.save(); ctx.globalAlpha = a;
-    ctx.fillStyle = 'rgba(5,7,12,0.8)'; ctx.beginPath(); ctx.arc(860 + k * 100, 470, 40, 0, Math.PI * 2); ctx.fill();
-    if (on) glowDot(860 + k * 100, 470, 70, k < 2 ? '255,60,40' : '90,255,120', 0.9);
-    ctx.fillStyle = on ? (k < 2 ? '#ff4630' : '#5eff7a') : '#20242b'; ctx.beginPath(); ctx.arc(860 + k * 100, 470, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(5,7,12,0.8)'; ctx.beginPath(); ctx.arc(860 + k * 100, 240, 40, 0, Math.PI * 2); ctx.fill();
+    if (on) glowDot(860 + k * 100, 240, 70, k < 2 ? '255,60,40' : '90,255,120', 0.9);
+    ctx.fillStyle = on ? (k < 2 ? '#ff4630' : '#5eff7a') : '#20242b'; ctx.beginPath(); ctx.arc(860 + k * 100, 240, 30, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
-  [['golf', 330], ['s3', 960], ['leon', 1590]].forEach(([id, x]) => timerTile(x, Math.min(tF[id], tF[id] * prog(t, GO, fins[id] + 0.05)), tF[id], fins[id], t, id));
-  header(t, t0 + 0.1, CUT[5], '0–62 mph');
-  if (t > B.grip) chip(t, B.grip, 120, 470, 'FOUR-WHEEL-DRIVE GRIP', C.amber, 'rgba(255,178,74,0.3)');
-  if (t > B.c57 + 0.1) chip(t, B.c57 + 0.1, 1420, 470, 'DSG · FRONT-DRIVE', C.cupra, 'rgba(242,166,90,0.3)');
+  const ta = prog(t, GO + 0.2, GO + 0.6);
+  [['golf', 330], ['s3', 960], ['leon', 1590]].forEach(([id, x]) => timerTile(x, Math.min(tF[id], tF[id] * prog(t, GO, fins[id] + 0.05)), tF[id], fins[id], t, id, ta));
+  header(t, t0 + 0.1, GO + 0.2, '0–62 mph');
 }
 
 // 6 · DRIFT — only one of them has an actual Drift mode
