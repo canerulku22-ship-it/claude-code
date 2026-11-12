@@ -34,7 +34,11 @@ def encode(episode_dir, out_path, audio_path, width, height, frame_range=None, c
     if missing:
         raise RuntimeError("%d frames are missing (first: %d). Render them first." % (len(missing), missing[0]))
 
-    overlay = Overlay(events, width, height)
+    if events.get("mode") == "fill":
+        from .overlay_fill import FillOverlay
+        overlay = FillOverlay(events, width, height)
+    else:
+        overlay = Overlay(events, width, height)
     cmd = [
         find_ffmpeg(), "-y", "-v", "error", "-stats",
         "-framerate", str(fps), "-start_number", str(first), "-i", frames_pattern,

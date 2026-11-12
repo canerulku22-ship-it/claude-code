@@ -488,3 +488,98 @@ def build_soundtrack(events, out_path, seed=1):
         w.setframerate(SR)
         w.writeframes(pcm.tobytes())
     return out_path
+
+
+# ---------------------------------------------------------------------------
+# 'Fill' episodes
+# ---------------------------------------------------------------------------
+
+def sfx_chime(rng):
+    out = np.zeros(int(1.4 * SR))
+    for k, f in enumerate((1046.5, 1318.5, 1568.0)):
+        t = _t(1.2)
+        tone = np.sin(2 * np.pi * f * t) * np.exp(-t / 0.35) * 0.25
+        off = int(k * 0.06 * SR)
+        out[off:off + len(tone)] += tone
+    return out
+
+
+def build_fill_soundtrack(events, out_path, seed=1):
+    """Soundtrack for a 'fill' episode, timed from its events log."""
+    rng = np.random.default_rng(seed)
+    fps = float(events["fps"])
+    total_s = events["total_frames"] / fps
+    buf = np.zeros((int(total_s * SR) + SR, 2))
+    seg = events["segments"]
+    counts = np.asarray(events["count"], dtype=np.float64)
+
+    s = custom_sound(["intro"], 0)
+    _place(buf, s if s is not None else sfx_intro_hit(rng), 0.0, 0.8)
+    s = custom_sound(["pop"], 0)
+    _place(buf, s if s is not None else sfx_pop(rng), 8 / fps, 0.8)
+    drop = next(e for e in events["events"] if e["type"] == "drop")
+    s = custom_sound(["impact_phone", "impact"], 0)
+    _place(buf, s if s is not None else sfx_impact("phone", 1.0, rng), drop["frame"] / fps, 1.0)
+    _place(buf, sfx_tick(rng), drop["frame"] / fps + 0.02, 1.2)
+
+    # The big pull-back.
+    z0, z1 = seg["zoom"]
+    s = custom_sound(["swipe", "whoosh"], 3)
+    dur = (z1 - z0) / fps + 0.4
+    _place(buf, s if s is not None else sfx_whoosh(1.0, rng, dur=dur) * 3.0, z0 / fps - 0.1, 1.0)
+
+    # The pour: phone clicks whose density follows the fill rate, over a deepening rumble.
+    f0, f1 = seg["fill"]
+    clicks = [sfx_impact("phone", rng.uniform(0.3, 0.8), rng) for _ in range(12)]
+    rate = np.diff(np.log10(np.maximum(counts, 1.0)), prepend=0.0)
+    for f in range(f0, f1):
+        n = rng.poisson(1.2 + 6.0 * min(1.0, (f - f0) / float(f1 - f0) * 1.5))
+        for _ in range(n):
+            t = f / fps + rng.uniform(0, 1 / fps)
+            _place(buf, clicks[rng.integers(len(clicks))], t, rng.uniform(0.08, 0.22), rng.uniform(-0.7, 0.7))
+    t_pour = np.arange(int((f1 - f0) / fps * SR)) / SR
+    rumble = _bandpass(rng.standard_normal(len(t_pour)), 30, 220)
+    rumble /= np.max(np.abs(rumble)) + 1e-9
+    env = np.clip(t_pour / 3.0, 0, 1) * (0.25 + 0.75 * t_pour / t_pour[-1])
+    _place(buf, rumble * env * 0.35, f0 / fps, 1.0)
+    bed = tension_bed(total_s, [{"type": "impact", "frame": f, "count": float(i + 1)} for i, f in
+                                enumerate(range(f0, f1, 15))] +
+                      [{"type": "break", "frame": seg["full"][0]}], rng)
+    buf[:len(bed)] += bed * 0.8
+
+    for e in events["events"]:
+        if e["type"] == "milestone":
+            s = custom_sound(["chime"], 0)
+            _place(buf, s if s is not None else sfx_chime(rng), e["frame"] / fps, 0.9)
+            _place(buf, sfx_pop(rng), e["frame"] / fps, 0.7)
+
+    # Riser into FULL, then the crash and a spray of clatter.
+    full_t = seg["full"][0] / fps
+    r = custom_sound(["riser"], 0)
+    _place(buf, r[:int(3 * SR)] if r is not None else sfx_riser(3.0, rng), full_t - 3.05, 0.6)
+    s = custom_sound(["boom"], 0)
+    _place(buf, s if s is not None else sfx_boom(rng), full_t, 1.0)
+    _place(buf, sfx_shatter("glass", rng) * 0.6, full_t, 0.8)
+    for _ in range(90):
+        t = full_t + rng.uniform(0, 2.5) ** 1.5
+        _place(buf, clicks[rng.integers(len(clicks))], t, rng.uniform(0.15, 0.4), rng.uniform(-0.8, 0.8))
+
+    outro_t = seg["outro"][0] / fps
+    s = custom_sound(["whoosh"], 1)
+    _place(buf, s if s is not None else sfx_whoosh(1.0, rng, dur=0.5) * 2.0, outro_t - 0.1, 1.0)
+    s = custom_sound(["outro"], 0)
+    _place(buf, s if s is not None else sfx_outro(rng), outro_t + 22 / fps, 0.7)
+    buf += room_tone(len(buf), rng)
+
+    buf = _reverb(buf, rng)
+    buf = buf[:int(total_s * SR)]
+    peak = np.max(np.abs(buf)) + 1e-9
+    buf = np.tanh(buf / peak * 1.6) / np.tanh(1.6)
+    buf *= 10 ** (-1 / 20) / (np.max(np.abs(buf)) + 1e-9)
+    pcm = (np.clip(buf, -1, 1) * 32767).astype("<i2")
+    with wave.open(out_path, "wb") as w:
+        w.setnchannels(2)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes(pcm.tobytes())
+    return out_path

@@ -307,8 +307,87 @@ def render_frames(built, tl, frames, frames_dir, fresh):
               % (vf, sf, cam, el / done, (el / done) * left / 60.0), flush=True)
 
 
+def fill_events(cfg, ftl, built):
+    """Events log for a 'fill' episode: counts, ruler positions and milestones per frame."""
+    from hmtb import skyline
+    scene = built["scene"]
+    cam = built["cams"]["main"]
+    a, b = ftl.segments["zoom"][1], ftl.segments["outro"][0]
+    ruler = {}
+    for f in range(a, b):
+        scene.frame_set(f)
+        pts = [world_to_camera_view(scene, cam, Vector((0.0, 0.0, z)))
+               for z in (0.0, ftl.level[f], skyline.H_OCC, skyline.H_TIP)]
+        ruler[f] = [round(1.0 - p.y, 4) for p in pts]
+    from scene3d.skyscraper import HERO_Y
+    scene.frame_set(ftl.drop_impact_f)
+    p = world_to_camera_view(scene, cam, Vector((0.0, HERO_Y, 0.5)))
+    events = [{"type": "drop", "frame": ftl.drop_impact_f, "count": 1,
+               "screen": [round(p.x, 4), round(1.0 - p.y, 4)]}]
+    events += [{"type": "milestone", "frame": m["frame"], "count": m["count"], "text": m["text"]}
+               for m in ftl.milestones]
+    events.append({"type": "full", "frame": ftl.segments["full"][0]})
+    events.append({"type": "outro_start", "frame": ftl.segments["outro"][0]})
+    public_cfg = {k: v for k, v in cfg.items() if not k.startswith("_")}
+    counts = [ftl.count[ftl.scene_frame(v)[0]] for v in range(ftl.total_frames)]
+    levels = [ftl.level[ftl.scene_frame(v)[0]] for v in range(ftl.total_frames)]
+    return {
+        "version": 1, "mode": "fill", "config": public_cfg, "fps": ftl.fps,
+        "total_frames": ftl.total_frames, "duration_s": ftl.total_frames / float(ftl.fps),
+        "segments": ftl.segments, "events": events,
+        "count": [round(c, 1) for c in counts], "level_m": [round(lv, 2) for lv in levels],
+        "ruler": {str(k): v for k, v in ruler.items()},
+        "h_occ": skyline.H_OCC, "floor_height_m": cfg.get("floor_height_m", 3.59),
+    }
+
+
+def main_fill(args, raw):
+    """Render a 'fill' episode (see hmtb/fill.py)."""
+    from hmtb import skyline
+    from hmtb.fill import build_fill_timeline, resolve_fill
+    from scene3d import skyscraper
+    cfg = resolve_fill(raw, args.config)
+    ftl = build_fill_timeline(cfg, skyline.fill_fraction_table(), skyline.H_OCC)
+    print("Fill episode: %.0f s. Answer: %.4g items, %.4g kg." % (cfg["duration_s"], cfg["answer"],
+                                                                  cfg["answer_mass_kg"]), flush=True)
+    for name, (s0, s1) in ftl.segments.items():
+        print("  %-6s %6.2fs - %6.2fs" % (name, s0 / 30.0, s1 / 30.0))
+    base_w, base_h = PREVIEW_RES if args.preview else FULL_RES
+    width = int(round(base_w * args.scale / 2)) * 2
+    height = int(round(base_h * args.scale / 2)) * 2
+    samples = args.samples or (cfg["preview_samples"] if args.preview else cfg["samples"])
+    frames = list(range(0, min(ftl.total_frames, int(PREVIEW_SECONDS * FPS)))) if args.preview \
+        else list(range(ftl.total_frames))
+    if args.frames and ":" in args.frames:
+        a, b = args.frames.split(":")
+        frames = [f for f in frames if int(a or 0) <= f < int(b or 10 ** 9)]
+    elif args.frames:
+        frames = sorted(int(f) for f in args.frames.split(","))
+    out_dir = args.out or os.path.join(HERE, "out", cfg["slug"] + ("_preview" if args.preview else ""))
+    os.makedirs(out_dir, exist_ok=True)
+    t0 = time.time()
+    built = skyscraper.build_scene(cfg, ftl, width, height, samples)
+    print("  scene built in %.1fs" % (time.time() - t0), flush=True)
+    events_path = os.path.join(out_dir, "events.json")
+    if not os.path.exists(events_path) or args.preview or (args.frames and args.frames.startswith("0")):
+        events = fill_events(cfg, ftl, built)
+        all_frames = list(range(0, int(PREVIEW_SECONDS * FPS))) if args.preview else list(range(ftl.total_frames))
+        events["render"] = {"width": width, "height": height, "samples": samples,
+                            "frames": [all_frames[0], all_frames[-1] + 1]}
+        with open(events_path, "w") as fh:
+            json.dump(events, fh)
+        print("Wrote", events_path, flush=True)
+    if not args.no_render:
+        render_frames(built, ftl, frames, os.path.join(out_dir, "frames"), args.fresh)
+    print("Done.", flush=True)
+
+
 def main():
     args = parse_args()
+    with open(args.config) as fh:
+        raw = json.load(fh)
+    if raw.get("mode") == "fill":
+        return main_fill(args, raw)
     cfg = load_config(args.config)
     for w in cfg["_warnings"]:
         print("WARNING:", w)

@@ -1,0 +1,37 @@
+{
+  "mode": "fill",
+  "title": "How many phones to fill the Burj Khalifa?",
+  "container": "burj_khalifa",
+  "container_volume_m3": 1109740,
+  "container_volume_note": "309,473 m2 gross floor area (CTBUH) x 3.59 m average floor-to-floor height (584.5 m top occupied floor / 163 floors)",
+  "item": "iphone",
+  "item_size_mm": [
+    147.6,
+    71.6,
+    7.8
+  ],
+  "item_mass_kg": 0.17,
+  "item_note": "iPhone 16 (Apple tech specs)",
+  "packing": 1.0,
+  "duration_s": 52,
+  "counter_label": "PHONES",
+  "floor_height_m": 3.59,
+  "milestones": [
+    {
+      "count": 1240000000.0,
+      "text": "= EVERY SMARTPHONE SHIPPED IN 2024"
+    },
+    {
+      "count": 8200000000.0,
+      "text": "MORE PHONES THAN PEOPLE ON EARTH"
+    }
+  ],
+  "fact": "1.6 PHONES FOR EVERY PERSON ON EARTH",
+  "footnote": "Phone = iPhone 16, 147.6 x 71.6 x 7.8 mm, 170 g. Interior = 309,473 m2 x 3.59 m floors = 1.11M m3, stacked with no gaps.",
+  "end_question": "WHAT SHOULD WE FILL NEXT?",
+  "highlight": [
+    "PHONES",
+    "BURJ",
+    "KHALIFA"
+  ]
+}

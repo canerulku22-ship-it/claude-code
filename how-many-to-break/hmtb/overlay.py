@@ -520,11 +520,11 @@ class Overlay:
 
     def _end_card(self, img, t):
         pt = _ease_out_back(t / 9.0)
-        words = [(w, WHITE) for w in "WHAT SHOULD WE BREAK NEXT?".split()]
+        words = [(w, WHITE) for w in getattr(self, "end_question", "WHAT SHOULD WE BREAK NEXT?").split()]
         size = 84 * (0.85 + 0.15 * pt)
         f = _font(FONT_BLACK, self._s(size))
         lines = self._wrap(words, f, self._s(SAFE_X1 - SAFE_X0 - 40))
-        y = OUTRO_CARD_Y
+        y = getattr(self, "outro_card_y", OUTRO_CARD_Y)
         d = ImageDraw.Draw(img)
         a = int(255 * min(1.0, t / 5.0))
         for line in lines:

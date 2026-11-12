@@ -83,7 +83,14 @@ def make_episode(config_path, preview=False, blender=None, samples=None, scale=1
     from hmtb.audio import build_soundtrack
     from hmtb.encode import encode
 
-    cfg = load_config(config_path)
+    with open(config_path) as fh:
+        raw = json.load(fh)
+    fill_mode = raw.get("mode") == "fill"
+    if fill_mode:
+        from hmtb.fill import resolve_fill
+        cfg = resolve_fill(raw, config_path)
+    else:
+        cfg = load_config(config_path)
     slug = cfg["slug"] + ("_preview" if preview else "")
     out_dir = os.path.join(HERE, "out", slug)
     os.makedirs(out_dir, exist_ok=True)
@@ -104,7 +111,12 @@ def make_episode(config_path, preview=False, blender=None, samples=None, scale=1
             args.append("--fresh")
         from hmtb.timeline import build_timeline
         from hmtb import FPS, PREVIEW_SECONDS
-        total = int(PREVIEW_SECONDS * FPS) if preview else build_timeline(cfg).total_frames
+        if preview:
+            total = int(PREVIEW_SECONDS * FPS)
+        elif fill_mode:
+            total = int(round(cfg["duration_s"] * FPS))
+        else:
+            total = build_timeline(cfg).total_frames
         for i, rng_ in enumerate(chunk_ranges(total, chunk)):
             chunk_args = args + (["--frames", rng_] if rng_ else [])
             if i > 0 and "--fresh" in chunk_args:
@@ -119,7 +131,11 @@ def make_episode(config_path, preview=False, blender=None, samples=None, scale=1
     # 2. Soundtrack
     audio = os.path.join(out_dir, "audio.wav")
     print("[2/3] Building soundtrack ->", audio, flush=True)
-    build_soundtrack(events, audio, seed=cfg["seed"])
+    if fill_mode:
+        from hmtb.audio import build_fill_soundtrack
+        build_fill_soundtrack(events, audio, seed=cfg["seed"])
+    else:
+        build_soundtrack(events, audio, seed=cfg["seed"])
 
     # 3. Overlay + encode
     width, height = PREVIEW_RES if preview else FULL_RES

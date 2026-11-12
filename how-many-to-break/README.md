@@ -98,6 +98,48 @@ is scaled by the same factor. The render log prints that factor, e.g. *"Drop int
 scaled x1.21 to fit the duration: 1.82s -> 0.73s"*. For pacing exactly as written, choose
 intervals that give a factor near 1.0.
 
+## Fill episodes: "How many ___ to fill ___?"
+
+Set `"mode": "fill"` for a second format, for example `episodes/phones_burj_khalifa.json`
+(52 s). The answer is arithmetic from facts in the config, printed at the start of the
+render:
+
+```
+count  = container_volume_m3 x packing / (item_size_mm in m³)
+weight = count x item_mass_kg
+```
+
+For the Burj Khalifa: 309,473 m² gross floor area (CTBUH) x 3.59 m average floor height
+(584.5 m to the top occupied floor / 163 floors) = 1.11 million m³. One iPhone 16 is
+147.6 x 71.6 x 7.8 mm = 82.4 cm³. Stacked with no gaps that's 13.46 billion phones,
+weighing 2.29 million tonnes, or 1.6 phones for every person on Earth.
+
+| Key | Meaning |
+|---|---|
+| `container_volume_m3` (+ `container_volume_note`) | Inside volume and where the number comes from |
+| `item_size_mm`, `item_mass_kg` (+ `item_note`) | One item's size and weight |
+| `packing` | 1.0 = stacked with no gaps; about 0.6 for items poured in loosely |
+| `milestones` | `[{"count": 1.24e9, "text": "..."}]`: fact callouts that pop in as the counter passes them |
+| `fact`, `footnote` | Comparison line and the maths shown on the answer card |
+| `highlight` | Title words drawn in the accent colour |
+| `duration_s` | 30-75 s (the example is 52 s) |
+
+The beats are:
+
+1. **Hook:** a worm's-eye view up the tower with the title.
+2. **One item:** a single real-size phone lands on the plaza ("1 PHONE").
+3. **Pull-back:** the camera rockets back to show the whole tower.
+4. **Fill:** the glass tower fills from the bottom up while giant phones rain inside.
+   - The camera tracks the fill level in medium shots and pulls out to show progress.
+   - A height marker rides the level, and the counter races up through millions to billions.
+5. **FULL!:** phones spray out of the top.
+6. **Answer card:** the count, the weight, the comparison, the question and the maths.
+
+The tower (`hmtb/skyline.py`) is a procedural Y-plan supertall with spiral setbacks, sized
+so its model volume matches the real ~1.1 million m³. The counter follows how much of that
+volume is below the fill line, so it races through the wide lower tiers and slows near the
+top.
+
 ## What happens in an episode
 
 | Time | What you see | What you hear |
