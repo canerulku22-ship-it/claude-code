@@ -581,6 +581,14 @@ function vsBadge(t, t0, x = 960, y = 470, sz = 1) {
   ctx.fillText('VS', 0, 29);
   ctx.restore();
 }
+function banner(t, t0, x, y, str, fill, ink, s = 92, pad = 46) { // pop-in slab of text
+  const p = eOB(prog(t, t0, t0 + 0.3)); if (p <= 0) return;
+  const w = measure(str, { s, w: 900, ls: 3 }) + pad * 2;
+  ctx.save(); ctx.translate(x, y); ctx.scale(clamp(p, 0, 1.25), clamp(p, 0, 1.25)); ctx.globalAlpha = clamp(prog(t, t0, t0 + 0.1));
+  ctx.fillStyle = fill; ctx.fill(roundPoly([[-w / 2, -s * 0.95], [w / 2, -s * 0.95], [w / 2, s * 0.33], [-w / 2, s * 0.33]], 16));
+  text(str, 0, 0, { a: 'center', s, w: 900, c: ink, ls: 3 });
+  ctx.restore();
+}
 const revealed = (t, t0) => { const p = eOC(prog(t, t0 - 0.05, t0 + 0.35)); return `grayscale(${1 - p}) brightness(${0.35 + 0.65 * p})`; };
 
 // 1 · HOOK — both real cars, colour snaps in as each is named
