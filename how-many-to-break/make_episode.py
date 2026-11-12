@@ -143,8 +143,9 @@ def main():
         sys.exit(0 if tools.check(args.blender) else 1)
     if not args.config:
         raise SystemExit("Give an episode config, e.g. episodes/bowling_balls_glass_table.json (or --check)")
-    if not tools.check(args.blender, verbose=False):
-        tools.check(args.blender)
+    need_blender = not args.skip_render
+    if not tools.check(args.blender, verbose=False, need_blender=need_blender):
+        tools.check(args.blender, need_blender=need_blender)
         raise SystemExit(1)
     make_episode(args.config, preview=args.preview, blender=args.blender, samples=args.samples,
                  scale=args.scale, fresh=args.fresh, skip_render=args.skip_render, crf=args.crf,

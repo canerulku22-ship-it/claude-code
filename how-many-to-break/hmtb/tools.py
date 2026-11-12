@@ -86,15 +86,15 @@ def blender_command(found, script, args):
     return [path, "-b", "--factory-startup", "--python-exit-code", "1", "-P", script, "--"] + list(args)
 
 
-def check(explicit_blender=None, verbose=True):
+def check(explicit_blender=None, verbose=True, need_blender=True):
     """Check every dependency. Returns True if everything needed is available."""
     ok = True
     lines = []
-    found = find_blender(explicit_blender)
+    found = find_blender(explicit_blender) if need_blender else None
     if found:
         ver = blender_version(found)
         lines.append("Blender : OK   %s (%s: %s)" % (ver or "unknown version", found[0], found[1]))
-    else:
+    elif need_blender:
         lines.append("Blender : MISSING")
         ok = False
     ff = shutil.which("ffmpeg")

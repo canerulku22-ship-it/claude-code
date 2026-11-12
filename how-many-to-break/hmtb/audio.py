@@ -145,7 +145,7 @@ def sfx_surface(material, intensity, rng):
         f = 140 + 90 * np.exp(-t * 6) * np.cos(2 * np.pi * 9 * t)
         boing = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.16)
         springs = _modes([rng.uniform(2400, 2900), rng.uniform(4100, 4600)], [0.12, 0.08], [0.1, 0.06], 0.4, rng)
-        return (boing * 0.6 + springs) * intensity
+        return _mix(boing * 0.6, springs) * intensity
     if material == "wood":
         return _modes([rng.uniform(180, 220), rng.uniform(410, 470), rng.uniform(900, 1100)],
                       [0.09, 0.05, 0.03], [0.5, 0.3, 0.15], 0.3, rng) * intensity
