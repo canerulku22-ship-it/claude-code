@@ -1,0 +1,8 @@
+{
+  "title": "What if you fold paper 42 times?",
+  "material": "paper",
+  "thickness_mm": 0.1,
+  "colour": "#f5f2ea",
+  "folds": 42,
+  "duration_s": 70
+}
