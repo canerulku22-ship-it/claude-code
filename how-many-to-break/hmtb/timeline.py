@@ -27,7 +27,9 @@ from dataclasses import dataclass, field
 
 from . import FPS
 
-FALL_S = 0.5            # how long each object takes to fall into view and land
+FALL_S = 0.38           # how long each object takes to fall into view and land (snappy)
+CLOSEUP_PRE_F = 4       # crack-stage close-ups start this many frames before the impact
+CLOSEUP_S = 1.15        # and last this long
 REPLAY_PREROLL_S = 0.7  # the replay starts this long before the final impact
 REPLAY_RANGE_S = (3.0, 5.0)
 AFTERMATH_RANGE_S = (1.5, 4.0)
@@ -194,7 +196,21 @@ def build_timeline(cfg, fps=FPS):
     scene_after = break_f + shatter_f            # aftermath continues the main sim
     scene_end = scene_after + aftermath_f - 1    # last simulated frame (frozen in the outro)
     replay_scene_start = break_f - int(round(REPLAY_PREROLL_S * fps))
-    shots = [Shot("main", 0, v_replay, 0)]
+    # Main camera, with quick cuts to a close-up of the target at each crack stage.
+    shots = []
+    cursor = 0
+    stage_drops = [d for d in drops if d.crack_stage and not d.final]
+    for i, d in enumerate(stage_drops):
+        a = d.impact_f - CLOSEUP_PRE_F
+        b = d.impact_f + int(round(CLOSEUP_S * fps))
+        nxt = stage_drops[i + 1].impact_f - CLOSEUP_PRE_F if i + 1 < len(stage_drops) else break_f - 12
+        b = min(b, nxt - 6)
+        if a <= cursor or b - a < 10:
+            continue
+        shots.append(Shot("main", cursor, a, cursor))
+        shots.append(Shot("close", a, b, a))
+        cursor = b
+    shots.append(Shot("main", cursor, v_replay, cursor))
     if replay_f > 0:
         shots.append(Shot("replay", v_replay, v_after, replay_scene_start))
     shots.append(Shot("main", v_after, v_outro, scene_after))

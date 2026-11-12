@@ -79,6 +79,7 @@ DROP_OBJECTS = {
         "rock_deg": 9.0,
         "sound": "phone",
         "collision": "BOX",
+        "flip": True,          # half land face-down so the tower is colourful
     },
     "anvil": {
         "singular": "anvil",
@@ -120,7 +121,7 @@ TARGETS = {
     "egg": {
         "name": "egg",
         "material": "shell",
-        "max_sag_m": 0.0,
+        "max_sag_m": 0.006,      # the (cartoon) egg squashes a little under the load
         "bounciness": 0.8,
     },
     "wooden_chair": {

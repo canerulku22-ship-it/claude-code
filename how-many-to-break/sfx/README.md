@@ -14,6 +14,7 @@ The first slot that has a file wins, from most to least specific:
 | Title hit | `intro` | frame 0, under the title |
 | Pill pop | `pop` | when "Guess in the comments" appears |
 | End card | `outro` | when "What should we break next?" appears |
+| Replay swipe | `swipe`, `whoosh` | the yellow swipe into the replay |
 | Object lands | `impact_<drop_object>`, `impact` | every drop, e.g. `impact_bowling_ball` |
 | Counter tick | `tick` | with each impact (quiet UI tick) |
 | Falling whoosh | `whoosh` | as each object falls in |

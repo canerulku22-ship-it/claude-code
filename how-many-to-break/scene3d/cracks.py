@@ -115,9 +115,10 @@ def _split_by_radius(pts, origin, radii):
     return pieces
 
 
-def draw_cracks(style, origin, n_stages, seed, res=1024, reach=0.75):
+def draw_cracks(style, origin, n_stages, seed, res=1024, reach=0.75, width_mult=1.0):
     """Return (alpha, stage) float arrays for ``n_stages`` crack stages."""
     rays, ring_p, jitter, width, branch_p, _c, _s, spread = STYLE[style]
+    width *= width_mult
     rng = random.Random(seed)
     cv = CrackCanvas(res)
     K = max(1, n_stages)
@@ -233,9 +234,9 @@ def set_crack_uv(me, uv_func, name="CrackUV"):
     uv.data.foreach_set("uv", data)
 
 
-def add_crack_layer(mat, style, origin_uv, n_stages, seed, res=1024):
+def add_crack_layer(mat, style, origin_uv, n_stages, seed, res=1024, width_mult=1.0):
     """Add growing cracks to ``mat`` (in place). Returns the CrackLevel value node."""
-    alpha, stage = draw_cracks(style, origin_uv, n_stages, seed, res=res)
+    alpha, stage = draw_cracks(style, origin_uv, n_stages, seed, res=res, width_mult=width_mult)
     a_img = _image(mat.name + "_crack_alpha", alpha)
     s_img = _image(mat.name + "_crack_stage", stage)
     color, strength = STYLE[style][5], STYLE[style][6]

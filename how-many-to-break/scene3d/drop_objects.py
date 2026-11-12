@@ -93,7 +93,7 @@ def build_iphone():
                        center=(lx / 2 - 0.026 + dx, ly / 2 - 0.022 + dy, -lz / 2 - 0.0024), bm=bm)
     me = mesh_from_bmesh("Phone", bm)
     obj = new_object("PhoneTemplate", me)
-    me.materials.append(M.principled("PhoneFrame", color=(0.75, 0.75, 0.78), roughness=0.2, metallic=1.0))
+    me.materials.append(M.phone_frame())
     me.materials.append(M.phone_screen())
     me.materials.append(M.phone_back())
     for poly in me.polygons:

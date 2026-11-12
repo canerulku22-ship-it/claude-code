@@ -459,6 +459,11 @@ def build_soundtrack(events, out_path, seed=1):
     _place(buf, s if s is not None else sfx_whoosh(1.0, prng, dur=0.5) * 2.0, outro_t - 0.1, 1.0)
     s = custom_sound(["outro"], 0)
     _place(buf, s if s is not None else sfx_outro(prng), outro_t + 12 / fps, 0.7)
+    # Whoosh under the diagonal swipe into the replay.
+    replay_t = events["segments"]["replay"][0] / fps
+    if events["segments"]["replay"][1] > events["segments"]["replay"][0]:
+        s = custom_sound(["swipe", "whoosh"], 2)
+        _place(buf, s if s is not None else sfx_whoosh(1.0, prng, dur=0.55) * 2.5, replay_t - 0.3, 1.0)
     buf += room_tone(len(buf), rng)
 
     music = custom_sound(["music"], 0)

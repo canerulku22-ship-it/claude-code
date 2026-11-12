@@ -102,13 +102,13 @@ intervals that give a factor near 1.0.
 
 | Time | What you see | What you hear |
 |---|---|---|
-| 0-2 s | Title on frame 1, close on the empty target, "Guess in the comments 👇" | Hit on frame 1, pill pop |
-| build | Objects fall in one at a time, faster and faster, bounce and settle; the whole pile jolts on each hit; counters tick | Whoosh, impact, the target answering (glass ring, trampoline boing, wood knock), tick, a low tension drone that thickens |
-| crack stages | Cracks spread from the load, the counters shake red with a CRACK! stamp, the camera thumps and pushes in | Crack and creak; random strain creaks between stages |
+| 0-2 s | Title pops in word by word on frame 1, close on the empty target, "Guess in the comments 👇" | Hit on frame 1, pill pop |
+| build | Objects snap in one at a time, faster and faster. They stretch as they fall, squash and bounce on landing, and the whole pile (and a squashy target) jolts on each hit. Each impact gets a zoom punch, comic impact lines and a "+1" where it lands. Counters roll like an odometer, with "+X KG" floating off | Whoosh, impact, the target answering (glass ring, trampoline boing, wood knock), tick, a low tension drone that thickens |
+| crack stages | A quick cut to a close-up of the target as cracks spread. The stress meter lights another segment, the counters shake red with a CRACK! stamp, a red vignette pulses, and the main camera pushes in | Crack and creak; random strain creaks between stages |
 | before the last drop | A held beat | Riser, cut dead before the impact |
-| break | The last object keeps its speed and smashes through. Pre-fractured pieces go to rigid-body physics in slow motion, with a camera shake and a white flash | Slowed shatter, sub boom, then debris hits detected from the physics sim |
-| replay | Low side angle, slow motion, REPLAY tag | Replay of those sounds, slower |
-| last 5 s | Freeze-frame, dimmed, big final counters, "What should we break next? 👇" | Whoosh, bright end chord |
+| break | The last object keeps its speed and smashes through. Pre-fractured pieces go to rigid-body physics in slow motion, with a camera shake, a white flash, a giant comic word (SMASH!, SPLAT!, RIIIP!), then a SLOW-MO tag | Slowed shatter, sub boom, then debris hits detected from the physics sim |
+| replay | A yellow swipe covers the cut to a low side angle, in slow motion, with a REPLAY tag | Swipe whoosh, replay of the sounds, slower |
+| last 5 s | Freeze-frame, dimmed. The counters slide to the middle and count up to the final numbers, then "What should we break next? 👇" | Whoosh, bright end chord |
 
 ## Signature style and safe zones
 
@@ -116,6 +116,7 @@ Every episode uses the same studio and graphics:
 
 * **Studio:** an indigo cyclorama, a slate floor with a 25 cm grid, and a round test pad with a yellow/black hazard rim
 * **Lighting:** warm key, cool rim
+* **Cartoon finish:** ink outlines on every object (an inverted-hull outline, `scene3d/toon.py`), squash and stretch on the drops, and zoom punches on impacts
 * **Counters:** Inter Display Black, white numbers with the yellow accent on dark rounded plates
 * **Overlay:** laid out in 1080x1920 units, and nothing goes in the top 10% or the bottom 20%, or right of x = 900 (TikTok's buttons)
 * **Framing:** the camera solves its framing so the action sits in the band between the two counters, whatever the target's size
@@ -145,8 +146,8 @@ Eevee is near real-time on a GPU, so a full episode takes a few minutes. On a CP
 machine (software OpenGL/Vulkan) it is several seconds per frame. To speed it up:
 
 * `--scale 0.67` renders the 3D at 720x1280. It's upscaled when encoding, and the text stays sharp.
-* `--samples 8` (or lower `samples` in the config)
-* `--chunk 60` renders 60 frames per Blender process. Use it on CPU-only machines, where
+* `--samples 6` (or lower `samples` in the config). With the outlined cartoon look, 6 is hard to tell from 16.
+* `--chunk 50` renders 50 frames per Blender process. Use it on CPU-only machines, where
   the software GPU driver can crash Blender after ~80 renders in one process. Crashed
   renders also resume automatically.
 * Split one render across machines or processes:

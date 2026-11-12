@@ -22,6 +22,8 @@ from .util import set_keys, set_track, set_visibility
 
 FPS = 30.0
 GRAVITY = 9.81
+CARTOON_SQUASH = 0.09    # minimum landing squash for every non-round object
+CARTOON_STRETCH = 0.10   # stretch along the fall just before landing
 
 
 def sag_track(frames, drops, max_sag, jolt):
@@ -61,7 +63,10 @@ def animate_pile(objs, positions, timeline, obj_info, target_info, target, rng, 
     bounce_h = min(obj_info["bounce"] * drop_height * target_info["bounciness"], 0.3 * drop_height)
     tb = max(3.0, 2.0 * math.sqrt(2.0 * max(bounce_h, 1e-4) / GRAVITY) * FPS)
     rock = math.radians(obj_info["rock_deg"])
-    squash = obj_info["squash"]
+    # Cartoon squash and stretch. Balls are skipped: they land at random orientations,
+    # and a squash along their local axis would point the wrong way.
+    squash = 0.0 if spherical else max(obj_info["squash"], CARTOON_SQUASH)
+    stretch = 0.0 if spherical else CARTOON_STRETCH
 
     # On a bowl-shaped sag (trampoline), an object resting in the pocket of four below
     # it sinks by the *average* of their sag, which for a quadratic bowl is a fixed
@@ -83,6 +88,8 @@ def animate_pile(objs, positions, timeline, obj_info, target_info, target, rng, 
         # Resting orientation: balls land any way round, everything else keeps its yaw.
         if spherical:
             rest = (rng.uniform(0, 2 * math.pi), rng.uniform(0, 2 * math.pi), pos["yaw"])
+        elif obj_info.get("flip", False) and rng.random() < 0.5:
+            rest = (math.pi, 0.0, pos["yaw"])     # face-down, coloured back up
         else:
             rest = (0.0, 0.0, pos["yaw"])
         spin = rng.uniform(-1.2, 1.2)
@@ -120,14 +127,17 @@ def animate_pile(objs, positions, timeline, obj_info, target_info, target, rng, 
             wobble[falling] = 0.0
             rot[:, rock_axis] += wobble
 
-        # Squash and stretch for soft objects
+        # Squash and stretch: stretch as it speeds up, squash on landing, spring back.
         if squash > 0:
             q = squash * np.exp(-t / 3.0) * np.cos(2 * np.pi * t / 9.0)
             q[falling | (t > 24)] = 0.0
+            q -= np.where(falling, stretch * u ** 3, 0.0)     # negative q = stretch
+            if d.final:
+                q[~falling] = 0.0   # physics takes over on this frame: hand it over unsquashed
             scl[:, 2] = 1.0 - q
             scl[:, 0] = 1.0 + q * 0.5
             scl[:, 1] = 1.0 + q * 0.5
-            loc[:, 2] -= q * size_z / 2.0
+            loc[:, 2] -= np.where(falling, 0.0, q * size_z / 2.0)
 
         for axis in range(3):
             set_track(obj, "location", fr, loc[:, axis], index=axis)
@@ -139,11 +149,19 @@ def animate_pile(objs, positions, timeline, obj_info, target_info, target, rng, 
 
 
 def animate_support(target, sag, break_f):
-    """Sink the support with the load: rigid parts move down, a trampoline mat bends."""
+    """Sink the support with the load: rigid parts move down, a trampoline mat bends,
+    and a squashy target (the egg) squashes with its bottom planted."""
     frames = np.arange(0, break_f + 1)
     for obj in target.sag_move:
         z0 = obj.location.z
         set_track(obj, "location", frames, z0 - sag, index=2)
+    for obj, height in target.sag_squash:
+        z0 = obj.location.z
+        k = sag / height
+        set_track(obj, "location", frames, z0 - sag / 2.0, index=2)
+        set_track(obj, "scale", frames, 1.0 - k, index=2)
+        for axis in (0, 1):
+            set_track(obj, "scale", frames, 1.0 + 0.5 * k, index=axis)
     for obj in target.sag_shape:
         key = obj.data.shape_keys.key_blocks["Sag"]
         set_track(key, "value", frames, np.clip(sag, 0.0, 1.0))

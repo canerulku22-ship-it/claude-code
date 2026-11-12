@@ -262,24 +262,42 @@ def iron():
     return mat
 
 
+def _phone_palette(nt):
+    info = nt.nodes.new("ShaderNodeObjectInfo")
+    palette = _ramp(nt, [
+        (0.00, (0.90, 0.20, 0.25)),   # coral red
+        (0.17, (0.10, 0.55, 0.95)),   # sky blue
+        (0.34, (0.15, 0.80, 0.55)),   # mint
+        (0.51, (0.98, 0.75, 0.10)),   # sunflower
+        (0.68, (0.60, 0.35, 0.95)),   # lilac
+        (0.85, (0.92, 0.92, 0.95)),   # white
+    ], interpolation="CONSTANT")
+    nt.links.new(info.outputs["Random"], palette.inputs[0])
+    return palette
+
+
 def phone_back():
-    """Frosted-glass phone back; colour varies per phone."""
+    """Glossy coloured phone back; each phone picks a bright cartoon colour."""
     mat, fresh = new_material("PhoneBack")
     if not fresh:
         return mat
     nt, bsdf = _principled_tree(mat)
-    info = nt.nodes.new("ShaderNodeObjectInfo")
-    palette = _ramp(nt, [
-        (0.00, (0.05, 0.05, 0.06)),   # graphite
-        (0.25, (0.78, 0.78, 0.80)),   # silver
-        (0.50, (0.10, 0.22, 0.45)),   # blue
-        (0.75, (0.55, 0.40, 0.60)),   # lilac
-    ], interpolation="CONSTANT")
-    nt.links.new(info.outputs["Random"], palette.inputs[0])
-    nt.links.new(palette.outputs[0], bsdf.inputs["Base Color"])
-    bsdf.inputs["Roughness"].default_value = 0.35
-    _set(bsdf, "coat", 0.6)
-    mat.diffuse_color = (0.3, 0.3, 0.35, 1.0)
+    nt.links.new(_phone_palette(nt).outputs[0], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 0.3
+    _set(bsdf, "coat", 0.7)
+    mat.diffuse_color = (0.6, 0.4, 0.6, 1.0)
+    return mat
+
+
+def phone_frame():
+    """Satin metal rim in the same colour as the back."""
+    mat, fresh = new_material("PhoneFrame")
+    if not fresh:
+        return mat
+    nt, bsdf = _principled_tree(mat)
+    nt.links.new(_phone_palette(nt).outputs[0], bsdf.inputs["Base Color"])
+    bsdf.inputs["Metallic"].default_value = 0.5
+    bsdf.inputs["Roughness"].default_value = 0.25
     return mat
 
 

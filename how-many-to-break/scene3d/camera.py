@@ -10,10 +10,11 @@ size.
 import math
 
 import bpy
+import numpy as np
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Vector
 
-from .util import fcurves_of, link
+from .util import fcurves_of, link, set_track
 
 # Screen box for the subject, as fractions of the frame (x from left, y from bottom).
 # The top counter ends ~22% down, the bottom counter starts ~69% down, and TikTok's
@@ -152,3 +153,40 @@ def animate_replay(scene, cam, timeline, replay_box):
     cam.data.lens = 32.0
     key_framing(cam, start, solve_framing(scene, cam, replay_box[0], replay_box[1], 50.0, 5.0, 0.90))
     key_framing(cam, end, solve_framing(scene, cam, replay_box[0], replay_box[1], 42.0, 6.0, 1.0))
+
+
+def animate_close(scene, cam, timeline, close_box, yaw=34.0):
+    """Quick close-up cuts at the crack stages: low side angle with a slow push-in."""
+    cam.data.lens = 40.0
+    for shot in timeline.shots:
+        if shot.camera != "close":
+            continue
+        a = shot.scene_start
+        b = a + (shot.video_end - shot.video_start) - 1
+        key_framing(cam, a, solve_framing(scene, cam, close_box[0], close_box[1], yaw + 4.0, 7.0, 0.82))
+        key_framing(cam, b, solve_framing(scene, cam, close_box[0], close_box[1], yaw - 3.0, 8.0, 0.95))
+
+
+def _pulse(t):
+    """Zoom-punch envelope: quick in (2 frames), slower settle."""
+    if t < 0:
+        return 0.0
+    if t < 2:
+        return t / 2.0
+    return math.exp(-(t - 2) / 3.5)
+
+
+def add_zoom_punches(cam, hits, frame_range):
+    """Punch the focal length on each hit: [(scene_frame, strength), ...].
+
+    Animating the lens instead of the position means the punches stack on top of the
+    framing moves without fighting their keyframes.
+    """
+    base = cam.data.lens
+    a, b = frame_range
+    frames = np.arange(a, b + 1)
+    values = np.full(len(frames), base, dtype=np.float64)
+    for f, strength in hits:
+        t = frames - f
+        values *= 1.0 + strength * np.vectorize(_pulse)(t)
+    set_track(cam.data, "lens", frames, values)

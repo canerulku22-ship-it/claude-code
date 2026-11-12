@@ -31,13 +31,14 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 import bpy  # noqa: E402
+from bpy_extras.object_utils import world_to_camera_view  # noqa: E402
 from mathutils import Vector  # noqa: E402
 
 from hmtb import FPS, FULL_RES, PREVIEW_RES, PREVIEW_SECONDS, catalog  # noqa: E402
 from hmtb.config import load_config  # noqa: E402
 from hmtb.stacking import pile_bounds, pile_positions  # noqa: E402
 from hmtb.timeline import build_timeline, describe  # noqa: E402
-from scene3d import camera, cracks, drop_objects, fracture, physics, pile, studio, targets  # noqa: E402
+from scene3d import camera, cracks, drop_objects, fracture, physics, pile, studio, targets, toon  # noqa: E402
 from scene3d.util import reset_scene, set_visibility, world_bounds  # noqa: E402
 
 
@@ -116,17 +117,32 @@ def build_scene(cfg, tl, width, height, samples, need_physics):
     for obj, style, origin in target.crack_parts:
         mat = obj.data.materials[0]
         levels.append(cracks.add_crack_layer(mat, style, origin, len(cfg["crack_stages"]),
-                                             seed=cfg["seed"] * 31 + 7))
+                                             seed=cfg["seed"] * 31 + 7, width_mult=target.crack_width))
     pile.animate_cracks(levels, tl)
     pile.animate_extras(target, tl.break_f)
 
     main_cam = camera.make_camera("MainCam", lens=50.0)
     replay_cam = camera.make_camera("ReplayCam", lens=32.0)
+    close_cam = camera.make_camera("CloseCam", lens=40.0)
     scene.camera = main_cam
     target_lo = [t_lo[0], t_lo[1], 0.0]
     camera.animate_main(scene, main_cam, tl, (target_lo, list(t_hi)), (full_lo, full_hi), (tight_lo, tight_hi),
                         (debris_lo, debris_hi), size)
     camera.animate_replay(scene, replay_cam, tl, (replay_lo, replay_hi))
+    if target.close_box:
+        close_lo, close_hi = [list(v) for v in target.close_box]
+    else:
+        c_lo, c_hi = world_bounds([part for part, _style, _o in target.crack_parts])
+        close_lo = [c_lo[0], c_lo[1], c_lo[2] - 0.05 * size]
+        close_hi = [c_hi[0], c_hi[1], c_hi[2] + 0.25 * size]
+    camera.animate_close(scene, close_cam, tl, (close_lo, close_hi), yaw=target.close_yaw)
+
+    # Zoom punches: a small one on every impact, bigger at crack stages and the break.
+    B = tl.break_f
+    hits = [(d.impact_f, 0.10 if d.final else (0.06 if d.crack_stage else 0.025)) for d in tl.drops]
+    camera.add_zoom_punches(main_cam, hits, (0, tl.scene_end_f))
+    camera.add_zoom_punches(close_cam, [(d.impact_f, 0.08) for d in tl.drops if d.crack_stage], (0, B))
+    camera.add_zoom_punches(replay_cam, [(B, 0.08)], (0, tl.scene_end_f))
 
     # --- Shatter ---------------------------------------------------------------
     dynamic = []
@@ -136,11 +152,19 @@ def build_scene(cfg, tl, width, height, samples, need_physics):
         shards = []
         for brk in target.breakables:
             deform = None
+            squash_h = dict((id(o), h) for o, h in target.sag_squash).get(id(brk.obj))
             if brk.sag_radius > 0:
                 def deform(bm, r=brk.sag_radius, s=sag_b):
                     for v in bm.verts:
                         d = math.hypot(v.co.x, v.co.y)
                         v.co.z -= s * max(0.0, 1.0 - (d / r) ** 2)
+            elif squash_h:
+                # Fracture the egg in its squashed shape (same maths as animate_support).
+                def deform(bm, h=squash_h, s=sag_b):
+                    for v in bm.verts:
+                        v.co.z = v.co.z * (1.0 - s / h) - s / 2.0
+                        v.co.x *= 1.0 + 0.5 * s / h
+                        v.co.y *= 1.0 + 0.5 * s / h
             pieces = fracture.fracture(brk.obj, brk.seeds, brk.interior_index, brk.obj.name + "_shard",
                                        uv_func=brk.uv_func, metric=brk.metric, deform=deform)
             if brk.obj in target.sag_move:
@@ -155,8 +179,14 @@ def build_scene(cfg, tl, width, height, samples, need_physics):
         print("  baked in %.1fs" % (time.time() - t0), flush=True)
 
     studio.no_transparent_shadows()    # after fracturing, so glass shards are included
+
+    # Cartoon outlines on everything except the studio walls, colliders and splats.
+    skip = {"Cyclorama", "GroundCollider"} | {o.name for o, _k in target.extras} | {template.name}
+    toon.outline_scene([o for o in scene.objects if o.type == "MESH" and o.name not in skip], size)
+
     return {
-        "scene": scene, "cams": {"main": main_cam, "replay": replay_cam}, "pile": pile_objs,
+        "scene": scene, "cams": {"main": main_cam, "replay": replay_cam, "close": close_cam},
+        "pile": pile_objs, "obj_info": obj_info,
         "positions": positions, "dynamic": dynamic, "size": size, "center": center,
     }
 
@@ -173,13 +203,26 @@ def build_events(cfg, tl, built, preview):
     def pan(x):
         return max(-0.8, min(0.8, (x - built["center"].x) / (0.6 * size)))
 
+    # Where each impact lands on screen (for the overlay's starbursts), using whichever
+    # camera is live at that moment.
+    scene = built["scene"]
+    half_z = obj_info["size_m"][2] / 2.0
+
+    def screen_at(video_f, obj):
+        sf, cam = tl.scene_frame(video_f)
+        scene.frame_set(sf)
+        w = obj.matrix_world.translation.copy()
+        w.z -= half_z
+        p = world_to_camera_view(scene, built["cams"][cam], w)
+        return [round(p.x, 4), round(1.0 - p.y, 4)]
+
     scene_events = []   # in scene frames; mapped to video frames below
-    for d, pos in zip(tl.drops, built["positions"]):
+    for d, pos, obj in zip(tl.drops, built["positions"], built["pile"]):
         scene_events.append({"type": "whoosh", "frame": d.release_f + 3, "count": d.n,
                              "intensity": 0.5 + 0.5 * d.n / n_total})
         scene_events.append({"type": "impact", "frame": d.impact_f, "count": d.n, "sound": obj_info["sound"],
                              "intensity": 0.55 + 0.45 * d.n / n_total, "pan": pan(pos["x"]),
-                             "final": d.final})
+                             "final": d.final, "screen": screen_at(d.impact_f, obj)})
         if d.crack_stage:
             k = d.crack_stage / float(len(cfg["crack_stages"]))
             scene_events.append({"type": "crack", "frame": d.impact_f + 1, "stage": d.crack_stage,

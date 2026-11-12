@@ -55,10 +55,14 @@ class Target:
     visual_only: list = field(default_factory=list)
     sag_shape: list = field(default_factory=list)
     sag_move: list = field(default_factory=list)
+    sag_squash: list = field(default_factory=list)   # (object, height): squashes under the load
     frame_objects: list = field(default_factory=list)
     extras: list = field(default_factory=list)   # (object, "grow_after_break")
     jolt_m: float = 0.002
     tight_box: tuple = None   # (lo, hi) the camera pushes in on; None = support + pile
+    close_box: tuple = None   # (lo, hi) for the crack-stage close-ups; None = crack surfaces
+    close_yaw: float = 34.0   # close-up camera angle (degrees from the front)
+    crack_width: float = 1.0  # multiplier for crack line width (small targets need more)
 
 
 def _obj(name, bm, mats, location=(0, 0, 0), smooth=False):
@@ -241,13 +245,10 @@ def build_egg(rng):
     base = _obj("RigBase", box_bmesh(base_s, base_s, base_t, center=(0, 0, PAD_HEIGHT + base_t / 2)),
                 [M.black_metal()])
     rb = bmesh.new()
-    rod_h = 0.40
+    rod_h = 0.50
     for sx in (-1, 1):
         for sy in (-1, 1):
             cylinder_bmesh(0.0055, rod_h, segments=16, center=(sx * rod, sy * rod, z_base + rod_h / 2), bm=rb)
-    for s in (-1, 1):
-        box_bmesh(2 * rod + 0.02, 0.014, 0.014, center=(0, s * rod, z_base + rod_h), bm=rb)
-        box_bmesh(0.014, 2 * rod + 0.02, 0.014, center=(s * rod, 0, z_base + rod_h), bm=rb)
     rods = _obj("GuideRods", rb, [M.chrome()])
     cup = _obj("EggCup", ring_bmesh(0.019, 0.028, z_base, z_base + 0.008, segments=48), [M.chrome()])
 
@@ -260,8 +261,8 @@ def build_egg(rng):
 
     plate_s, plate_t = 0.30, 0.01
     z_plate = z_egg + egg_h / 2 + plate_t / 2
-    acrylic = M.principled("Acrylic", color=(0.85, 0.92, 1.0), roughness=0.04, specular=0.8,
-                           coat=1.0, alpha=0.22)
+    acrylic = M.principled("Acrylic", color=(0.55, 0.80, 1.0), roughness=0.03, specular=0.8,
+                           coat=1.0, alpha=0.12)
     M.set_blended(acrylic)
     pb = box_bmesh(plate_s, plate_s, plate_t)
     bmesh.ops.bevel(pb, geom=list(pb.edges), offset=0.002, segments=1, affect="EDGES")
@@ -282,13 +283,18 @@ def build_egg(rng):
         focus=Vector((0, 0, z_egg)),
         pad_radius=0.36,
         crack_parts=[(egg, "shell", (0.5, 0.97))],
+        crack_width=2.6,     # the egg is small: thicker lines in texture space
         breakables=[Breakable(egg, seeds, 1, 1030.0, uv_func=uv)],
         passive_after=[base, cup],
         dynamic_after=[plate],
         visual_only=[rods],
+        sag_move=[plate],
+        sag_squash=[(egg, egg_h)],
         frame_objects=[base, rods, egg],
         extras=[(splat, "grow_after_break"), (yolk, "grow_after_break")],
-        jolt_m=0.0,
+        jolt_m=0.0018,
+        close_box=([-0.09, -0.09, z_base - 0.005], [0.09, 0.09, z_plate + 0.07]),
+        close_yaw=12.0,      # between the front guide rods
         tight_box=([-0.17, -0.17, z_base], [0.17, 0.17, z_plate + 0.16]),
     )
 
