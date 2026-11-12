@@ -33,6 +33,7 @@ WHITE = "#FFFFFF"
 PANEL_ALPHA = 0.74                  # opacity of counter panels
 
 TITLE_Y = 640                       # centre line of the hook title
+HEADLINE_Y = 880                    # finale headline ("PAST THE MOON!")
 
 # Counter blocks: (x, y) is the panel's top-left corner.
 FOLDS_BOX = dict(x=MARGIN_LEFT, y=SAFE_TOP + 22, label_size=40, value_size=150)

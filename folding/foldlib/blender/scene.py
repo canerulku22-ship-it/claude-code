@@ -413,13 +413,15 @@ def build_stack(cfg, refs):
     flap = new_object("Flap", _slab_mesh("Flap", FLAP_SEGMENTS))
     assign(stack, mat)
     assign(flap, mat)
-    for obj in (stack, flap):
+    def loop_vertices(obj):
+        """Vertex index of each face corner (UVs are stored per corner)."""
         loops = [0] * len(obj.data.loops)
         obj.data.loops.foreach_get("vertex_index", loops)
-        obj["loop_verts"] = loops
+        return loops
+
     refs.stack, refs.flap = stack, flap
-    refs.stack_loops = list(stack["loop_verts"])
-    refs.flap_loops = list(flap["loop_verts"])
+    refs.stack_loops = loop_vertices(stack)
+    refs.flap_loops = loop_vertices(flap)
 
 
 def build(cfg, timeline, width, height, samples):

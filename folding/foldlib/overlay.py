@@ -303,7 +303,7 @@ class OverlayBuilder:
             end = min(cta["t"] if cta else self.end, self.end)
             dur = int((end - head["t"]) * 1000)
             self.ass.add(head["t"], end,
-                         f"{{\\an5\\pos({cx:.1f},540)\\fn{HEAVY}\\fs96\\1c{ACCENT}\\3c{INK}\\bord8"
+                         f"{{\\an5\\pos({cx:.1f},{style.HEADLINE_Y})\\fn{HEAVY}\\fs96\\1c{ACCENT}\\3c{INK}\\bord8"
                          f"\\4c{INK}\\4a&H80&\\shad5\\fscx70\\fscy70\\t(0,180,\\fscx106\\fscy106)"
                          f"\\t(180,300,\\fscx100\\fscy100)\\t({dur - 250},{dur},\\alpha&HFF&)}}"
                          f"{escape(head['text'])}", layer=3)

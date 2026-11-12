@@ -75,7 +75,8 @@ def encode(frames_dir, fps, ass_path, fonts_dir, audio_path, out_path, first_fra
 def overlay_still(png, t, ass_path, fonts_dir, out_png):
     """Burn the overlay as it looks at time t onto a single rendered still."""
     cwd = os.path.dirname(ass_path)
-    vf = (f"setpts=PTS+{t:.4f}/TB,ass={filter_path(ass_path, cwd)}:"
+    # Microsecond timebase so the still lands exactly on its frame's time.
+    vf = (f"settb=AVTB,setpts={t:.6f}/TB,ass={filter_path(ass_path, cwd)}:"
           f"fontsdir={filter_path(fonts_dir, cwd)}")
     run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", png, "-vf", vf,
          "-frames:v", "1", out_png], cwd=cwd)

@@ -222,7 +222,8 @@ class Timeline:
             else:
                 appear = f.t_land + 0.05
             label_in = f.t_end + 0.15
-            label_out = self.duration if n == self.N else f.hold_end + 0.25
+            # The final label clears for the call to action.
+            label_out = self.cta_start if n == self.N else f.hold_end + 0.25
 
             # Retire it once it is tiny, or before the column grows into it.
             gap = abs(lm["pos"][0]) - lm["width_m"] / 2
