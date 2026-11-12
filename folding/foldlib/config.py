@@ -9,7 +9,7 @@ rest have sensible defaults (some come from the material preset).
       "thickness_mm": 0.1,
       "colour": "#f5f2ea",
       "folds": 42,
-      "duration_s": 70
+      "duration_s": 58
     }
 """
 
@@ -28,8 +28,11 @@ MATERIAL_PRESETS = {
 }
 GENERIC_PRESET = dict(sheet_size_mm=[210, 297], sound="paper", roughness=0.6, sheen=0.1)
 
+# Series rule: every episode stays under a minute.
+MAX_DURATION_S = 60.0
+
 DEFAULTS = dict(
-    duration_s=70.0,
+    duration_s=58.0,
     fps=30,
     physical_folds=10,          # folds shown as a real fold animation
     cta="What should we fold next?",
@@ -92,11 +95,9 @@ def normalise(raw):
     if cfg["sound"] not in ("paper", "cloth", "dough"):
         raise ConfigError("sound must be one of: paper, cloth, dough")
 
-    # TikTok rewards > 60 s; the series targets 65-75 s.
-    if cfg["duration_s"] <= 60:
-        raise ConfigError("duration_s must be over 60 seconds")
-    if not 65 <= cfg["duration_s"] <= 75:
-        print(f"[config] note: duration_s={cfg['duration_s']} is outside the 65-75 s target")
+    if cfg["duration_s"] >= MAX_DURATION_S:
+        raise ConfigError(f"duration_s must be under {MAX_DURATION_S:g} seconds "
+                          f"(got {cfg['duration_s']:g})")
     return cfg
 
 

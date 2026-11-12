@@ -24,7 +24,7 @@ python run.py --check
 ```bash
 python run.py episodes/paper.json --preview          # 540x960, first ~10 s, low samples
 python run.py episodes/paper.json --preview --stills # + one still per landmark beat
-python run.py episodes/paper.json                    # full 70 s render with audio
+python run.py episodes/paper.json                    # full 58 s render with audio
 ```
 
 `run.py` only finds Blender for you. The underlying command is:
@@ -59,7 +59,7 @@ Copy `episodes/paper.json` and edit it:
   "thickness_mm": 0.1,
   "colour": "#f5f2ea",
   "folds": 42,
-  "duration_s": 70
+  "duration_s": 58
 }
 ```
 
@@ -70,7 +70,7 @@ Copy `episodes/paper.json` and edit it:
 | `thickness_mm` | thickness of one sheet. Layers = 2^n, thickness = `thickness_mm` x 2^n |
 | `colour` | the material's colour, exactly as it appears on screen |
 | `folds` | how many folds (1-60) |
-| `duration_s` | video length, over 60 s (the series targets 65-75 s) |
+| `duration_s` | video length in seconds; must be under 60 (default 58) |
 
 Optional fields (defaults come from the material preset):
 
