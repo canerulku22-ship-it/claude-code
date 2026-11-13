@@ -12,6 +12,7 @@ Options (after the `--`):
   --config FILE     episode JSON (required)
   --preview         540x960, low samples, first ~10 seconds only
   --stills          also render one still per landmark beat (look check)
+  --stills-only     render just those stills and their contact sheet (fast)
   --samples N       Eevee samples (default 24 full, 6 preview)
   --start/--end S   only render this time range (seconds)
   --out DIR         output root (default: ./output)
@@ -50,6 +51,7 @@ def parse_args():
     p.add_argument("--config", required=True)
     p.add_argument("--preview", action="store_true")
     p.add_argument("--stills", action="store_true")
+    p.add_argument("--stills-only", action="store_true")
     p.add_argument("--samples", type=int)
     p.add_argument("--start", type=float)
     p.add_argument("--end", type=float)
@@ -71,6 +73,8 @@ def render_to(path):
 
 def main():
     args = parse_args()
+    if args.stills_only:
+        args.stills = True
     cfg = load_config(args.config)
     tl = Timeline(cfg)
     print(tl.summary())
@@ -113,7 +117,7 @@ def main():
         if f < f_start or f % part_n != part_k:
             continue
         path = os.path.join(frames_dir, f"{f:05d}.png")
-        if args.dry_run or (args.resume and os.path.exists(path)):
+        if args.dry_run or args.stills_only or (args.resume and os.path.exists(path)):
             continue
         render_to(path)
         rendered += 1
@@ -122,17 +126,21 @@ def main():
             left = per * (f_end - 1 - f) / part_n
             print(f"[render] frame {f + 1}/{f_end}  {per:.2f}s/frame  ~{left / 60:.1f} min left", flush=True)
 
-    events_path = os.path.join(out_dir, "events.json")
+    # A stills-only run keeps its own log so it never replaces a video's.
+    events_path = os.path.join(out_dir, "events_stills.json" if args.stills_only else "events.json")
     log = dict(
         config=cfg, mode=mode, fps=tl.fps, width=width, height=height,
         duration=tl.duration, render_start=start_t, render_end=end_t,
-        frames_dir=frames_dir, frame_count=f_end,
+        frames_dir=frames_dir, frame_count=f_end, stills_only=args.stills_only,
         events=tl.events(), frames=records,
     )
 
     if args.stills and not args.dry_run:
         stills_dir = os.path.join(out_dir, "stills")
         os.makedirs(stills_dir, exist_ok=True)
+        for old in os.listdir(stills_dir):   # beats can change between runs
+            if old.endswith(".png"):
+                os.remove(os.path.join(stills_dir, old))
         stills = []
         for w in tl.landmark_windows:
             f = tl.folds[w["fold"] - 1]

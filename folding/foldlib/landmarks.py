@@ -32,16 +32,28 @@ import math
 #                   screen-readable) column grows into it
 #   frame_h/frame_w height and left-hand width (metres) the camera must show
 #   lead_folds      appear this many folds early (for far-away objects)
+#   clear           size-comparison props only: (side, half_m, gap_m). The
+#                   prop stands `gap_m` from the stack's side ("left") or back
+#                   ("behind"); `half_m` is the prop's half-extent that way.
+#                   The timeline moves `pos` so this holds for any sheet size
+#                   (see Timeline._place_props); the values in `pos` are
+#                   where it stands next to the A4 paper stack.
+#   max_stack_m     skip this comparison if the stack's longest side is
+#                   already bigger than this at the beat (a folded bedsheet
+#                   dwarfs a notebook, so the comparison would not read)
 LIBRARY = [
     dict(id="notebook", height_m=0.015, match=0.65, kind="compare",
          labels=[("main", "THICK NOTEBOOK", "~15 mm")],
-         pos=(-0.024, 0.128), width_m=0.148, frame_h=0.070, frame_w=0.030),
+         pos=(-0.024, 0.128), width_m=0.148, frame_h=0.070, frame_w=0.030,
+         clear=("behind", 0.1143, 0.000575), max_stack_m=0.25),
     dict(id="phone", height_m=0.147, match=0.65, kind="compare",
          labels=[("main", "PHONE", "~15 cm")],
-         pos=(-0.064, 0.010), width_m=0.0715, frame_h=0.150, frame_w=0.105),
+         pos=(-0.064, 0.010), width_m=0.0715, frame_h=0.150, frame_w=0.105,
+         clear=("left", 0.0358, 0.02356)),
     dict(id="person", height_m=1.75, match=0.65, kind="compare",
          labels=[("main", "PERSON", "1.75 m")],
-         pos=(-0.62, 0.20), width_m=0.50, frame_h=1.80, frame_w=0.90),
+         pos=(-0.62, 0.20), width_m=0.50, frame_h=1.80, frame_w=0.90,
+         clear=("left", 0.25, 0.28808)),
     dict(id="big_ben", height_m=96.0, match=1.0, kind="pass",
          labels=[("main", "BIG BEN", "96 m")],
          pos=(-34.0, 14.0), width_m=15.0, frame_h=100.0, frame_w=44.0),

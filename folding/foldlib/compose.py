@@ -6,6 +6,8 @@ import re
 import shutil
 import subprocess
 
+from . import style
+
 TARGET_LUFS = -14.0      # typical loudness for short-form social video
 TRUE_PEAK = -1.5
 
@@ -99,7 +101,7 @@ def contact_sheet(pngs, out_png, columns=4, width=1600):
         x = "+".join(["w0"] * c) or "0"
         y = "+".join(["h0"] * r) or "0"
         parts.append(f"{x}_{y}")
-    fill = ":fill=black" if rows * cols > n else ""
+    fill = f":fill=0x{style.INK.lstrip('#')}" if rows * cols > n else ""   # empty tiles
     filt = (f"{''.join(f'[{i}]' for i in range(n))}xstack=inputs={n}:layout={'|'.join(parts)}{fill},"
             f"scale={width}:-2")
     run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", *inputs,

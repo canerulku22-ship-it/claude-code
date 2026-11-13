@@ -1,0 +1,8 @@
+{
+  "title": "What if you fold a bedsheet 40 times?",
+  "material": "bedsheet",
+  "thickness_mm": 0.4,
+  "colour": "#C7B5E3",
+  "folds": 40,
+  "duration_s": 58
+}

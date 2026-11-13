@@ -1,0 +1,8 @@
+{
+  "title": "What if you fold a banknote 42 times?",
+  "material": "banknote",
+  "thickness_mm": 0.11,
+  "colour": "#A9C79B",
+  "folds": 42,
+  "duration_s": 58
+}

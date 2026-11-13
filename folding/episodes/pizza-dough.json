@@ -1,0 +1,8 @@
+{
+  "title": "What if you fold pizza dough 38 times?",
+  "material": "pizza dough",
+  "thickness_mm": 2.0,
+  "colour": "#EFD9AE",
+  "folds": 38,
+  "duration_s": 58
+}

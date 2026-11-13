@@ -16,7 +16,6 @@ import bpy
 from mathutils import noise, Vector
 
 from .. import style
-from ..landmarks import LIBRARY_BY_ID
 from ..mathutil import hex_to_linear
 from .util import (Nodes, add_box, add_cylinder, add_sphere, assign, bm_box,
                    mesh_from_bmesh, new_object, principled_material, set_blend_mode,
@@ -503,7 +502,7 @@ def build_landmarks(timeline):
     """Build the models for every beat this episode reaches."""
     out = []
     for win in timeline.landmark_windows:
-        lm_def = LIBRARY_BY_ID[win["id"]]
+        lm_def = win["landmark"]   # library entry, placed for this episode
         lm = Landmark(lm_def, win)
         for group in BUILDERS[win["id"]](lm_def):
             lm.groups[group.name] = group

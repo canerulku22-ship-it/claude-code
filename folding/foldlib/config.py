@@ -20,10 +20,14 @@ import re
 from .mathutil import hex_to_srgb
 
 # Per-material defaults. Anything here can be overridden in the episode JSON.
+# physical_folds is lower for materials whose stack turns into a thin tower
+# sooner (a small banknote, thick dough), where real folds would look odd.
 MATERIAL_PRESETS = {
     "paper":       dict(sheet_size_mm=[210, 297], sound="paper", roughness=0.62, sheen=0.25),
-    "banknote":    dict(sheet_size_mm=[156, 66], sound="paper", roughness=0.55, sheen=0.2),
-    "pizza dough": dict(sheet_size_mm=[300, 300], sound="dough", roughness=0.85, sheen=0.0),
+    "banknote":    dict(sheet_size_mm=[156, 66], sound="paper", roughness=0.55, sheen=0.2,
+                        physical_folds=8),
+    "pizza dough": dict(sheet_size_mm=[300, 300], sound="dough", roughness=0.85, sheen=0.0,
+                        physical_folds=5),
     "bedsheet":    dict(sheet_size_mm=[2000, 2400], sound="cloth", roughness=0.9, sheen=0.6),
 }
 GENERIC_PRESET = dict(sheet_size_mm=[210, 297], sound="paper", roughness=0.6, sheen=0.1)

@@ -24,6 +24,7 @@ python run.py --check
 ```bash
 python run.py episodes/paper.json --preview          # 540x960, first ~10 s, low samples
 python run.py episodes/paper.json --preview --stills # + one still per landmark beat
+python run.py episodes/paper.json --preview --stills-only  # just the beat stills (a minute)
 python run.py episodes/paper.json                    # full 58 s render with audio
 ```
 
@@ -47,6 +48,25 @@ To change the text or sounds without re-rendering, run
 `python post.py --events output/<episode>/full/events.json`.
 To check pacing and audio in seconds, add `--dry-run`: it skips rendering and
 builds only the events log and the soundtrack.
+
+## Render several episodes
+
+```bash
+python batch.py episodes/*.json --plan       # check every config, print its beats
+python batch.py episodes/*.json              # render them all, one after another
+python batch.py episodes/ --preview          # a folder works too; so does a .txt list
+python batch.py episodes/*.json --parts 2    # 2 Blender processes per episode
+```
+
+`batch.py` checks every config before it renders anything, so a mistake in
+the last file shows up straight away. Other options (`--resume`,
+`--samples 32`, `--stills`, ...) are passed on to every episode. A failed
+episode does not stop the rest (add `--stop-on-error` if it should), and a
+summary is printed at the end. On a machine without a GPU, `--parts 2` is
+about 10% faster.
+
+Example episodes are in `episodes/`: paper, pizza dough, a bedsheet and a
+banknote.
 
 ## Make a new episode
 
@@ -77,7 +97,7 @@ Optional fields (defaults come from the material preset):
 | Field | Default | Meaning |
 |-------|---------|---------|
 | `sheet_size_mm` | A4 `[210, 297]` | size of the flat sheet before folding |
-| `physical_folds` | `10` | folds shown as a real fold animation before the column takes over |
+| `physical_folds` | `10` (banknote 8, pizza dough 5) | folds shown as a real fold animation before the column takes over |
 | `sound` | `paper` | fold sound style: `paper`, `cloth` or `dough` |
 | `roughness`, `sheen` | per preset | surface finish of the material |
 | `cta` | `What should we fold next?` | closing line |
@@ -90,7 +110,11 @@ first fold where the stack reaches it (for size comparisons such as notebook,
 phone and person, it lands once the stack reaches 65% of the object's size).
 For 0.1 mm paper that gives 7 notebook, 10 phone, 14 person, 20 Big Ben,
 23 Burj Khalifa, 27 Everest & planes, 32 Space Station and 42 the Moon.
-The library lives in `foldlib/landmarks.py`.
+Run `python batch.py your.json --plan` to see an episode's beats.
+Props stand clear of the stack whatever the sheet size, and a comparison
+is skipped if the stack has already outgrown it (a bedsheet is wider than a
+notebook by the time it is notebook-thick). The library lives in
+`foldlib/landmarks.py`.
 Pacing is automatic too: folds speed up between landmarks and the video holds
 at each one, all scaled to fit `duration_s`.
 

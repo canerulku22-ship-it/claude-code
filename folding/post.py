@@ -36,6 +36,10 @@ def main():
     episode_dir = os.path.dirname(mode_dir)
     cfg = log["config"]
     slug = cfg["slug"]
+    suffix = "" if log["mode"] == "full" else "_" + log["mode"]
+    if log.get("stills_only"):
+        make_stills(log, mode_dir, episode_dir, slug, suffix)
+        return
 
     ass_path = write_overlay(log, os.path.join(mode_dir, "overlay.ass"))
     print(f"[post] overlay -> {ass_path}")
@@ -53,18 +57,23 @@ def main():
     if args.audio_only:
         return
 
-    suffix = "" if log["mode"] == "full" else "_" + log["mode"]
     out = os.path.join(episode_dir, f"{slug}{suffix}.mp4")
     compose.encode(log["frames_dir"], log["fps"], ass_path, FONTS_DIR, audio, out)
     print(f"[post] video -> {out}")
+    make_stills(log, mode_dir, episode_dir, slug, suffix)
 
+
+def make_stills(log, mode_dir, episode_dir, slug, suffix):
+    """Burn the overlay into each landmark still and tile them in one image."""
     if log.get("stills"):
         stills_log = dict(log, frames=log["frames"] + log["stills"], render_end=log["duration"])
         stills_ass = write_overlay(stills_log, os.path.join(mode_dir, "overlay_stills.ass"))
         shots = []
         for s in log["stills"]:
             dst = s["path"].replace(".png", "_overlay.png")
-            compose.overlay_still(s["path"], s["t"], stills_ass, FONTS_DIR, dst)
+            # Mid-frame: libass truncates to whole milliseconds, so a still
+            # stamped exactly at f/fps can land just before its frame's text.
+            compose.overlay_still(s["path"], s["t"] + 0.5 / log["fps"], stills_ass, FONTS_DIR, dst)
             shots.append(dst)
         sheet = compose.contact_sheet(shots, os.path.join(episode_dir, f"{slug}{suffix}_beats.png"))
         print(f"[post] landmark stills -> {sheet}")

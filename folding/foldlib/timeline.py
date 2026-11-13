@@ -61,8 +61,12 @@ class Timeline:
         self.sheet = (max(w, h) / 1000.0, min(w, h) / 1000.0)
         self.beats = compute_beats(self.t_mm, self.N, cfg.get("landmarks", "auto"))
         self._footprints()
+        # Drop comparisons the stack has already outgrown (see landmarks.py).
+        self.beats = {n: lm for n, lm in self.beats.items()
+                      if max(self.footprint(n)) <= lm.get("max_stack_m", math.inf)}
         self._schedule()
         self._elevation_curve()
+        self._place_props()
         self._camera()
         self._landmark_windows()
 
@@ -146,6 +150,38 @@ class Timeline:
 
     def _view_stack(self, n):
         return self._view_folding(n) if n <= self.P else self._view_column(n)
+
+    def _stack_half(self, n, axis):
+        """Half the stack's on-screen footprint along `axis` after n folds."""
+        lx, ly = self.footprint(n)
+        if n > self.P:
+            # The column is drawn at least COLUMN_MIN_WIDTH of the view wide.
+            v = max(self._view_stack(n), self.beats[n]["frame_h"] / style.FILL_LANDMARK)
+            widen = max(1.0, style.COLUMN_MIN_WIDTH * v / max(lx, ly))
+            lx, ly = lx * widen, ly * widen
+        return (lx if axis == "x" else ly) / 2
+
+    def _place_props(self):
+        """Stand each size-comparison prop just clear of this material's stack.
+
+        The library positions are measured next to the A4 paper stack. A
+        bigger sheet (a bedsheet) or a thicker material would bury the prop
+        in the stack, so it is moved out by however much the stack is wider.
+        """
+        for n, lm in self.beats.items():
+            if "clear" not in lm:
+                continue
+            side, half, gap = lm["clear"]
+            x, y = lm["pos"]
+            if side == "left":
+                new_x = -(self._stack_half(n, "x") + gap + half)
+                lm["frame_w"] = max(lm["frame_w"] + abs(new_x) - abs(x), 0.0)
+                lm["pos"] = (new_x, y)
+            else:  # behind the stack, seen over it from the elevated camera
+                new_y = self._stack_half(n, "y") + gap + half
+                e = math.radians(self.elevation(self.folds[n - 1].t_end))
+                lm["frame_h"] = max(lm["frame_h"] + (new_y - y) * math.sin(e), lm["height_m"])
+                lm["pos"] = (x, new_y)
 
     def _view_landmark(self, n):
         lm = self.beats[n]
