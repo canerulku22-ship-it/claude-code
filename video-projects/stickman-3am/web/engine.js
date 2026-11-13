@@ -211,7 +211,7 @@ scene.add(dust);
 
 // ---------------------------------------------------------------- camera rig
 export const camState = { x: 0, y: 1.2, z: 8, tx: 0, ty: 1.1, tz: 0, roll: 0, fov: 30, shake: 0 };
-export function camTo(t, vars, dur = 1.2, ease = 'power2.inOut') { tl.to(camState, Object.assign({ duration: dur, ease }, vars), t); }
+export function camTo(t, vars, dur = 1.2, ease = 'power2.inOut') { tl.to(camState, Object.assign({ duration: Math.max(0.05, dur - 0.09), ease }, vars), t); } // ends before the next cut's camSet
 export function camSet(t, vars) { tl.set(camState, vars, t); }
 export function shake(t, amp = 1, dur = 0.5) { tl.fromTo(camState, { shake: amp }, { shake: 0, duration: dur, ease: 'power2.out', immediateRender: false }, t); }
 function applyCamera(t) {

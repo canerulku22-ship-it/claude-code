@@ -97,7 +97,7 @@ const headCam = (dist, dy = 0.02) => { const hx = itBase.x - 0.02, hz = itBase.z
   sfx('swoosh', tf, 0.3); sfx('thunk', tf + 0.5, 0.5);
   cut(tC, 'swoosh', 0.2);
   camSet(tC - 0.03, CAM.bed);
-  camTo(tC, { z: 2.3, y: 1.55, x: 0.85 }, S('s04') - tC, 'none');
+  camTo(tC, { z: 2.95, y: 1.8, x: 1.2 }, S('s04') - tC, 'none');
   tl.to(B.blanketPivot.scale, { x: 1.45, duration: 0.7, ease: 'power2.inOut' }, w('s03', 'close') - 0.05);
   tl.to(B.blanketPivot.position, { y: 0.69, duration: 0.7, ease: 'power2.inOut' }, w('s03', 'close') - 0.05);
   sfx('cloth', w('s03', 'close'), 0.55);
@@ -109,11 +109,16 @@ const headCam = (dist, dy = 0.02) => { const hx = itBase.x - 0.02, hz = itBase.z
   camSet(t0 - 0.02, CAM.toDoor);
   camTo(t0, { x: -0.9, z: 3.0, tx: DOOR.x - 0.1 }, S('s05') - t0, 'power1.inOut');
   const msg = 'LOOK AT THE DOOR';
-  const gt = panelMesh(room, { w: 1.25, h: 0.2, x: DOOR.x - 0.12, y: 1.62, z: DOOR.z + 0.55, ry: -0.3, ppu: 900, boost: 2.0, key: t => q(Math.min(t, tLk + 1.2)) + (t > tLk ? Math.floor(t * 9) % 4 : 0),
+  const gt = panelMesh(room, { w: 0.78, h: 0.14, x: DOOR.x - 0.17, y: 1.55, z: DOOR.z + 0.6, ry: -0.3, ppu: 900, boost: 2.0, key: t => q(Math.min(t, tLk + 1.2)) + (t > tLk ? Math.floor(t * 9) % 4 : 0),
     draw: (c, t, P) => {
       const n = Math.floor(clamp01((t - tLk + 0.05) * 18 / msg.length) * msg.length), fl = Math.floor(t * 9) % 4 === 0 ? 0.55 : 1;
-      c.globalAlpha = fl; text(c, msg.slice(0, n), P.cw / 2, P.ch / 2, { size: 120, weight: 900, color: '#ffffff', spacing: 18, font: 'Inter Display', glow: 18 });
-      if (n > 0) { c.globalAlpha = 0.35 * fl; text(c, msg.slice(0, n), P.cw / 2 + 6, P.ch / 2 + 2, { size: 120, weight: 900, color: C.red, spacing: 18, font: 'Inter Display' }); }
+      c.font = '900 100px "Inter Display"'; c.letterSpacing = '10px';
+      const size = Math.floor(100 * Math.min(1, P.cw * 0.94 / c.measureText(msg).width));
+      c.font = `900 ${size}px "Inter Display"`; c.letterSpacing = `${size * 0.1}px`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      const full = c.measureText(msg).width, x0 = (P.cw - full) / 2, s0 = msg.slice(0, n);
+      c.globalAlpha = fl; c.textAlign = 'left';
+      c.lineJoin = 'round'; c.lineWidth = size * 0.16; c.strokeStyle = 'rgba(0,0,0,.85)'; c.strokeText(s0, x0, P.ch / 2);
+      c.shadowColor = C.red; c.shadowBlur = size * 0.25; c.fillStyle = '#FF3B47'; c.fillText(s0, x0, P.ch / 2);
     } });
   gt.mesh.visible = false; tl.set(gt.mesh, { visible: true }, tLk - 0.05); tl.set(gt.mesh, { visible: false }, S('s05') + 0.2);
   for (let k = 0; k < 7; k++) sfx('type', tLk + k * 0.07, 0.3);
