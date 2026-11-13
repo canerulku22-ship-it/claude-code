@@ -114,3 +114,31 @@ def find_font(candidates: list[str], env_var: str | None = None) -> str | None:
 # Claude script writer
 # --------------------------------------------------------------------------
 SCRIPT_MODEL = "claude-opus-5-5"
+
+
+# --------------------------------------------------------------------------
+# Script vocabulary (shared by the script writer, renderer and sound mixer)
+# --------------------------------------------------------------------------
+SFX_CUES = ["record_scratch", "boom", "gasp", "drumroll", "airhorn", "whoosh", "ding", "pop",
+            "phone_buzz", "crowd_ooh", "crowd_aww", "sparkle", "heartbeat", "buzzer", "rimshot",
+            "splash", "boing"]
+CAMERA_MOVES = {
+    "wide": "everyone in the scene visible",
+    "two_shot": "the speaker and the person they're talking to",
+    "close_up": "tight on the speaker's face",
+    "push_in": "slow creeping zoom on the speaker, for tension",
+    "whip_pan": "fast blurred pan to the speaker, for a sudden turn",
+}
+EFFECTS = {
+    "none": "no extra effect",
+    "shake": "camera shake (shock, anger, big news)",
+    "snap_zoom": "instant punch-in zoom (a zinger, a reveal)",
+    "freeze_frame": "freeze on the reaction with a record scratch feel",
+    "slow_mo": "brief slow-motion moment (dramatic entrance, heartbreak)",
+}
+TWIST_KINDS = {
+    "text_bomb": "someone shouts '📱 I GOT A TEXT!' and reads a message from the producers",
+    "new_arrival": "a bombshell walks into the villa (only characters listed as waiting bombshells)",
+    "challenge_result": "the result of a silly villa challenge is revealed",
+    "recoupling": "a recoupling at the fire pit; someone steals someone's partner",
+}

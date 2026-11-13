@@ -1,0 +1,51 @@
+{
+  "season": 1,
+  "episode": 0,
+  "in_villa": [
+    "baguettini",
+    "conetta",
+    "ranocchio",
+    "lumachina",
+    "gnometta",
+    "discotto",
+    "polpetta",
+    "broccolo"
+  ],
+  "bombshells_waiting": [],
+  "couples": [
+    [
+      "baguettini",
+      "conetta"
+    ],
+    [
+      "ranocchio",
+      "lumachina"
+    ],
+    [
+      "polpetta",
+      "broccolo"
+    ]
+  ],
+  "eliminated": [],
+  "storylines": [
+    "Baguettini is coupled with Conetta but keeps sneaking looks at his ex, Polpetta.",
+    "Conetta has clocked Ranocchio's abs and is filming 'gym content' with him a suspicious amount.",
+    "Gnometta's tiny notebook is full of secrets and she is plotting to split up Ranocchio and Lumachina.",
+    "Broccolo has a crush on Polpetta but she keeps calling him 'my best mate'.",
+    "Discotto and Gnometta are single and vulnerable."
+  ],
+  "rivalries": [],
+  "running_jokes": [
+    "Discotto spins out of control and falls in the pool.",
+    "Baguettini's terrible love poems.",
+    "Gnometta freezing mid-scheme and pretending to be a lawn ornament.",
+    "Ranocchio counting reps during serious conversations.",
+    "Conetta checking her follower count at the worst moments.",
+    "Polpetta literally steaming when annoyed.",
+    "Lumachina's compliments that are secretly insults.",
+    "Broccolo accidentally saying something deeply wise."
+  ],
+  "episode_log": [],
+  "pending_vote": null,
+  "created": "2026-11-13T12:59:58+00:00"
+}
