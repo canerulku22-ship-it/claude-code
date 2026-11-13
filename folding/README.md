@@ -129,4 +129,7 @@ on-screen note says so.
 Eevee is fast on a GPU (well under a second per full-HD frame). On a machine
 without a GPU it falls back to software OpenGL, which takes a few seconds per
 frame. Use `--preview` while iterating, and `--resume` to continue an
-interrupted render.
+interrupted render. To split a render across processes or machines that
+share the output folder, run `--frames-only --part 0/2` and
+`--frames-only --part 1/2` (and so on), then run once more with `--resume`.
+That last run fills any gaps and encodes the video.

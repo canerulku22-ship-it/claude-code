@@ -17,6 +17,9 @@ Options (after the `--`):
   --out DIR         output root (default: ./output)
   --resume          keep frames that already exist
   --frames-only     skip post-processing (audio, overlay, encode)
+  --part K/N        render only every Nth frame starting at K (0-based), to
+                    split a render across processes or machines; then run
+                    once more with --resume to fill gaps and encode
   --dry-run         render nothing; write the events log and the soundtrack
                     only (fast check of pacing and audio)
 """
@@ -53,13 +56,17 @@ def parse_args():
     p.add_argument("--out", default=DEFAULT_OUTPUT_DIR)
     p.add_argument("--resume", action="store_true")
     p.add_argument("--frames-only", action="store_true")
+    p.add_argument("--part", default="0/1", help="K/N: render frames where frame %% N == K")
     p.add_argument("--dry-run", action="store_true")
     return p.parse_args(argv)
 
 
 def render_to(path):
-    bpy.context.scene.render.filepath = path
+    """Render the current frame to `path`, atomically (safe for --resume)."""
+    tmp = path[:-4] + ".tmp.png"
+    bpy.context.scene.render.filepath = tmp
     bpy.ops.render.render(write_still=True)
+    os.replace(tmp, path)
 
 
 def main():
@@ -88,6 +95,9 @@ def main():
         end_t = min(end_t, args.end)
     start_t = args.start or 0.0
     f_start = int(round(start_t * tl.fps))
+    part_k, part_n = (int(x) for x in args.part.split("/"))
+    if not 0 <= part_k < part_n:
+        raise SystemExit("--part must be K/N with 0 <= K < N")
     f_end = int(round(end_t * tl.fps))
 
     # Render. Per-frame state is recorded for every frame (cheap) so the
@@ -100,7 +110,7 @@ def main():
         rec = anim.apply(t)
         rec["frame"] = f
         records.append(rec)
-        if f < f_start:
+        if f < f_start or f % part_n != part_k:
             continue
         path = os.path.join(frames_dir, f"{f:05d}.png")
         if args.dry_run or (args.resume and os.path.exists(path)):
@@ -109,7 +119,7 @@ def main():
         rendered += 1
         if rendered % 10 == 0 or f == f_end - 1:
             per = (time.time() - t_begin) / rendered
-            left = per * (f_end - 1 - f)
+            left = per * (f_end - 1 - f) / part_n
             print(f"[render] frame {f + 1}/{f_end}  {per:.2f}s/frame  ~{left / 60:.1f} min left", flush=True)
 
     events_path = os.path.join(out_dir, "events.json")
