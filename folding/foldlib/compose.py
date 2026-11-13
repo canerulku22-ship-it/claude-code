@@ -10,6 +10,10 @@ from . import style
 
 TARGET_LUFS = -14.0      # typical loudness for short-form social video
 TRUE_PEAK = -1.5
+# AAC encoding smears very sharp transients (the paper "snap") into peaks up
+# to ~2 dB higher than in the WAV. A fast limiter on the few samples above
+# this level keeps the encoded file below 0 dBFS; loudness barely changes.
+LIMIT_DB = -3.0
 
 
 def require_ffmpeg():
@@ -37,7 +41,7 @@ def filter_path(path, cwd):
 
 
 def loudnorm(src, dst):
-    """Two-pass EBU R128 normalisation to TARGET_LUFS."""
+    """Two-pass EBU R128 normalisation to TARGET_LUFS, then peak limiting."""
     target = f"I={TARGET_LUFS}:TP={TRUE_PEAK}:LRA=11"
     probe = run(["ffmpeg", "-hide_banner", "-nostats", "-i", src,
                  "-af", f"loudnorm={target}:print_format=json", "-f", "null", "-"])
@@ -51,7 +55,9 @@ def loudnorm(src, dst):
         return dst
     second = (f"loudnorm={target}:measured_I={stats['input_i']}:measured_TP={stats['input_tp']}"
               f":measured_LRA={stats['input_lra']}:measured_thresh={stats['input_thresh']}"
-              f":offset={stats['target_offset']}:linear=true")
+              f":offset={stats['target_offset']}:linear=true"
+              f",aresample=48000,alimiter=limit={10 ** (LIMIT_DB / 20):.4f}"
+              f":attack=0.5:release=40:level=disabled")
     run(["ffmpeg", "-y", "-hide_banner", "-i", src, "-af", second, "-ar", "48000", dst])
     return dst
 
