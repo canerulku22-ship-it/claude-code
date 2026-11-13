@@ -28,20 +28,23 @@ const server = http.createServer((req, res) => {
 await new Promise(r => server.once('listening', r));
 const url = `http://127.0.0.1:${server.address().port}/film.html#render`;
 
+let SIZE = { width: 1920, height: 1080 };   // replaced by the film's FRAME_W x FRAME_H once the page has loaded
 async function openPage(browser) {
-  const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: SIZE, deviceScaleFactor: 1 });
   page.on('pageerror', e => { console.error('page error:', e.message); process.exitCode = 1; });
   page.on('console', m => { if (m.type() === 'error') console.error('console:', m.text()); });
   await page.goto(url);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForFunction(() => window.ready, null, { timeout: 120000 });
   await page.evaluate(() => window.ready); // photos decoded and 3D stage built before the first frame
+  const [width, height] = await page.evaluate(() => [window.FRAME_W || 1920, window.FRAME_H || 1080]);
+  if (width !== SIZE.width || height !== SIZE.height) { SIZE = { width, height }; await page.setViewportSize(SIZE); }
   return page;
 }
 
 async function grab(page, t, type = 'png') {
   await page.evaluate(t => window.drawFrame(t), t);
-  const clip = { x: 0, y: 0, width: 1920, height: 1080 };
+  const clip = { x: 0, y: 0, ...SIZE };
   // JPEG q95 capture is ~15x faster than PNG and visually lossless before the final x264 pass.
   return page.screenshot(type === 'png' ? { type, clip } : { type, quality: 95, clip });
 }

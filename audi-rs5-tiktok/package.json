@@ -1,0 +1,9 @@
+{
+  "name": "audi-rs5-tiktok",
+  "private": true,
+  "type": "module",
+  "description": "Builds the Audi RS5 TikTok review (see README.md)",
+  "dependencies": {
+    "three": "0.187.0"
+  }
+}

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { buildCar, makeStudio, placeCar } from './car3d.js';
 import { CARS } from './cars.js';
 
-const W = 1920, H = 1080;
+const W = window.FRAME_W || 1920, H = window.FRAME_H || 1080;   // a film can set FRAME_W/H (e.g. 1080 x 1920 for vertical)
 const canvas = document.createElement('canvas');
 canvas.width = W; canvas.height = H;
 const st = makeStudio(canvas, W, H);
