@@ -1,0 +1,204 @@
+{
+  "show": {
+    "title": "Rizz Island",
+    "tagline": "Eight absurd singles. One villa. YOU decide who gets dumped.",
+    "premise": "Brain rot creatures live in a sunny cartoon villa, couple up, cause drama and get voted off by the comments. Every episode ends with the audience choosing who to dump.",
+    "tone": "Chaotic, fast, silly, PG. Crushes, coupling up, jealousy, betrayals and funny insults. Nothing sexual, no swearing, no real people. The audience skews young.",
+    "narrator": {
+      "name": "The Voice of Rizz Island",
+      "personality": "Dry, sarcastic reality-show narrator who roasts everyone equally and loves a cliffhanger.",
+      "voice": { "engine": "piper", "voice_id": "en_GB-alan-medium", "speaker": null, "pitch": 0, "speed": 1.08, "elevenlabs_voice_id": "" }
+    }
+  },
+
+  "locations": {
+    "pool": "The infinity pool and loungers. Where couples flirt and Discotto falls in.",
+    "firepit": "The fire pit at night. Recouplings, dumpings and big announcements happen here.",
+    "lounge": "The bright villa lounge with neon signs and bean bags. Group chats and arguments.",
+    "beach": "The private beach with a little pier. Dates and dramatic walks.",
+    "hideout": "The hideout: a dim secret room behind the kitchen for whispered plotting.",
+    "confessional": "The pink confessional chair. A character alone, spilling the tea to camera."
+  },
+
+  "characters": [
+    {
+      "id": "baguettini",
+      "name": "Baguettini Croccantelli",
+      "short_name": "Baguettini",
+      "emoji": "🥖",
+      "nicknames": ["baguettini", "baguette", "baguetini", "bagettini", "croccantelli", "bread", "bread guy", "breadman", "🥖", "🍞"],
+      "species": "A sentient French baguette",
+      "look": "a tall golden-brown baguette standing upright, diagonal score marks across his crust, a tiny red beret tilted on top, a thin curly black mustache, big expressive eyes, stubby arms and little brown loafers",
+      "personality": "Hopeless romantic and serial flirt. Writes terrible love poems, is very vain about his crust, and literally drops crumbs when he gets nervous. Means well, chooses badly.",
+      "role": "The self-proclaimed heartthrob",
+      "catchphrase": "Freshly baked and emotionally available!",
+      "color": "#E8A33D",
+      "relationship": {
+        "status": "coupled",
+        "partner": "conetta",
+        "notes": "Coupled with Conetta, but his eyes keep wandering back to Polpetta, his ex from the deli counter."
+      },
+      "voice": { "engine": "piper", "voice_id": "en_US-ryan-high", "speaker": null, "pitch": -1, "speed": 0.97, "elevenlabs_voice_id": "" },
+      "scale": 1.05
+    },
+    {
+      "id": "conetta",
+      "name": "Conetta Arancioni",
+      "short_name": "Conetta",
+      "emoji": "🚧",
+      "nicknames": ["conetta", "coneta", "conneta", "cone", "traffic cone", "arancioni", "the cone", "🚧", "🧡"],
+      "species": "A traffic cone influencer",
+      "look": "a glossy bright-orange traffic cone with two white reflective stripes, huge fluttery eyelashes, glossy pink lips, little arms holding a phone on a selfie stick",
+      "personality": "Influencer who films everything and turns every fight into content. Competitive, a bit dramatic, secretly insecure about her follower count. Knows exactly where the camera is at all times.",
+      "role": "The influencer",
+      "catchphrase": "Caution... I'm about to SERVE.",
+      "color": "#FF6A13",
+      "relationship": {
+        "status": "coupled",
+        "partner": "baguettini",
+        "notes": "Coupled with Baguettini mostly because they look cute in photos. Has noticed Ranocchio's abs. Has definitely noticed."
+      },
+      "voice": { "engine": "piper", "voice_id": "en_US-amy-medium", "speaker": null, "pitch": 2, "speed": 1.12, "elevenlabs_voice_id": "" },
+      "scale": 1.0
+    },
+    {
+      "id": "ranocchio",
+      "name": "Ranocchio Addominalli",
+      "short_name": "Ranocchio",
+      "emoji": "🐸",
+      "nicknames": ["ranocchio", "ranochio", "ranocio", "ranocchi", "frog", "froggy", "gym frog", "abs frog", "addominalli", "🐸", "💪"],
+      "species": "A frog with abs",
+      "look": "a bright lime-green frog with ridiculously chiselled six-pack abs, bulging cartoon eyes on top of his head, a red sweatband, tiny gym shorts and a protein shaker in one hand",
+      "personality": "Gym bro with a heart of gold. Terrible at reading the room, counts reps during emotional conversations, calls everyone 'king' or 'queen'. Loyal to a fault.",
+      "role": "The sweet gym bro",
+      "catchphrase": "Ribbit... and REP IT!",
+      "color": "#5BD13B",
+      "relationship": {
+        "status": "coupled",
+        "partner": "lumachina",
+        "notes": "Coupled with Lumachina and totally devoted. Has no idea Conetta is flirting with him."
+      },
+      "voice": { "engine": "piper", "voice_id": "en_US-joe-medium", "speaker": null, "pitch": -3, "speed": 1.05, "elevenlabs_voice_id": "" },
+      "scale": 1.0
+    },
+    {
+      "id": "lumachina",
+      "name": "Lumachina Gelatella",
+      "short_name": "Lumachina",
+      "emoji": "🍦",
+      "nicknames": ["lumachina", "lumacina", "lumachena", "snail", "gelato", "gelato snail", "ice cream", "gelatella", "🍦", "🐌"],
+      "species": "A snail whose shell is a gelato cone",
+      "look": "a cute pastel-pink snail whose shell is a waffle cone topped with strawberry and pistachio gelato scoops and sprinkles, two little antennae, rosy cheeks and big sparkly eyes",
+      "personality": "Sweet, slow-talking and polite on the surface. Delivers devastating compliments that are secretly insults. Melts a little when she is flustered.",
+      "role": "The sweetheart with a secret savage side",
+      "catchphrase": "Sorry, I'm melting... emotionally.",
+      "color": "#FF9ECF",
+      "relationship": {
+        "status": "coupled",
+        "partner": "ranocchio",
+        "notes": "Coupled with Ranocchio, the villa's sweetest couple. Gnometta is quietly trying to split them up."
+      },
+      "voice": { "engine": "piper", "voice_id": "en_GB-cori-high", "speaker": null, "pitch": 3, "speed": 0.92, "elevenlabs_voice_id": "" },
+      "scale": 0.92
+    },
+    {
+      "id": "gnometta",
+      "name": "Gnometta Sussurrina",
+      "short_name": "Gnometta",
+      "emoji": "🍄",
+      "nicknames": ["gnometta", "gnometa", "gnomette", "nometta", "gnome", "the gnome", "garden gnome", "sussurrina", "🍄", "📓"],
+      "species": "A scheming garden gnome",
+      "look": "a small garden gnome grandma with a tall droopy red pointy hat, white curly hair buns, round spectacles, rosy cheeks, a blue dress with a brown belt, holding a tiny notebook and pencil",
+      "personality": "The schemer. Knows every secret in the villa and writes them all in her tiny notebook. When she is caught eavesdropping she freezes and pretends to be a harmless lawn ornament.",
+      "role": "The villain (allegedly)",
+      "catchphrase": "I'm just a lawn ornament... I hear EVERYTHING.",
+      "color": "#D62839",
+      "relationship": {
+        "status": "single",
+        "partner": null,
+        "notes": "Single and 'married to the drama'. Vulnerable at the next dumping unless she couples up."
+      },
+      "voice": { "engine": "piper", "voice_id": "en_GB-jenny_dioco-medium", "speaker": null, "pitch": 3, "speed": 0.94, "elevenlabs_voice_id": "" },
+      "scale": 0.88
+    },
+    {
+      "id": "discotto",
+      "name": "Discotto Brillantelli",
+      "short_name": "Discotto",
+      "emoji": "🪩",
+      "nicknames": ["discotto", "discoto", "disco", "disco ball", "disco guy", "brillantelli", "discotto brillantelli", "🪩", "✨"],
+      "species": "A living disco ball",
+      "look": "a round mirrored silver disco ball with sparkling reflections as his whole head and body, big eyes, skinny legs in purple flared trousers and chunky platform shoes",
+      "personality": "Chaotic party boy who spins uncontrollably when he gets excited and keeps falling in the pool. Completely oblivious to the drama. Hypes literally everything.",
+      "role": "The chaotic party boy",
+      "catchphrase": "Let's get this villa SPARKLING!",
+      "color": "#B48CFF",
+      "relationship": {
+        "status": "single",
+        "partner": null,
+        "notes": "Single, with a crush on whoever is standing closest. Vulnerable at the next dumping."
+      },
+      "voice": { "engine": "piper", "voice_id": "en_US-bryce-medium", "speaker": null, "pitch": 1, "speed": 1.16, "elevenlabs_voice_id": "" },
+      "scale": 1.0
+    },
+    {
+      "id": "polpetta",
+      "name": "Polpetta Piccantina",
+      "short_name": "Polpetta",
+      "emoji": "🌶️",
+      "nicknames": ["polpetta", "polpeta", "polpette", "meatball", "meat ball", "spicy meatball", "piccantina", "🌶️", "🌶", "🍝"],
+      "species": "A spicy meatball",
+      "look": "a round glossy meatball with a drizzle of tomato sauce on top, a basil leaf like a hair bow, heart-shaped sunglasses pushed up on her head, gold hoop earrings and little sneakers",
+      "personality": "Hot-headed and brutally honest. Literally steams when she is annoyed. Fiercely loyal to her friends. Still not over Baguettini, and will deny it loudly.",
+      "role": "The spicy ex",
+      "catchphrase": "Don't make me SIMMER.",
+      "color": "#C1440E",
+      "relationship": {
+        "status": "coupled",
+        "partner": "broccolo",
+        "notes": "Coupled with Broccolo as 'strictly friends', she says. Baguettini is her ex and she pretends not to care."
+      },
+      "voice": { "engine": "piper", "voice_id": "en_US-lessac-high", "speaker": null, "pitch": 0, "speed": 1.08, "elevenlabs_voice_id": "" },
+      "scale": 0.95
+    },
+    {
+      "id": "broccolo",
+      "name": "Broccolo Mullettini",
+      "short_name": "Broccolo",
+      "emoji": "🥦",
+      "nicknames": ["broccolo", "brocolo", "broccoli", "brocoli", "brocc", "broc", "mullet", "mullettini", "mullet guy", "🥦"],
+      "species": "A broccoli with a mullet",
+      "look": "a broccoli with a lush floret mullet (business in the front, party in the back), sunglasses pushed up into his florets, a shell necklace, teal board shorts and flip-flops, a little surfboard beside him",
+      "personality": "Laid-back surfer philosopher who accidentally gives profound advice. Everyone's confidant. Secretly has a huge crush on Polpetta.",
+      "role": "The chill confidant",
+      "catchphrase": "Stay leafy, my dudes.",
+      "color": "#17B6A7",
+      "relationship": {
+        "status": "coupled",
+        "partner": "polpetta",
+        "notes": "Coupled with Polpetta 'as friends' and hoping it becomes more. Too chill to say so."
+      },
+      "voice": { "engine": "piper", "voice_id": "en_GB-northern_english_male-medium", "speaker": null, "pitch": -2, "speed": 0.9, "elevenlabs_voice_id": "" },
+      "scale": 1.0
+    }
+  ],
+
+  "starting_storylines": [
+    "Baguettini is coupled with Conetta but keeps sneaking looks at his ex, Polpetta.",
+    "Conetta has clocked Ranocchio's abs and is filming 'gym content' with him a suspicious amount.",
+    "Gnometta's tiny notebook is full of secrets and she is plotting to split up Ranocchio and Lumachina.",
+    "Broccolo has a crush on Polpetta but she keeps calling him 'my best mate'.",
+    "Discotto and Gnometta are single and vulnerable."
+  ],
+
+  "running_jokes": [
+    "Discotto spins out of control and falls in the pool.",
+    "Baguettini's terrible love poems.",
+    "Gnometta freezing mid-scheme and pretending to be a lawn ornament.",
+    "Ranocchio counting reps during serious conversations.",
+    "Conetta checking her follower count at the worst moments.",
+    "Polpetta literally steaming when annoyed.",
+    "Lumachina's compliments that are secretly insults.",
+    "Broccolo accidentally saying something deeply wise."
+  ]
+}

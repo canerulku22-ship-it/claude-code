@@ -1,0 +1,15 @@
+# caches and downloads (all regenerable)
+build/
+voices/*.onnx
+voices/*.onnx.json
+voices/aligned/
+__pycache__/
+*.pyc
+
+# large render outputs; scripts and state stay in git
+episodes/**/*.mp4
+episodes/**/*.wav
+review/*.mp3
+
+# secrets never belong in the repo
+.env
