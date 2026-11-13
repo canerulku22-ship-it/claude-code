@@ -6,6 +6,7 @@ Built so far (step 1):
   python rizz_island.py --art [--force]       process character art (or draw placeholders)
                                               and write review/cast_sheet.jpg + review/lineup.jpg
   python rizz_island.py --auditions           review/auditions.mp3: every voice saying its catchphrase
+  python rizz_island.py --prompts             (re)write image_prompts.md from cast.json
 
 Planned (later steps):
   python rizz_island.py                       votes.txt -> finished next episode, in one go
@@ -31,6 +32,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--force", action="store_true", help="with --art: rebuild every sprite from scratch")
     ap.add_argument("--only", default="", help="comma-separated character ids to limit --art/--auditions to")
     ap.add_argument("--auditions", action="store_true", help="render a voice audition MP3")
+    ap.add_argument("--prompts", action="store_true", help="write image_prompts.md from cast.json")
     # Planned flags, accepted now so the interface is stable.
     ap.add_argument("--script-only", action="store_true", help="write the next episode script and stop")
     ap.add_argument("--preview", action="store_true", help="540x960, first ~15 s")
@@ -66,6 +68,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Done in {time.time() - t0:.0f}s")
         return 0
 
+    if args.prompts:
+        from rizz.prompts import write_prompts
+
+        print(f"Wrote {write_prompts(cast).relative_to(config.ROOT)}")
+        return 0
+
     if args.auditions:
         from rizz.auditions import make_auditions
 
@@ -75,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     print("That part of the pipeline isn't built yet: the cast is waiting for approval (step 1).\n"
-          "Available now: --check, --art, --auditions", file=sys.stderr)
+          "Available now: --check, --art, --auditions, --prompts", file=sys.stderr)
     return 2
 
 

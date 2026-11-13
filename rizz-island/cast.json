@@ -99,7 +99,8 @@
         "notes": "Coupled with Ranocchio, the villa's sweetest couple. Gnometta is quietly trying to split them up."
       },
       "voice": { "engine": "piper", "voice_id": "en_GB-cori-high", "speaker": null, "pitch": 3, "speed": 0.92, "elevenlabs_voice_id": "" },
-      "scale": 0.92
+      "scale": 0.92,
+      "no_arms": true
     },
     {
       "id": "gnometta",
