@@ -1,0 +1,9 @@
+# Python 3.10+
+geopandas>=0.14
+shapely>=2.0
+pyproj>=3.6
+pyogrio>=0.7
+numpy>=1.26
+Pillow>=10.0
+cairosvg>=2.7   # rasterises the flag-icons SVGs (needs the system cairo library)
+# Also required on PATH: ffmpeg + ffprobe (with libx264 and the native aac encoder)

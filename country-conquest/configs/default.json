@@ -1,0 +1,91 @@
+{
+  "series_title": "Country Conquest",
+
+  "start_country": "TUR",
+  "rounds": 5,
+  "neighbours_only": true,
+  "sea_neighbour_km": 120,
+  "strength_mode": "equal",
+  "territory_bonus": { "hp_per_extra_country": 3, "max_bonus": 18 },
+  "exclude_pairs": [
+    ["RUS", "UKR"],
+    ["ISR", "PSE"],
+    ["IND", "PAK"],
+    ["ARM", "AZE"],
+    ["CHN", "TWN"],
+    ["TUR", "ARM"],
+    ["TUR", "CYP"],
+    ["RUS", "GEO"],
+    ["KOR", "PRK"],
+    ["SRB", "KOS"],
+    ["ISR", "IRN"],
+    ["ISR", "LBN"],
+    ["ISR", "SYR"],
+    ["SAU", "YEM"],
+    ["ETH", "ERI"],
+    ["SDN", "SSD"],
+    ["COD", "RWA"],
+    ["AFG", "PAK"],
+    ["THA", "KHM"],
+    ["IND", "CHN"]
+  ],
+  "exclude_pairs_cover_territory": true,
+  "min_area_km2": 1000,
+  "extra_unplayable": [],
+  "extra_playable": [],
+  "spinner_style": "map_roulette",
+  "seed": null,
+
+  "video": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "target_duration": 57.0,
+    "supersample": 2,
+    "crf": 18,
+    "x264_preset": "medium"
+  },
+  "preview": {
+    "width": 540,
+    "height": 960,
+    "duration": 12.4,
+    "supersample": 2
+  },
+  "timing": {
+    "intro": 2.0,
+    "outro": 3.0,
+    "spin_share": 0.29,
+    "takeover_share": 0.17
+  },
+
+  "style": {
+    "font": "LilitaOne",
+    "sea_top": "#0E3F94",
+    "sea_bottom": "#06215E",
+    "sea_ripple": "#3C7BE0",
+    "coast_glow": "#2A64C4",
+    "land": "#8F97A3",
+    "land_border": "#646C78",
+    "coastline": "#4F5663",
+    "highlight": "#FFD23F",
+    "accent": "#FFD23F",
+    "text": "#FFFFFF",
+    "text_stroke": "#0A1024",
+    "panel": "#0A1430"
+  },
+  "colors": {},
+  "names": {},
+
+  "text": {
+    "intro_first": "Can {flag} *{name}* conquer the world? 👇",
+    "intro_continue": "EPISODE {episode}: {flag} *{name}* owns {count} {countries}… 👇",
+    "territory": "TERRITORY: *{count}* {COUNTRIES}",
+    "streak": "🔥 STREAK: *{streak}*",
+    "round": "ROUND {round}",
+    "spin": "WHO'S NEXT?",
+    "new_champion": "NEW CHAMPION: {flag} *{name}*",
+    "outro": "Who should we face next? 👇"
+  },
+
+  "safe_area": { "top": 0.10, "bottom": 0.20, "left": 0.05, "right": 0.14 }
+}

@@ -1,0 +1,9 @@
+# Downloaded third-party data (re-fetch with: python conquest.py fetch-assets)
+assets/
+# Rendered output, series state and per-episode configs are your own data
+out/
+episodes/
+seasons/
+state.json
+__pycache__/
+*.pyc
