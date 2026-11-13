@@ -49,7 +49,7 @@ const CAM = {
   wide: { x: 0.0, y: 1.55, z: 7.9, tx: -0.08, ty: 1.0, tz: -0.2, roll: 0, fov: 38 },
   phone: { x: NS.x + 0.22, y: 0.98, z: NS.z + 0.5, tx: PHONE_P.x, ty: PHONE_P.y, tz: PHONE_P.z, roll: -4, fov: 30 },
   phoneTight: { x: NS.x + 0.12, y: 0.82, z: NS.z + 0.3, tx: PHONE_P.x, ty: PHONE_P.y, tz: PHONE_P.z, roll: -6, fov: 30 },
-  bed: { x: -0.1, y: 2.35, z: 2.6, tx: -0.5, ty: 0.55, tz: 0, roll: -3, fov: 34 },
+  bed: { x: 1.05, y: 1.7, z: 2.7, tx: -0.55, ty: 0.55, tz: 0, roll: -3, fov: 34 },
   toDoor: { x: -1.3, y: 1.5, z: 3.6, tx: 1.05, ty: 1.0, tz: -0.6, roll: -2, fov: 34 },
   door: { x: 0.35, y: 1.15, z: 2.4, tx: DOOR.x, ty: 1.05, tz: DOOR.z, roll: -3, fov: 34 },
   side: { x: -1.9, y: 1.35, z: 3.4, tx: 0.55, ty: 0.75, tz: -0.4, roll: -3, fov: 36 },
@@ -77,7 +77,7 @@ const headCam = (dist, dy = 0.02) => { const hx = itBase.x - 0.02, hz = itBase.z
 // ---------------------------------------------------------------- 2  DO NOT READ IT
 {
   const t0 = S('s02'), td = w('s02', 'do');
-  const X = redX(room, { x: PHONE_P.x + 0.02, y: PHONE_P.y + 0.2, z: PHONE_P.z + 0.06, ry: 0.25 });
+  const X = redX(room, { x: PHONE_P.x + 0.05, y: PHONE_P.y + 0.16, z: PHONE_P.z + 0.02, ry: 0.25, w: 0.2, h: 0.2, boost: 1.5 });
   X.mesh.scale.setScalar(0.0001);
   tl.fromTo(X.mesh.scale, { x: 0.0001, y: 0.0001, z: 0.0001 }, { x: 1, y: 1, z: 1, duration: 0.35, ease: 'back.out(2.5)' }, td - 0.05);
   tl.to(X.mesh.scale, { x: 0.0001, y: 0.0001, z: 0.0001, duration: 0.2 }, S('s03') + 0.25);
@@ -97,7 +97,7 @@ const headCam = (dist, dy = 0.02) => { const hx = itBase.x - 0.02, hz = itBase.z
   sfx('swoosh', tf, 0.3); sfx('thunk', tf + 0.5, 0.5);
   cut(tC, 'swoosh', 0.2);
   camSet(tC - 0.03, CAM.bed);
-  camTo(tC, { z: 2.2, y: 2.15, x: -0.25 }, S('s04') - tC, 'none');
+  camTo(tC, { z: 2.3, y: 1.55, x: 0.85 }, S('s04') - tC, 'none');
   tl.to(B.blanketPivot.scale, { x: 1.45, duration: 0.7, ease: 'power2.inOut' }, w('s03', 'close') - 0.05);
   tl.to(B.blanketPivot.position, { y: 0.69, duration: 0.7, ease: 'power2.inOut' }, w('s03', 'close') - 0.05);
   sfx('cloth', w('s03', 'close'), 0.55);
@@ -109,7 +109,7 @@ const headCam = (dist, dy = 0.02) => { const hx = itBase.x - 0.02, hz = itBase.z
   camSet(t0 - 0.02, CAM.toDoor);
   camTo(t0, { x: -0.9, z: 3.0, tx: DOOR.x - 0.1 }, S('s05') - t0, 'power1.inOut');
   const msg = 'LOOK AT THE DOOR';
-  const gt = panelMesh(room, { w: 1.5, h: 0.22, x: DOOR.x - 0.75, y: 2.25, z: DOOR.z + 0.25, ry: -0.15, ppu: 900, boost: 2.0, key: t => q(Math.min(t, tLk + 1.2)) + (t > tLk ? Math.floor(t * 9) % 4 : 0),
+  const gt = panelMesh(room, { w: 1.25, h: 0.2, x: DOOR.x - 0.12, y: 1.62, z: DOOR.z + 0.55, ry: -0.3, ppu: 900, boost: 2.0, key: t => q(Math.min(t, tLk + 1.2)) + (t > tLk ? Math.floor(t * 9) % 4 : 0),
     draw: (c, t, P) => {
       const n = Math.floor(clamp01((t - tLk + 0.05) * 18 / msg.length) * msg.length), fl = Math.floor(t * 9) % 4 === 0 ? 0.55 : 1;
       c.globalAlpha = fl; text(c, msg.slice(0, n), P.cw / 2, P.ch / 2, { size: 120, weight: 900, color: '#ffffff', spacing: 18, font: 'Inter Display', glow: 18 });
@@ -162,8 +162,8 @@ const headCam = (dist, dy = 0.02) => { const hx = itBase.x - 0.02, hz = itBase.z
   tl.to(IT.userData.pose, Object.assign({}, POSES.lean, { neckZ: 0.6, duration: 1.2, ease: 'power2.inOut' }), tN - 0.2);
   sfx('creak', tN, 0.3, { dur: 0.6 });
   cut(tSh, 'swoosh', 0.2);
-  camSet(tSh - 0.03, { x: -0.9, y: 2.2, z: 2.2, tx: -0.55, ty: 0.55, tz: 0, roll: 4, fov: 34 });
-  camTo(tSh, { z: 1.9, y: 2.0, x: -0.8 }, S('s08') - tSh, 'none');
+  camSet(tSh - 0.03, { x: -1.75, y: 1.15, z: 1.75, tx: 0.9, ty: 0.95, tz: -0.5, roll: 3, fov: 36 });
+  camTo(tSh, { x: -1.55, z: 1.5, y: 1.1 }, S('s08') - tSh, 'none');
   tl.to(YOU.userData.pose, { tremble: 0.9, duration: 0.3 }, tSh);
   [0, 0.42, 0.84].forEach(d => { sfx('knock', tH + d, 0.75); shake(tH + d, 0.25, 0.2); });
   sfx('whisper', tH + 0.3, 0.45);

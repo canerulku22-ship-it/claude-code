@@ -358,7 +358,7 @@ def build_music(dur, cues):
                     e = min(n, j + len(beat))
                     hb[j:e] += beat[:e - j] * g * h
         i += int(60 / bpm * SR)
-    hb = lp(hb, 160) * 0.9
+    hb = lp(hb, 160) * 0.75
     music = np.stack([L * lvl + hb, R_ * lvl + hb], 1)
     return music
 
@@ -412,7 +412,7 @@ def main():
     music = music * duck[:, None]
 
     v2 = np.stack([voice, voice], 1)
-    full = v2 * 1.0 + sfxb * 0.55 + music * 0.5
+    full = v2 * 1.0 + sfxb * 0.55 + music * 0.22
     nomus = v2 * 1.0 + sfxb * 0.55
     vpk = np.abs(voice).max()
     for name, mix in (("mix_full", full), ("mix_nomusic", nomus)):

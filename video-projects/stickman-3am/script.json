@@ -1,44 +1,200 @@
 {
-  "_notes": [
-    "Original 3AM-rule horror micro-story in the stickman 'rules' format.",
-    "cap: *gold* emphasis (rendered white-bright), !red! danger, {TEXT:N} replaces N spoken words."
-  ],
-  "segments": [
-    {"id": "s01", "name": "hook", "lines": [
-      {"tts": "If your phone ever lights up at three oh seven in the morning,", "cap": "If your phone ever lights up at {3:07:3} {AM,:3}", "pause": 0.15},
-      {"tts": "and the message is from your own number...", "cap": "and the message is from your !own! !number...!", "pause": 0.4}]},
-    {"id": "s02", "name": "dont", "lines": [
-      {"tts": "Do not read it.", "cap": "!Do! !not! !read! !it.!", "pause": 0.45}]},
-    {"id": "s03", "name": "facedown", "lines": [
-      {"tts": "Turn the phone face down.", "cap": "Turn the phone face *down.*", "pause": 0.2},
-      {"tts": "Close your eyes.", "cap": "Close your *eyes.*", "pause": 0.45}]},
-    {"id": "s04", "name": "message", "lines": [
-      {"tts": "The message always says the same thing.", "cap": "The message always says the same thing.", "pause": 0.35},
-      {"tts": "Look at the door.", "cap": "!Look! !at! !the! !door.!", "pause": 0.5}]},
-    {"id": "s05", "name": "standing", "lines": [
-      {"tts": "Because if you look, someone will be standing there.", "cap": "Because if you look, someone will be *standing* *there.*", "pause": 0.3},
-      {"tts": "Someone who looks exactly like you.", "cap": "Someone who looks exactly like !you.!", "pause": 0.5}]},
-    {"id": "s06", "name": "smile", "lines": [
-      {"tts": "It will smile.", "cap": "It will !smile.!", "pause": 0.35},
-      {"tts": "And it will wait.", "cap": "And it will *wait.*", "pause": 0.5}]},
-    {"id": "s07", "name": "threshold", "lines": [
-      {"tts": "It can only come in if you notice it.", "cap": "It can only come in if you !notice! !it.!", "pause": 0.25},
-      {"tts": "So keep your eyes shut.", "cap": "So keep your eyes *shut.*", "pause": 0.2},
-      {"tts": "No matter what you hear.", "cap": "No matter what you *hear.*", "pause": 0.55}]},
-    {"id": "s08", "name": "clock", "lines": [
-      {"tts": "At three thirty-three, the clock will tick,", "cap": "At {3:33,:2} the clock will *tick,*", "pause": 0.2},
-      {"tts": "and it'll be gone.", "cap": "and it'll be *gone.*", "pause": 0.6}]},
-    {"id": "s09", "name": "morning", "lines": [
-      {"tts": "But here's what nobody tells you.", "cap": "But here's what *nobody* *tells* *you.*", "pause": 0.45}]},
-    {"id": "s10", "name": "check", "lines": [
-      {"tts": "In the morning, check that message.", "cap": "In the morning, check that *message.*", "pause": 0.25},
-      {"tts": "If it says read,", "cap": "If it says !read,!", "pause": 0.45}]},
-    {"id": "s11", "name": "twist", "lines": [
-      {"tts": "then you weren't the one who opened it.", "cap": "then you weren't the one who *opened* *it.*", "pause": 0.4},
-      {"tts": "Something else did.", "cap": "!Something! !else! !did.!", "pause": 0.45},
-      {"tts": "And it never left.", "cap": "And it !never! !left.!", "pause": 1.0}]},
-    {"id": "s12", "name": "cta", "lines": [
-      {"tts": "Would you have looked? Tell me in the comments.", "cap": "Would you have *looked?* Tell me in the *comments.*", "pause": 0.2},
-      {"tts": "And follow, so you know what to do next time.", "cap": "And *follow,* so you know what to do next time.", "pause": 1.8}]}
-  ]
+ "_notes": [
+  "Original 3AM-rule horror micro-story in the stickman 'rules' format.",
+  "cap: *gold* emphasis (rendered white-bright), !red! danger, {TEXT:N} replaces N spoken words."
+ ],
+ "segments": [
+  {
+   "id": "s01",
+   "name": "hook",
+   "lines": [
+    {
+     "tts": "If your phone ever lights up at three oh seven in the morning,",
+     "cap": "If your phone ever lights up at {3:07:3} {AM,:3}",
+     "pause": 0.15
+    },
+    {
+     "tts": "and the message is from your own number...",
+     "cap": "and the message is from your !own! !number...!",
+     "pause": 0.55
+    }
+   ]
+  },
+  {
+   "id": "s02",
+   "name": "dont",
+   "lines": [
+    {
+     "tts": "Do not read it.",
+     "cap": "!Do! !not! !read! !it.!",
+     "pause": 0.6
+    }
+   ]
+  },
+  {
+   "id": "s03",
+   "name": "facedown",
+   "lines": [
+    {
+     "tts": "Turn the phone face down.",
+     "cap": "Turn the phone face *down.*",
+     "pause": 0.2
+    },
+    {
+     "tts": "Close your eyes.",
+     "cap": "Close your *eyes.*",
+     "pause": 0.45
+    }
+   ]
+  },
+  {
+   "id": "s04",
+   "name": "message",
+   "lines": [
+    {
+     "tts": "The message always says the same thing.",
+     "cap": "The message always says the same thing.",
+     "pause": 0.35
+    },
+    {
+     "tts": "Look at the door.",
+     "cap": "!Look! !at! !the! !door.!",
+     "pause": 1.1
+    }
+   ]
+  },
+  {
+   "id": "s05",
+   "name": "standing",
+   "lines": [
+    {
+     "tts": "Because if you look, someone will be standing there.",
+     "cap": "Because if you look, someone will be *standing* *there.*",
+     "pause": 0.3
+    },
+    {
+     "tts": "Someone who looks exactly like you.",
+     "cap": "Someone who looks exactly like !you.!",
+     "pause": 0.9
+    }
+   ]
+  },
+  {
+   "id": "s06",
+   "name": "smile",
+   "lines": [
+    {
+     "tts": "It will smile.",
+     "cap": "It will !smile.!",
+     "pause": 0.7
+    },
+    {
+     "tts": "And it will wait.",
+     "cap": "And it will *wait.*",
+     "pause": 1.1
+    }
+   ]
+  },
+  {
+   "id": "s07",
+   "name": "threshold",
+   "lines": [
+    {
+     "tts": "It can only come in if you notice it.",
+     "cap": "It can only come in if you !notice! !it.!",
+     "pause": 0.25
+    },
+    {
+     "tts": "So keep your eyes shut.",
+     "cap": "So keep your eyes *shut.*",
+     "pause": 0.2
+    },
+    {
+     "tts": "No matter what you hear.",
+     "cap": "No matter what you *hear.*",
+     "pause": 1.7
+    }
+   ]
+  },
+  {
+   "id": "s08",
+   "name": "clock",
+   "lines": [
+    {
+     "tts": "At three thirty-three, the clock will tick,",
+     "cap": "At {3:33,:2} the clock will *tick,*",
+     "pause": 0.2
+    },
+    {
+     "tts": "and it'll be gone.",
+     "cap": "and it'll be *gone.*",
+     "pause": 1.0
+    }
+   ]
+  },
+  {
+   "id": "s09",
+   "name": "morning",
+   "lines": [
+    {
+     "tts": "But here's what nobody tells you.",
+     "cap": "But here's what *nobody* *tells* *you.*",
+     "pause": 0.45
+    }
+   ]
+  },
+  {
+   "id": "s10",
+   "name": "check",
+   "lines": [
+    {
+     "tts": "In the morning, check that message.",
+     "cap": "In the morning, check that *message.*",
+     "pause": 0.25
+    },
+    {
+     "tts": "If it says read,",
+     "cap": "If it says !read,!",
+     "pause": 0.45
+    }
+   ]
+  },
+  {
+   "id": "s11",
+   "name": "twist",
+   "lines": [
+    {
+     "tts": "then you weren't the one who opened it.",
+     "cap": "then you weren't the one who *opened* *it.*",
+     "pause": 0.4
+    },
+    {
+     "tts": "Something else did.",
+     "cap": "!Something! !else! !did.!",
+     "pause": 0.8
+    },
+    {
+     "tts": "And it never left.",
+     "cap": "And it !never! !left.!",
+     "pause": 2.1
+    }
+   ]
+  },
+  {
+   "id": "s12",
+   "name": "cta",
+   "lines": [
+    {
+     "tts": "Would you have looked? Tell me in the comments.",
+     "cap": "Would you have *looked?* Tell me in the *comments.*",
+     "pause": 0.2
+    },
+    {
+     "tts": "And follow, so you know what to do next time.",
+     "cap": "And *follow,* so you know what to do next time.",
+     "pause": 1.8
+    }
+   ]
+  }
+ ]
 }
