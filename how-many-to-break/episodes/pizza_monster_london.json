@@ -1,0 +1,41 @@
+{
+  "mode": "kaiju",
+  "title": "A PIZZA MONSTER JUST ERUPTED IN LONDON",
+  "monster_name": "PEPPERONI REX",
+  "monster_stats": ["HEIGHT: 120 M", "MADE OF: 100% PIZZA", "CHEESE TEMP: 400 °C"],
+  "end_question": "WHERE SHOULD PEPPERONI REX GO NEXT?",
+  "duration_s": 53.0,
+  "voice": "en_GB-alan-medium",
+  "voice_speed": 1.08,
+  "beats_s": {"hook": 0.0, "erupt": 5.5, "rise": 11.5, "bridge": 20.0, "bite": 27.0, "eye": 32.0,
+              "pineapple": 37.5, "end": 46.0},
+  "moments_s": {"bong1": 0.2, "bong2": 2.2, "bubbles": 6.0, "geyser": 8.6, "rise_start": 11.6, "roar": 12.6,
+                "name_card": 14.3, "walk_start": 20.3, "walk_end": 26.8, "bite": 30.3, "stomp": 32.6,
+                "eye_roll": 33.1, "pineapples": 42.2, "gag": 43.0, "dive": 44.0, "splash": 45.2},
+  "labels": [
+    {"at_s": 0.6, "until_s": 5.4, "text": "WESTMINSTER, LONDON"},
+    {"at_s": 6.0, "until_s": 11.3, "text": "RIVER THAMES"},
+    {"at_s": 20.5, "until_s": 26.8, "text": "WESTMINSTER BRIDGE"},
+    {"at_s": 27.2, "until_s": 31.8, "text": "BIG BEN"},
+    {"at_s": 32.3, "until_s": 37.3, "text": "LONDON EYE"}
+  ],
+  "comic_words": [
+    {"at_s": 12.7, "text": "ROAR!"},
+    {"at_s": 30.3, "text": "CHOMP!"},
+    {"at_s": 34.6, "text": "SLICE!"},
+    {"at_s": 43.0, "text": "EWW!"}
+  ],
+  "voiceover": [
+    {"at_s": 0.4, "text": "London. Eight fourteen p.m.", "caption": "London. 8:14 PM."},
+    {"at_s": 3.2, "text": "Nobody ordered this."},
+    {"at_s": 6.0, "text": "We filled the world with pizza. And now, it's coming back up."},
+    {"at_s": 14.6, "text": "Meet Pepperoni Rex. One hundred and twenty metres of molten mozzarella.",
+     "caption": "Meet Pepperoni Rex. 120 metres of molten mozzarella."},
+    {"at_s": 20.8, "text": "He's crossing Westminster Bridge. And he hasn't paid the congestion charge."},
+    {"at_s": 27.1, "text": "Big Ben? More like, Big Bite."},
+    {"at_s": 33.0, "text": "And the London Eye, is now a pizza cutter."},
+    {"at_s": 37.6, "text": "Scientists say there's only one way to stop him."},
+    {"at_s": 41.1, "text": "Extra pineapple."},
+    {"at_s": 46.6, "text": "Where should Pepperoni Rex go next? Tell us in the comments."}
+  ]
+}

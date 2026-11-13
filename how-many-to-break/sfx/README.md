@@ -26,6 +26,24 @@ The first slot that has a file wins, from most to least specific:
 | Riser | `riser` | the build-up just before the final drop |
 | Music | `music` | replaces the procedural tension drone (looped, low) |
 
+Kaiju episodes (`"mode": "kaiju"`) also use these slots:
+
+| Event | Slot | When it plays |
+|---|---|---|
+| Voiceover | `vo_01`, `vo_02`, ... | replaces each Piper line, in order |
+| Bell | `bong` | the hour bell in the hook |
+| Geyser | `geyser` | the cheese geyser erupting |
+| Rise | `rise` | the monster bursting out of the river |
+| Roar | `roar` (add `roar_2.wav` for the short ones) | every roar |
+| Footstep | `stomp`, `stomp_big` | each step; the stomp that frees the wheel |
+| Vehicle hit | `clang`, `splash_small` | buses and cabs kicked off the bridge; landing in the river |
+| Bite | `bite` | the bite out of the clock tower |
+| Wheel | `groan`, `roll`, `slice` | the wheel snapping off, rolling, cutting through buildings |
+| Pineapple | `pineapple` | each pineapple landing |
+| Gag | `gag` | the monster tasting pineapple |
+| Splash | `splash` | the dive back into the river |
+| Music | `music` | replaces the whole procedural score |
+
 Materials: `glass` (glass table), `fabric` (trampoline), `shell` (egg), `wood` (chair).
 Drop objects: `bowling_ball`, `watermelon`, `brick`, `iphone`, `anvil`.
 

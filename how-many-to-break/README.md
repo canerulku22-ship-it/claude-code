@@ -153,6 +153,50 @@ so its model volume matches the real ~1.1 million m³. The counter follows how m
 volume is below the fill line, so it races through the wide lower tiers and slows near the
 top.
 
+## Kaiju episodes: a monster with a voiceover
+
+Set `"mode": "kaiju"` for a short story told like a breaking-news report, with a voiceover.
+`episodes/pizza_monster_london.json` (53 s) has Pepperoni Rex, an original pizza monster,
+erupting from the Thames, biting the top off Big Ben and sending the London Eye rolling
+through the city like a pizza cutter, until pineapple sends him back into the river.
+
+| Key | Meaning |
+|---|---|
+| `title`, `monster_name`, `monster_stats` | Hook title, name card and its stat lines |
+| `beats_s` | Start time of each beat: `hook`, `erupt`, `rise`, `bridge`, `bite`, `eye`, `pineapple`, `end` |
+| `moments_s` | Exact times for the action (`geyser`, `roar`, `bite`, `stomp`, `pineapples`, `splash`, ...) |
+| `voiceover` | `[{"at_s": 0.4, "text": "...", "caption": "..."}]`: spoken text, and an optional caption shown instead |
+| `voice`, `voice_speed` | Piper voice (default `en_GB-alan-medium`) and its length scale (above 1 = slower) |
+| `labels` | Location chips (`at_s`, `until_s`, `text`) |
+| `comic_words` | Comic bursts such as `ROAR!` (`at_s`, `text`) |
+| `end_question` | The question on the end card |
+
+The voiceover uses [Piper](https://github.com/rhasspy/piper), a free offline text-to-speech
+engine. Install it once, then download a voice from
+[huggingface.co/rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices):
+
+```
+python -m venv tts-venv && tts-venv/bin/pip install piper-tts
+export PIPER_BIN=$PWD/tts-venv/bin/piper PIPER_VOICES=/path/to/voices   # holds en_GB-alan-medium.onnx(.json)
+```
+
+Each line gets a trailer treatment (pitched down a little, EQ, compression), and the music
+ducks under it. Captions highlight each word as it's spoken, timed from the line lengths.
+To use your own recordings, put `vo_01.wav`, `vo_02.wav`, ... in `sfx/`.
+
+The soundtrack (`hmtb/audio_kaiju.py`) is all procedural:
+
+* **Music:** a news sting, a creeping drone into the eruption, a minor-key monster theme
+  (bass ostinato, taiko, brass), a comic cue for the pineapples and a tarantella under the end card.
+* **Effects:** Big Ben bongs, bubbles, the geyser, the roar, stomps, flung buses, the bite,
+  the rolling wheel, slices, falling pineapples and the splash.
+* **Overrides:** any sound can be replaced through `sfx/` slots (see `sfx/README.md`).
+
+The scene is built in `scene3d/kaiju_episode.py` from `scene3d/london_set.py` (a stylised
+Westminster, river, bridge, wheel and city) and `scene3d/pizza_kaiju.py` (the monster: a rig of
+empties driving blob meshes, posed procedurally per frame from the moments). One camera per
+beat; the 3D render stops one second into the end beat and holds that frame under the end card.
+
 ## What happens in an episode
 
 | Time | What you see | What you hear |

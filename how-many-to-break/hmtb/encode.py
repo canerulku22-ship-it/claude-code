@@ -37,6 +37,9 @@ def encode(episode_dir, out_path, audio_path, width, height, frame_range=None, c
     if events.get("mode") == "fill":
         from .overlay_fill import FillOverlay
         overlay = FillOverlay(events, width, height)
+    elif events.get("mode") == "kaiju":
+        from .overlay_kaiju import KaijuOverlay
+        overlay = KaijuOverlay(events, width, height)
     else:
         overlay = Overlay(events, width, height)
     cmd = [

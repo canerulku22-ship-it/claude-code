@@ -86,9 +86,13 @@ def make_episode(config_path, preview=False, blender=None, samples=None, scale=1
     with open(config_path) as fh:
         raw = json.load(fh)
     fill_mode = raw.get("mode") == "fill"
+    kaiju_mode = raw.get("mode") == "kaiju"
     if fill_mode:
         from hmtb.fill import resolve_fill
         cfg = resolve_fill(raw, config_path)
+    elif kaiju_mode:
+        from hmtb.kaiju import resolve_kaiju
+        cfg = resolve_kaiju(raw, config_path)
     else:
         cfg = load_config(config_path)
     slug = cfg["slug"] + ("_preview" if preview else "")
@@ -113,7 +117,7 @@ def make_episode(config_path, preview=False, blender=None, samples=None, scale=1
         from hmtb import FPS, PREVIEW_SECONDS
         if preview:
             total = int(PREVIEW_SECONDS * FPS)
-        elif fill_mode:
+        elif fill_mode or kaiju_mode:
             total = int(round(cfg["duration_s"] * FPS))
         else:
             total = build_timeline(cfg).total_frames
@@ -134,6 +138,17 @@ def make_episode(config_path, preview=False, blender=None, samples=None, scale=1
     if fill_mode:
         from hmtb.audio import build_fill_soundtrack
         build_fill_soundtrack(events, audio, seed=cfg["seed"])
+    elif kaiju_mode:
+        # Voiceover first: its line lengths time the captions in the overlay.
+        from hmtb import voice
+        from hmtb.audio_kaiju import build_kaiju_soundtrack
+        lines = voice.render_lines(cfg, os.path.join(out_dir, "vo"))
+        events["vo_durations"] = [round(d, 3) for d in voice.durations(lines)]
+        for line, d in zip(cfg["voiceover"], events["vo_durations"]):
+            print("  VO %5.2fs-%5.2fs  %s" % (line["at_s"], line["at_s"] + d, line["text"]), flush=True)
+        with open(os.path.join(out_dir, "events.json"), "w") as fh:
+            json.dump(events, fh, indent=1)
+        build_kaiju_soundtrack(events, lines, audio, seed=cfg["seed"])
     else:
         build_soundtrack(events, audio, seed=cfg["seed"])
 

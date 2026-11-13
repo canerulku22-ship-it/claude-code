@@ -393,12 +393,58 @@ def main_fill(args, raw):
     print("Done.", flush=True)
 
 
+def main_kaiju(args, raw):
+    """Render a 'kaiju' episode (see hmtb/kaiju.py and scene3d/kaiju_episode.py)."""
+    from hmtb.kaiju import build_kaiju_timeline, resolve_kaiju
+    from scene3d import kaiju_episode
+    cfg = resolve_kaiju(raw, args.config)
+    ktl = build_kaiju_timeline(cfg)
+    print("Kaiju episode: %.0f s, %d frames." % (cfg["duration_s"], ktl.total_frames), flush=True)
+    for name, (s0, s1) in ktl.segments.items():
+        print("  %-9s %6.2fs - %6.2fs" % (name, s0 / 30.0, s1 / 30.0))
+    base_w, base_h = PREVIEW_RES if args.preview else FULL_RES
+    width = int(round(base_w * args.scale / 2)) * 2
+    height = int(round(base_h * args.scale / 2)) * 2
+    samples = args.samples or (cfg["preview_samples"] if args.preview else cfg["samples"])
+    frames = list(range(0, min(ktl.total_frames, int(PREVIEW_SECONDS * FPS)))) if args.preview \
+        else list(range(ktl.total_frames))
+    if args.frames and ":" in args.frames:
+        a, b = args.frames.split(":")
+        frames = [f for f in frames if int(a or 0) <= f < int(b or 10 ** 9)]
+    elif args.frames:
+        frames = sorted(int(f) for f in args.frames.split(","))
+    out_dir = args.out or os.path.join(HERE, "out", cfg["slug"] + ("_preview" if args.preview else ""))
+    os.makedirs(out_dir, exist_ok=True)
+    t0 = time.time()
+    built = kaiju_episode.build_scene(cfg, ktl, width, height, samples)
+    print("  scene built in %.1fs" % (time.time() - t0), flush=True)
+    events_path = os.path.join(out_dir, "events.json")
+    if not os.path.exists(events_path) or args.preview or (args.frames and args.frames.startswith("0")):
+        all_frames = list(range(0, int(PREVIEW_SECONDS * FPS))) if args.preview else list(range(ktl.total_frames))
+        events = {
+            "version": 1, "mode": "kaiju",
+            "config": {k: v for k, v in cfg.items() if not k.startswith("_")},
+            "fps": ktl.fps, "total_frames": ktl.total_frames, "duration_s": ktl.total_frames / float(ktl.fps),
+            "segments": ktl.segments, "moments": ktl.moments, "events": built["events"],
+            "render": {"width": width, "height": height, "samples": samples,
+                       "frames": [all_frames[0], all_frames[-1] + 1]},
+        }
+        with open(events_path, "w") as fh:
+            json.dump(events, fh, indent=1)
+        print("Wrote", events_path, flush=True)
+    if not args.no_render:
+        render_frames(built, ktl, frames, os.path.join(out_dir, "frames"), args.fresh)
+    print("Done.", flush=True)
+
+
 def main():
     args = parse_args()
     with open(args.config) as fh:
         raw = json.load(fh)
     if raw.get("mode") == "fill":
         return main_fill(args, raw)
+    if raw.get("mode") == "kaiju":
+        return main_kaiju(args, raw)
     cfg = load_config(args.config)
     for w in cfg["_warnings"]:
         print("WARNING:", w)
