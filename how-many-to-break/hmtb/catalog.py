@@ -96,6 +96,21 @@ DROP_OBJECTS = {
         "sound": "anvil",
         "collision": "CONVEX_HULL",
     },
+    "pizza": {
+        "singular": "pizza",
+        "plural": "pizzas",
+        "label": "PIZZAS",
+        "label_singular": "PIZZA",
+        "mass_kg": 0.8,
+        "shape": "box",
+        "size_m": (0.356, 0.356, 0.03),
+        "gap_m": 0.004,
+        "bounce": 0.01,
+        "squash": 0.15,
+        "rock_deg": 5.0,
+        "sound": "pizza",
+        "collision": "CONVEX_HULL",
+    },
 }
 
 # ---------------------------------------------------------------------------

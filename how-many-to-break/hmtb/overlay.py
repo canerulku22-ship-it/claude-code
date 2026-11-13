@@ -404,8 +404,8 @@ class Overlay:
         d.text((x0 + pad * 2 + dot, y0 + h / 2), text, font=f, fill=WHITE, anchor="lm")
         img.alpha_composite(layer)
 
-    def _swipe(self, img, t):
-        """Diagonal accent band sweeping across the screen to cover the cut to the replay."""
+    def _swipe(self, img, t, text="REPLAY"):
+        """Diagonal accent band sweeping across the screen to cover a cut."""
         u = t / 15.0
         cx = -700 + 2500 * _ease_in_out(u)
         band = 760
@@ -418,7 +418,10 @@ class Overlay:
         for off in (-band / 2, band / 2):
             d.line([(self._s(cx + off + slant), 0), (self._s(cx + off - slant), self._s(1920))], fill=INK,
                    width=int(self._s(18)))
-        d.text((self._s(cx), self._s(960)), "REPLAY", font=_font(FONT_BLACK, self._s(130)), fill=INK, anchor="mm")
+        size = 130
+        while size > 50 and _font(FONT_BLACK, self._s(size)).getlength(text) > self._s(band - 60):
+            size -= 6
+        d.text((self._s(cx), self._s(960)), text, font=_font(FONT_BLACK, self._s(size)), fill=INK, anchor="mm")
         img.alpha_composite(layer)
 
     def _wrap(self, words, font, max_w):

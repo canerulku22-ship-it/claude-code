@@ -125,6 +125,8 @@ def sfx_impact(sound, intensity, rng):
             click += _bandpass(_noise(rng, 0.08), 2000, 9000) * _env(0.08, 0.0003, 0.006) * 0.6
             out[off:off + len(click)] += click * (1.0 if k == 0 else 0.5)
         return _norm(out) * (0.4 + 0.3 * i)
+    if sound == "pizza":
+        return sfx_pizza(intensity, rng)
     if sound == "anvil":
         f0 = rng.uniform(380, 460)
         ring = _modes([f0, f0 * 2.32, f0 * 4.25, f0 * 6.63, f0 * 9.4], [1.1, 0.7, 0.45, 0.3, 0.2],
@@ -133,6 +135,13 @@ def sfx_impact(sound, intensity, rng):
         hit = _bandpass(_noise(rng, 0.05), 1000, 8000) * _env(0.05, 0.0003, 0.008)
         return _norm(_mix(thud * 1.2, ring * 0.7, hit * 0.6)) * (0.7 + 0.3 * i)
     return _norm(_sweep(140, 60, 0.4, decay=0.12)) * i
+
+
+def sfx_pizza(intensity, rng):
+    """A soft, doughy flop."""
+    thump = _sweep(120, 55, 0.25, decay=0.06)
+    flop = _bandpass(_noise(rng, 0.18), 180, 1400) * _env(0.18, 0.006, 0.035)
+    return _norm(_mix(thump * 0.8, flop)) * (0.5 + 0.4 * intensity)
 
 
 def sfx_surface(material, intensity, rng):
@@ -518,10 +527,14 @@ def build_fill_soundtrack(events, out_path, seed=1):
     s = custom_sound(["pop"], 0)
     _place(buf, s if s is not None else sfx_pop(rng), 8 / fps, 0.8)
     drop = next(e for e in events["events"] if e["type"] == "drop")
-    s = custom_sound(["impact_phone", "impact"], 0)
-    _place(buf, s if s is not None else sfx_impact("phone", 1.0, rng), drop["frame"] / fps, 1.0)
+    item = events["config"].get("item_sound", "phone")
+    s = custom_sound(["impact_" + item, "impact"], 0)
+    _place(buf, s if s is not None else sfx_impact(item, 1.0, rng), drop["frame"] / fps, 1.0)
     _place(buf, sfx_tick(rng), drop["frame"] / fps + 0.02, 1.2)
 
+    cut = next((e for e in events["events"] if e["type"] == "cut"), None)
+    if cut is not None:
+        _place(buf, sfx_whoosh(1.0, rng, dur=0.5) * 2.5, cut["frame"] / fps - 0.25, 1.0)
     # The big pull-back.
     z0, z1 = seg["zoom"]
     s = custom_sound(["swipe", "whoosh"], 3)
@@ -530,7 +543,7 @@ def build_fill_soundtrack(events, out_path, seed=1):
 
     # The pour: phone clicks whose density follows the fill rate, over a deepening rumble.
     f0, f1 = seg["fill"]
-    clicks = [sfx_impact("phone", rng.uniform(0.3, 0.8), rng) for _ in range(12)]
+    clicks = [sfx_impact(item, rng.uniform(0.3, 0.8), rng) for _ in range(12)]
     rate = np.diff(np.log10(np.maximum(counts, 1.0)), prepend=0.0)
     for f in range(f0, f1):
         n = rng.poisson(1.2 + 6.0 * min(1.0, (f - f0) / float(f1 - f0) * 1.5))

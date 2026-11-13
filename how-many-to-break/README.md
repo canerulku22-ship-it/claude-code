@@ -135,6 +135,19 @@ The beats are:
 5. **FULL!:** phones spray out of the top.
 6. **Answer card:** the count, the weight, the comparison, the question and the maths.
 
+Containers live in `hmtb/containers.py`:
+
+* `burj_khalifa`: a skyscraper that fills floor by floor (`scene3d/skyscraper.py`)
+* `earth`: a cutaway planet that fills from the South Pole (`scene3d/globe.py`)
+  * Real continents, rasterised from public-domain Natural Earth data by `tools/make_earth_texture.py`.
+  * The pizza episode (`episodes/pizzas_whole_world.json`) uses `"count_curve": "log_intro"`, so the counter
+    first races through MILLION, BILLION, TRILLION... SEXTILLION before following the rising level.
+  * Round items give `item_volume_m3` directly, plus a `packing` factor (0.9069 = circles packed as tightly as possible).
+
+The pizza answer: Earth = 4/3·π·(6,371 km)³ = 1.083 x 10²¹ m³. A 14-inch, 2 cm pizza is 1.99 L.
+Stacked in towers packed like circles, that's 4.95 x 10²³ pizzas (494.6 sextillion, or 0.82
+moles). They weigh about 6.6% of the Earth.
+
 The tower (`hmtb/skyline.py`) is a procedural Y-plan supertall with spiral setbacks, sized
 so its model volume matches the real ~1.1 million m³. The counter follows how much of that
 volume is below the fill line, so it races through the wide lower tiers and slows near the

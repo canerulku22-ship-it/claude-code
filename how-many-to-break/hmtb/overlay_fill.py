@@ -40,6 +40,10 @@ class FillOverlay(Overlay):
         self.ruler = {int(k): v for k, v in events["ruler"].items()}
         self.floor_h = events.get("floor_height_m", 3.59)
         self.h_occ = events.get("h_occ", 585.0)
+        self.level_offset = events.get("level_offset", 0.0)
+        self.to_metres = events.get("to_metres", 1.0)
+        self.level_total_m = events.get("level_total_m")
+        self.cut = next((e for e in events["events"] if e["type"] == "cut"), None)
         self.drop = next(e for e in events["events"] if e["type"] == "drop")
         self.milestones = [e for e in events["events"] if e["type"] == "milestone"]
         self.break_word = "FULL!"
@@ -71,8 +75,11 @@ class FillOverlay(Overlay):
         if outro is not None and outro > 50:
             outro = 50 + (outro // 2) % 20
         ruler = tuple(self.ruler.get(f, ())) if self.zoom_end <= f < self.outro_f else None
+        swipe = None
+        if self.cut is not None and -8 <= f - self.cut["frame"] < 8:
+            swipe = f - self.cut["frame"] + 8
         return (round(count, 0), intro, round(counters_in, 3), callout, drop_t, full, outro, ruler,
-                round(self.level[min(f, len(self.level) - 1)], 1))
+                round(self.level[min(f, len(self.level) - 1)], 1), swipe)
 
     # ------------------------------------------------------------------ pieces
     def _counter(self, img, count, top_y, scale, alpha, pop=1.0, final=False):
@@ -115,12 +122,16 @@ class FillOverlay(Overlay):
                    width=int(self._s(8)))
             yl = max(lo, min(hi, lvl_y))
             d.line([(self._s(x), self._s(yl)), (self._s(x), self._s(y1))], fill=ACCENT, width=int(self._s(8)))
-        if level <= 0.5 or not (lo - 40 <= lvl_y <= hi + 40):
+        metres = (level - self.level_offset) * self.to_metres
+        if metres <= 0.5 or not (lo - 40 <= lvl_y <= hi + 40):
             return
         yl = max(lo, min(hi, lvl_y))
-        floor = max(1, int(level / self.floor_h))
-        text = "%d M" % round(level)
-        sub = "FLOOR %d" % floor
+        if self.floor_h:
+            text = "%d M" % round(metres)
+            sub = "FLOOR %d" % max(1, int(metres / self.floor_h))
+        else:
+            text = "{:,} KM".format(int(round(metres / 1000.0)))
+            sub = "OF {:,} KM".format(int(round(self.level_total_m / 1000.0))) if self.level_total_m else ""
         f1, f2 = _font(FONT_BLACK, self._s(40)), _font(FONT_BOLD, self._s(26))
         w = max(f1.getlength(text), f2.getlength(sub)) + self._s(30)
         h = self._s(78)
@@ -197,7 +208,7 @@ class FillOverlay(Overlay):
 
     # ------------------------------------------------------------------ frame
     def render(self, f):
-        count, intro, counters_in, callout, drop_t, full, outro, ruler, level = self._state(f)
+        count, intro, counters_in, callout, drop_t, full, outro, ruler, level, swipe = self._state(f)
         img = self._layer()
         if intro is not None:
             self._title(img, intro)
@@ -224,6 +235,8 @@ class FillOverlay(Overlay):
                 scale = 1.0 + 0.12 * o
                 pop = _pop(outro - 14, amount=0.2) if outro >= 14 else 1.0
             self._counter(img, count, top_y, scale, counters_in, pop, final=outro is not None)
+        if swipe is not None:
+            self._swipe(img, swipe, self.cut.get("text", "ZOOM OUT"))
         if full is not None:
             if full < 6:
                 img.alpha_composite(Image.new("RGBA", img.size, (255, 255, 255, int(130 * (1 - full / 6.0)))))

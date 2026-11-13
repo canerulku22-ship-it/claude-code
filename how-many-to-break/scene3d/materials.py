@@ -499,3 +499,60 @@ def hazard():
     nt.links.new(col.outputs[2], bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = 0.35
     return mat
+
+
+# ---------------------------------------------------------------------------
+# Pizza
+# ---------------------------------------------------------------------------
+
+def _noisy(name, a, b, scale, roughness=0.5, coat=0.0):
+    """Two-tone material broken up by noise (dough, cheese, pepperoni)."""
+    mat, fresh = new_material(name)
+    if not fresh:
+        return mat
+    nt, bsdf = _principled_tree(mat)
+    tex = nt.nodes.new("ShaderNodeTexCoord")
+    noise = nt.nodes.new("ShaderNodeTexNoise")
+    noise.inputs["Scale"].default_value = scale
+    noise.inputs["Detail"].default_value = 4.0
+    nt.links.new(tex.outputs["Object"], noise.inputs["Vector"])
+    ramp = _ramp(nt, [(0.35, a), (0.7, b)])
+    nt.links.new(noise.outputs["Fac"], ramp.inputs[0])
+    nt.links.new(ramp.outputs[0], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = roughness
+    _set(bsdf, "coat", coat)
+    mat.diffuse_color = (*a, 1.0)
+    return mat
+
+
+def dough():
+    return _noisy("Dough", (0.62, 0.36, 0.13), (0.88, 0.62, 0.30), 40.0, roughness=0.65)
+
+
+def sauce():
+    return principled("Sauce", color=(0.62, 0.06, 0.03), roughness=0.3, coat=0.4)
+
+
+def cheese():
+    return _noisy("Cheese", (0.98, 0.72, 0.25), (1.0, 0.90, 0.55), 18.0, roughness=0.35, coat=0.3)
+
+
+def pepperoni():
+    return _noisy("Pepperoni", (0.42, 0.04, 0.03), (0.66, 0.10, 0.06), 90.0, roughness=0.4, coat=0.5)
+
+
+def tablecloth():
+    """Red and white picnic checks."""
+    mat, fresh = new_material("Tablecloth")
+    if not fresh:
+        return mat
+    nt, bsdf = _principled_tree(mat)
+    tex = nt.nodes.new("ShaderNodeTexCoord")
+    chk = nt.nodes.new("ShaderNodeTexChecker")
+    chk.inputs["Scale"].default_value = 10.0
+    chk.inputs["Color1"].default_value = (0.75, 0.05, 0.06, 1)
+    chk.inputs["Color2"].default_value = (0.92, 0.90, 0.86, 1)
+    nt.links.new(tex.outputs["Generated"], chk.inputs["Vector"])
+    nt.links.new(chk.outputs["Color"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 0.8
+    return mat

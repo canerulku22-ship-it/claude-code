@@ -8,13 +8,14 @@ To add an object: write ``def build_<key>():`` here and add ``<key>`` to the cat
 """
 
 import math
+import random
 
 import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
 from . import materials as M
-from .util import (box_bmesh, boolean_difference, cylinder_bmesh, mesh_from_bmesh,
+from .util import (box_bmesh, boolean_difference, cylinder_bmesh, join_meshes, mesh_from_bmesh,
                    new_object, set_smooth)
 
 
@@ -128,12 +129,61 @@ def build_anvil():
     return _center_on_bounds(obj)
 
 
+def _torus(bm, major, minor, z, seg=48, ring=12):
+    rows = []
+    for i in range(seg):
+        a = 2 * math.pi * i / seg
+        row = []
+        for j in range(ring):
+            b = 2 * math.pi * j / ring
+            r = major + minor * math.cos(b)
+            row.append(bm.verts.new((r * math.cos(a), r * math.sin(a), z + minor * 0.8 * math.sin(b))))
+        rows.append(row)
+    for i in range(seg):
+        for j in range(ring):
+            a0, a1 = rows[i], rows[(i + 1) % seg]
+            bm.faces.new((a0[j], a1[j], a1[(j + 1) % ring], a0[(j + 1) % ring]))
+
+
+def build_pizza():
+    """A 14-inch (35.6 cm) pepperoni pizza: dough, puffy crust, sauce, cheese, pepperoni."""
+    rng = random.Random(14)
+    R = 0.178
+    parts = []
+
+    def part(name, bm, mat, smooth=True):
+        me = mesh_from_bmesh(name, bm, smooth=smooth)
+        me.materials.append(mat)
+        parts.append(new_object(name, me))
+
+    part("Base", cylinder_bmesh(R - 0.004, 0.010, segments=64, center=(0, 0, 0.005)), M.dough(), smooth=False)
+    bm = bmesh.new()
+    _torus(bm, R - 0.016, 0.016, 0.012)
+    part("Crust", bm, M.dough())
+    part("Sauce", cylinder_bmesh(R - 0.024, 0.003, segments=64, center=(0, 0, 0.0115)), M.sauce(), smooth=False)
+    cb = cylinder_bmesh(R - 0.032, 0.004, segments=64, center=(0, 0, 0.0145))
+    for v in cb.verts:          # melted, lumpy cheese
+        if v.co.z > 0.015:
+            v.co.z += 0.0015 * math.sin(v.co.x * 90) * math.cos(v.co.y * 70)
+    part("Cheese", cb, M.cheese(), smooth=False)
+    for k in range(11):
+        a = 2 * math.pi * k / 11 + rng.uniform(-0.2, 0.2)
+        r = (0.05 if k < 4 else 0.11) + rng.uniform(-0.012, 0.012)
+        if k < 4:
+            a = 2 * math.pi * k / 4 + 0.4
+        part("Pepperoni", cylinder_bmesh(0.021, 0.004, segments=24,
+                                         center=(r * math.cos(a), r * math.sin(a), 0.0185)), M.pepperoni())
+    pz = join_meshes("PizzaTemplate", parts)
+    return _center_on_bounds(pz)
+
+
 BUILDERS = {
     "bowling_ball": build_bowling_ball,
     "watermelon": build_watermelon,
     "brick": build_brick,
     "iphone": build_iphone,
     "anvil": build_anvil,
+    "pizza": build_pizza,
 }
 
 

@@ -1,0 +1,42 @@
+{
+  "mode": "fill",
+  "title": "How many pizzas to fill the whole world?",
+  "highlight": [
+    "PIZZAS",
+    "WHOLE",
+    "WORLD"
+  ],
+  "container": "earth",
+  "container_volume_m3": 1.08321e+21,
+  "container_volume_note": "Earth as a sphere of mean radius 6,371 km: 4/3 x pi x r^3",
+  "item": "pizza",
+  "item_sound": "pizza",
+  "item_volume_m3": 0.0019863,
+  "item_note": "14-inch (35.6 cm) pizza, 2 cm thick: pi x 0.178^2 x 0.02 m^3",
+  "item_mass_kg": 0.8,
+  "packing": 0.9069,
+  "packing_note": "pizzas stacked in towers, towers packed as tightly as circles go (pi / 2 sqrt 3)",
+  "duration_s": 52,
+  "count_curve": "log_intro",
+  "log_intro_until": 0.002,
+  "counter_label": "PIZZAS",
+  "zoom_text": "ZOOM OUT",
+  "milestones": [
+    {
+      "count": 8200000000.0,
+      "text": "1 PIZZA FOR EVERY PERSON ON EARTH"
+    },
+    {
+      "count": 1e+21,
+      "text": "1 SEXTILLION: THAT'S 21 ZEROS"
+    },
+    {
+      "count": 2.47e+23,
+      "text": "HALF FULL"
+    }
+  ],
+  "fact": "60 TRILLION PIZZAS FOR EVERY PERSON",
+  "footnote": "Pizza = 14 in (35.6 cm) wide, 2 cm thick, ~0.8 kg, stacked in towers packed as tight as circles go (90.7%). Earth = 4/3 x pi x (6,371 km)³ = 1.08 x 10²¹ m³.",
+  "end_question": "WHAT SHOULD WE FILL NEXT?",
+  "log_intro_share": 0.15
+}

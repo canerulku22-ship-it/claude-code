@@ -307,23 +307,25 @@ def render_frames(built, tl, frames, frames_dir, fresh):
               % (vf, sf, cam, el / done, (el / done) * left / 60.0), flush=True)
 
 
-def fill_events(cfg, ftl, built):
+def fill_events(cfg, ftl, built, cont):
     """Events log for a 'fill' episode: counts, ruler positions and milestones per frame."""
-    from hmtb import skyline
     scene = built["scene"]
-    cam = built["cams"]["main"]
+    cam = built["cams"][built["fill_cam"]]
     a, b = ftl.segments["zoom"][1], ftl.segments["outro"][0]
+    z_base, z_top, z_tip = cont["ruler_z"]
     ruler = {}
     for f in range(a, b):
         scene.frame_set(f)
         pts = [world_to_camera_view(scene, cam, Vector((0.0, 0.0, z)))
-               for z in (0.0, ftl.level[f], skyline.H_OCC, skyline.H_TIP)]
+               for z in (z_base, ftl.level[f], z_top, z_tip)]
         ruler[f] = [round(1.0 - p.y, 4) for p in pts]
-    from scene3d.skyscraper import HERO_Y
+    hero_pt, hero_cam = built["hero"]
     scene.frame_set(ftl.drop_impact_f)
-    p = world_to_camera_view(scene, cam, Vector((0.0, HERO_Y, 0.5)))
+    p = world_to_camera_view(scene, built["cams"][hero_cam], hero_pt)
     events = [{"type": "drop", "frame": ftl.drop_impact_f, "count": 1,
                "screen": [round(p.x, 4), round(1.0 - p.y, 4)]}]
+    if built.get("cut_frame"):
+        events.append({"type": "cut", "frame": built["cut_frame"], "text": cfg.get("zoom_text", "ZOOM OUT")})
     events += [{"type": "milestone", "frame": m["frame"], "count": m["count"], "text": m["text"]}
                for m in ftl.milestones]
     events.append({"type": "full", "frame": ftl.segments["full"][0]})
@@ -337,17 +339,21 @@ def fill_events(cfg, ftl, built):
         "segments": ftl.segments, "events": events,
         "count": [round(c, 1) for c in counts], "level_m": [round(lv, 2) for lv in levels],
         "ruler": {str(k): v for k, v in ruler.items()},
-        "h_occ": skyline.H_OCC, "floor_height_m": cfg.get("floor_height_m", 3.59),
+        "level_offset": cont["bottom"], "to_metres": cont["to_metres"],
+        "level_total_m": (cont["top"] - cont["bottom"]) * cont["to_metres"],
+        "h_occ": cont["top"], "floor_height_m": cont["floor_m"],
     }
 
 
 def main_fill(args, raw):
-    """Render a 'fill' episode (see hmtb/fill.py)."""
-    from hmtb import skyline
+    """Render a 'fill' episode (see hmtb/fill.py and hmtb/containers.py)."""
+    import importlib
+    from hmtb import containers
     from hmtb.fill import build_fill_timeline, resolve_fill
-    from scene3d import skyscraper
+    from hmtb.timeline import Shot
     cfg = resolve_fill(raw, args.config)
-    ftl = build_fill_timeline(cfg, skyline.fill_fraction_table(), skyline.H_OCC)
+    cont = containers.get(cfg["container"])
+    ftl = build_fill_timeline(cfg, cont["table"], cont["top"], bottom_level=cont["bottom"])
     print("Fill episode: %.0f s. Answer: %.4g items, %.4g kg." % (cfg["duration_s"], cfg["answer"],
                                                                   cfg["answer_mass_kg"]), flush=True)
     for name, (s0, s1) in ftl.segments.items():
@@ -366,11 +372,16 @@ def main_fill(args, raw):
     out_dir = args.out or os.path.join(HERE, "out", cfg["slug"] + ("_preview" if args.preview else ""))
     os.makedirs(out_dir, exist_ok=True)
     t0 = time.time()
-    built = skyscraper.build_scene(cfg, ftl, width, height, samples)
+    scene_mod = importlib.import_module("scene3d." + cont["scene"])
+    built = scene_mod.build_scene(cfg, ftl, width, height, samples)
+    if built.get("shots"):        # the container's own camera cuts
+        ftl.shots = [Shot(c, a, b, a) for c, a, b in built["shots"]]
+        ftl.shots.append(Shot(built["shots"][-1][0], ftl.segments["outro"][0], ftl.total_frames, ftl.hold_f,
+                              hold=True))
     print("  scene built in %.1fs" % (time.time() - t0), flush=True)
     events_path = os.path.join(out_dir, "events.json")
     if not os.path.exists(events_path) or args.preview or (args.frames and args.frames.startswith("0")):
-        events = fill_events(cfg, ftl, built)
+        events = fill_events(cfg, ftl, built, cont)
         all_frames = list(range(0, int(PREVIEW_SECONDS * FPS))) if args.preview else list(range(ftl.total_frames))
         events["render"] = {"width": width, "height": height, "samples": samples,
                             "frames": [all_frames[0], all_frames[-1] + 1]}

@@ -20,6 +20,7 @@ as the break timeline, so render.py renders both the same way.
 """
 
 import bisect
+import math
 from dataclasses import dataclass, field
 
 from . import FPS
@@ -47,13 +48,14 @@ def resolve_fill(raw, source_path=None):
     import os
     cfg = dict(FILL_DEFAULTS)
     cfg.update(raw)
-    for key in ("title", "container", "container_volume_m3", "item_size_mm", "item_mass_kg"):
+    for key in ("title", "container", "container_volume_m3", "item_mass_kg"):
         if key not in cfg:
             raise ValueError("Fill config is missing %r" % key)
     if cfg["duration_s"] > 75 or cfg["duration_s"] < 30:
         raise ValueError("duration_s should be between 30 and 75 for a fill episode")
-    x, y, z = cfg["item_size_mm"]
-    cfg["item_volume_m3"] = x * y * z * 1e-9
+    if "item_volume_m3" not in cfg:          # boxes; round items give their own volume
+        x, y, z = cfg["item_size_mm"]
+        cfg["item_volume_m3"] = x * y * z * 1e-9
     cfg["answer"] = cfg["container_volume_m3"] * cfg["packing"] / cfg["item_volume_m3"]
     cfg["answer_mass_kg"] = cfg["answer"] * cfg["item_mass_kg"]
     if cfg["slug"] is None:
@@ -62,20 +64,26 @@ def resolve_fill(raw, source_path=None):
     return cfg
 
 
+SCALE_WORDS = [(1e24, "SEPTILLION"), (1e21, "SEXTILLION"), (1e18, "QUINTILLION"), (1e15, "QUADRILLION"),
+               (1e12, "TRILLION"), (1e9, "BILLION"), (1e6, "MILLION")]
+
+
 def big_number(n):
     """(value text, scale word) for the counter: ('13.47', 'BILLION'), ('856,342', '')."""
-    if n >= 1e9:
-        return "%.2f" % (n / 1e9), "BILLION"
-    if n >= 1e6:
-        return "%.1f" % (n / 1e6), "MILLION"
+    for size, word in SCALE_WORDS:
+        if n >= size:
+            v = n / size
+            return ("%.2f" % v if v < 100 else "%.1f" % v), word
     return "{:,}".format(int(round(n))), ""
 
 
 def big_mass(kg):
-    """'2.29 MILLION TONNES', '840 TONNES', '0.2 KG'."""
+    """'2.29 MILLION TONNES', '395 QUINTILLION TONNES', '840 TONNES', '0.8 KG'."""
     t = kg / 1000.0
-    if t >= 1e6:
-        return "%.2f MILLION TONNES" % (t / 1e6)
+    for size, word in SCALE_WORDS:
+        if t >= size:
+            v = t / size
+            return ("%.2f" % v if v < 100 else "%.0f" % v) + " " + word + " TONNES"
     if t >= 1e3:
         return "{:,} TONNES".format(int(round(t)))
     if t >= 1:
@@ -111,8 +119,12 @@ class FillTimeline:
         return shot.scene_start + (video_f - shot.video_start), shot.camera
 
 
-def build_fill_timeline(cfg, fraction_table, top_level, fps=FPS):
-    """Frames for each beat, plus the fill level and count for every frame."""
+def build_fill_timeline(cfg, fraction_table, top_level, fps=FPS, bottom_level=0.0):
+    """Frames for each beat, plus the fill level and count for every frame.
+
+    With ``"count_curve": "log_intro"`` the counter first races through the scale words
+    (million, billion, trillion...) at an even pace, then follows the filled volume.
+    """
     total = int(round(cfg["duration_s"] * fps))
     f_hook = int(round(cfg["hook_s"] * fps))
     f_one = f_hook + int(round(cfg["one_s"] * fps))
@@ -136,19 +148,44 @@ def build_fill_timeline(cfg, fraction_table, top_level, fps=FPS):
         x0, x1, y0, y1 = levels[i - 1], levels[i], fracs[i - 1], fracs[i]
         return y0 + (y1 - y0) * (lvl - x0) / (x1 - x0)
 
+    def level_for_fraction(fr):
+        """Inverse of frac_at by bisection (the table is monotonic)."""
+        lo, hi = bottom_level, top_level
+        for _ in range(60):
+            mid = (lo + hi) / 2
+            if frac_at(mid) < fr:
+                lo = mid
+            else:
+                hi = mid
+        return (lo + hi) / 2
+
+    span = top_level - bottom_level
+    log_intro = cfg.get("count_curve") == "log_intro"
+    intro_end = f_zoom + int((f_full - f_zoom) * cfg.get("log_intro_share", 0.22))
+    log_top = math.log10(cfg["answer"] * cfg.get("log_intro_until", 0.002))
     level, count = [], []
     for f in range(total):
         if f < f_zoom:
-            lv = 0.0
-        elif f < f_full:
-            u = (f - f_zoom) / float(f_full - f_zoom)
-            lv = top_level * (u ** 1.25)        # slow start, steady climb
+            lv, c = bottom_level, 0.0
+        elif f >= f_full:
+            lv, c = top_level, cfg["answer"]
+        elif log_intro and f < intro_end:
+            u = (f - f_zoom) / float(intro_end - f_zoom)
+            c = 10 ** (u * log_top)
+            lv = level_for_fraction(c / cfg["answer"])
         else:
-            lv = top_level
-        level.append(lv)
-        c = cfg["answer"] * frac_at(lv)
+            a0 = intro_end if log_intro else f_zoom
+            u = (f - a0) / float(f_full - a0)
+            if log_intro:
+                fr0 = cfg.get("log_intro_until", 0.002)
+                fr = fr0 + (1 - fr0) * (u ** 1.1)
+                lv = level_for_fraction(fr)
+            else:
+                lv = bottom_level + span * (u ** 1.25)        # slow start, steady climb
+            c = cfg["answer"] * frac_at(lv)
         if f_hook + 20 <= f < f_zoom:
-            c = 1.0                              # the single phone
+            c = 1.0                              # the single item
+        level.append(lv)
         count.append(c)
 
     milestones = []

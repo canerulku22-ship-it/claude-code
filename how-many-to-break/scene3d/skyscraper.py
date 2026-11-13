@@ -626,4 +626,5 @@ def build_scene(cfg, ftl, width, height, samples):
     toon.outline_scene([facade, spire] + blocks, 780.0)   # not the plaza: the low camera sits inside its shell
     toon.outline_scene([hero] + rain + burst, 1.0)
     animate_outline_thickness([facade, spire] + blocks, ftl, {"hook": hook_cam, "main": main_cam})
-    return {"scene": scene, "cams": {"hook": hook_cam, "main": main_cam}}
+    return {"scene": scene, "cams": {"hook": hook_cam, "main": main_cam}, "fill_cam": "main",
+            "hero": (Vector((0.0, HERO_Y, 0.5)), "main")}
