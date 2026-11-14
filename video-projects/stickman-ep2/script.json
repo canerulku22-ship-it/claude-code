@@ -1,0 +1,40 @@
+{
+  "_notes": [
+    "Episode 2 — original rule: 'If your room ever has two doors'. cap: *bright* emphasis, !red! danger, {TEXT:N} replaces N spoken words."
+  ],
+  "segments": [
+    {"id": "s01", "name": "hook", "lines": [
+      {"tts": "If you ever wake up and your room has two doors,", "cap": "If you ever wake up and your room has !two! !doors,!", "pause": 0.15},
+      {"tts": "never open the one that wasn't there before.", "cap": "never open the one that *wasn't* *there* *before.*", "pause": 0.6}]},
+    {"id": "s02", "name": "tall", "lines": [
+      {"tts": "It's easy to spot.", "cap": "It's easy to spot.", "pause": 0.2},
+      {"tts": "It's always a little too tall.", "cap": "It's always a little !too! !tall.!", "pause": 0.7}]},
+    {"id": "s03", "name": "knock", "lines": [
+      {"tts": "At three A.M., it starts knocking.", "cap": "At {3 AM,:2} it starts !knocking.!", "pause": 0.35},
+      {"tts": "Three knocks.", "cap": "Three knocks.", "pause": 0.9},
+      {"tts": "Then three more.", "cap": "Then three *more.*", "pause": 1.0}]},
+    {"id": "s04", "name": "voice", "lines": [
+      {"tts": "Then it calls your name,", "cap": "Then it calls your *name,*", "pause": 0.3},
+      {"tts": "in your mom's voice.", "cap": "in your !mom's! !voice.!", "pause": 0.8}]},
+    {"id": "s05", "name": "never", "lines": [
+      {"tts": "Don't answer.", "cap": "!Don't! !answer.!", "pause": 0.4},
+      {"tts": "Your mom never knocks.", "cap": "Your mom *never* *knocks.*", "pause": 0.7}]},
+    {"id": "s06", "name": "walk", "lines": [
+      {"tts": "When the handle starts to turn, get out of bed.", "cap": "When the handle starts to !turn,! get out of bed.", "pause": 0.3},
+      {"tts": "Walk to the real door. Slowly.", "cap": "Walk to the *real* *door.* *Slowly.*", "pause": 0.3},
+      {"tts": "Don't run. It can hear running.", "cap": "!Don't! !run.! It can hear running.", "pause": 0.6}]},
+    {"id": "s07", "name": "bathroom", "lines": [
+      {"tts": "Lock yourself in the bathroom,", "cap": "Lock yourself in the *bathroom,*", "pause": 0.2},
+      {"tts": "and don't come out until the sun is up.", "cap": "and don't come out until the *sun* *is* *up.*", "pause": 1.2}]},
+    {"id": "s08", "name": "morning", "lines": [
+      {"tts": "In the morning, the extra door will be gone.", "cap": "In the morning, the extra door will be *gone.*", "pause": 0.5}]},
+    {"id": "s09", "name": "twist", "lines": [
+      {"tts": "But your mom will ask why you knocked on her door last night,", "cap": "But your mom will ask why you !knocked! on her door last night,", "pause": 0.35},
+      {"tts": "calling her name in your voice.", "cap": "calling her name in !your! !voice.!", "pause": 0.8}]},
+    {"id": "s10", "name": "hope", "lines": [
+      {"tts": "Let's hope she didn't open it.", "cap": "Let's hope she didn't !open! !it.!", "pause": 1.8}]},
+    {"id": "s11", "name": "cta", "lines": [
+      {"tts": "Would you have answered? Tell me in the comments.", "cap": "Would you have *answered?* Tell me in the *comments.*", "pause": 0.2},
+      {"tts": "And follow for more rules.", "cap": "And *follow* for more rules.", "pause": 1.8}]}
+  ]
+}

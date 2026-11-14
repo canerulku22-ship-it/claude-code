@@ -1,0 +1,6 @@
+node_modules/
+out/
+audio/mix_*.wav
+audio/cues.json
+audio/voiceover.log
+__pycache__/
