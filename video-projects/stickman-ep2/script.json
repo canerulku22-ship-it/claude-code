@@ -41,7 +41,7 @@
    "lines": [
     {
      "tts": "At three A.M., it starts knocking.",
-     "cap": "At {3 AM,:2} it starts !knocking.!",
+     "cap": "At {3AM,:2} it starts !knocking.!",
      "pause": 0.35
     },
     {

@@ -36,13 +36,13 @@ export function stickFigure({ color = 0xf2f4f8, emissive = 0.08, hair = false, h
   const [rHip, rKn] = limb(root, -0.085, 0, GEO.thigh, GEO.shin, 0.38);
   if (hair) {   // long hair: a cap over the skull + a fall down the back
     const hm = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.7 });
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.15, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.62), hm); cap.rotation.x = 0.55; head.add(cap);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.15, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.55), hm); cap.rotation.x = -0.75; head.add(cap);
     const fall = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.42, 8, 16), hm); fall.position.set(0, -0.2, -0.075); fall.scale.set(1.1, 1, 0.5); head.add(fall);
     for (const sx of [-1, 1]) { const side = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.3, 6, 12), hm); side.position.set(sx * 0.12, -0.12, 0.0); side.rotation.z = sx * 0.12; head.add(side); }
   }
   // face (hidden until needed): two eye dots + a smile arc on the front of the head
   const face = new THREE.Group(); head.add(face);
-  const featMat = new THREE.MeshBasicMaterial({ color: 0x050506 });
+  const featMat = new THREE.MeshBasicMaterial({ color: 0x050506, toneMapped: false });
   const eyeGeo = new THREE.SphereGeometry(0.018, 12, 10);
   const HR = 0.135, onSurf = (x, y) => Math.sqrt(Math.max(0, HR * HR - x * x - y * y)) + 0.001;
   const eyes = [-0.045, 0.045].map(x => { const e = new THREE.Mesh(eyeGeo, featMat.clone()); e.position.set(x, 0.035, onSurf(x, 0.035) - 0.006); face.add(e); return e; });
@@ -72,7 +72,7 @@ export function stickFigure({ color = 0xf2f4f8, emissive = 0.08, hair = false, h
       rHip.rotation.x = p.rHipX - wk * 0.5; rKn.rotation.x = p.rKnX + Math.max(0, wk) * 0.6;
       pool.position.set(p.x, 0.003, p.z);
       smileGeo.setDrawRange(0, Math.floor(smileGeo.index.count * p.smile / 6) * 6);
-      for (const e of eyes) { e.material.color.setRGB(0.02 + p.eyeGlow * 2.4, 0.02 + p.eyeGlow * 0.15, 0.02 + p.eyeGlow * 0.15); }
+      for (const e of eyes) { e.material.color.setRGB(0.02 + p.eyeGlow * 1.25, 0.02 - p.eyeGlow * 0.02, 0.02 - p.eyeGlow * 0.015); }
     },
   };
   return wrap;
