@@ -36,7 +36,7 @@ export function stickFigure({ color = 0xf2f4f8, emissive = 0.08, hair = false, h
   const [rHip, rKn] = limb(root, -0.085, 0, GEO.thigh, GEO.shin, 0.38);
   if (hair) {   // long hair: a cap over the skull + a fall down the back
     const hm = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.7 });
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.15, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.62), hm); cap.rotation.x = -0.5; head.add(cap);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.15, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.62), hm); cap.rotation.x = 0.55; head.add(cap);
     const fall = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.42, 8, 16), hm); fall.position.set(0, -0.2, -0.075); fall.scale.set(1.1, 1, 0.5); head.add(fall);
     for (const sx of [-1, 1]) { const side = new THREE.Mesh(new THREE.CapsuleGeometry(0.045, 0.3, 6, 12), hm); side.position.set(sx * 0.12, -0.12, 0.0); side.rotation.z = sx * 0.12; head.add(side); }
   }

@@ -195,8 +195,8 @@ const HD = [];
   camTo(tHall, { z: 3.2 }, tBath - tHall, 'none');
   walk(k2, tHall + 0.05, tBath - tHall - 0.5, { z: -3.75 }, { cycles: 4, gain: 0.3 });
   // it steps out of your bedroom door into the hallway behind you
-  tl.to(HD[0].userData.hinge.rotation, { y: -1.1, duration: 0.7, ease: 'power2.inOut' }, w('s06', 'hear') - 0.3);
-  walk(it2, w('s06', 'hear'), 1.6, { x: 0.6, z: 0.85 }, { cycles: 2, steps: false });
+  tl.to(HD[0].userData.hinge.rotation, { y: 1.2, duration: 0.7, ease: 'power2.inOut' }, w('s06', 'hear') - 0.3);
+  walk(it2, w('s06', 'hear'), 1.6, { x: 0.12, z: 0.45 }, { cycles: 2, steps: false });
   tl.to(it2.userData.pose, { ry: PI, duration: 0.8, ease: 'power2.inOut' }, w('s06', 'hear') + 1.2);
   sfx('creak', w('s06', 'hear') - 0.3, 0.4, { dur: 0.7 });
   // bathroom door opens, kid slips in, door closes
@@ -214,7 +214,7 @@ const HD = [];
   camSet(tf, { x: 1.1, y: 1.65, z: 2.6, tx: -0.75, ty: 1.3, tz: -0.4, roll: 3, fov: 36 });
   camTo(tf, { x: 0.9, z: 2.2 }, S('s10') - tf, 'none');
   [0.15, 0.45, 0.75].forEach(d => { tl.fromTo(it2.userData.pose, { rElX: -1.1 }, { rElX: -1.6, duration: 0.12, yoyo: true, repeat: 1, immediateRender: false }, tf + d); knockJolt(HD[1], tf + d + 0.1, 0.02); });
-  bubble(hall, { msg: 'MOM? IT\'S ME. OPEN UP.', t0: w('s09', 'calling') + 0.1, x: -0.25, y: 1.95, z: -0.2, ry: -0.6, w: 0.95, h: 0.3, color: '#FF3B47', tail: 'left' });
+  bubble(hall, { msg: 'MOM? IT\'S ME. OPEN UP.', t0: w('s09', 'calling') + 0.1, x: -0.5, y: 1.95, z: -0.1, ry: -0.6, w: 0.95, h: 0.3, color: '#FF3B47', tail: 'left' });
   flicker(tf + 0.05, 2, 0.6); sfx('whisper', w('s09', 'calling'), 0.6);
 }
 // ================================================================ SET 3: BATHROOM (lock, huddle, feet in the light)
@@ -241,7 +241,7 @@ const bath = set([[tBath, S('s08')]]);
   BD.userData.feet.forEach((f, i) => { tl.set(f, { visible: true }, tF + i * 0.25); tl.fromTo(f.position, { x: (i ? 1 : -1) * 0.6 }, { x: (i ? 1 : -1) * 0.12, duration: 0.25, ease: 'power2.out', immediateRender: false }, tF + i * 0.25); sfx('step', tF + i * 0.25, 0.4); });
   [0.65, 0.9, 1.15].forEach(d => knockJolt(BD, tF + d, 0.02));
   tl.to(k3.userData.pose, { tremble: 1.0, duration: 0.2 }, tF + 0.6);
-  camTo(tF, { x: 0.3, y: 0.5, z: 1.1, tx: 0.08, ty: 0.12, tz: -1.25 }, 1.2, 'power2.inOut');
+  camTo(tF, { x: 0.15, y: 0.62, z: 1.45, tx: -0.08, ty: 0.22, tz: -1.2 }, 1.2, 'power2.inOut');
   music(t0, 0.85, { heart: 1.0 });
 }
 // ================================================================ BEDROOM MORNING (s08): the extra door dissolves
@@ -272,7 +272,7 @@ const kitchen = set([[S('s09'), tFb], [S('s10'), S('s11')]]);
   look(t0, MORNING);
   camSet(t0, { x: 0.1, y: 1.45, z: 4.5, tx: 0.0, ty: 1.25, tz: -0.4, roll: 0, fov: 36 });
   camTo(t0, { z: 4.0 }, tFb - t0, 'none');
-  bubble(kitchen, { msg: 'WHY DID YOU KNOCK ON MY DOOR LAST NIGHT?', t0: w('s09', 'ask') - 0.1, x: -0.1, y: 1.85, z: -0.1, w: 1.45, h: 0.34, color: '#ffffff', tail: 'left', cps: 30 });
+  bubble(kitchen, { msg: 'WHY DID YOU KNOCK ON MY DOOR LAST NIGHT?', t0: w('s09', 'ask') - 0.1, t1: tFb, x: -0.1, y: 1.85, z: -0.1, w: 1.45, h: 0.34, color: '#ffffff', tail: 'left', cps: 30 });
   tl.to(mom.userData.pose, { neckX: 0.15, lShX: -0.4, lElX: -1.6, duration: 0.6 }, w('s09', 'ask'));
   sfx('pop', w('s09', 'ask'), 0.3);
   // s10: back in the kitchen — mom turns, the double's face appears on her, eyes ignite
