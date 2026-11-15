@@ -142,7 +142,7 @@ sfx('hit', tLook + 0.12, 0.45); flicker(tLook + 0.15, 2, 0.5);
 camSet(tLate, { x: -0.6, y: 1.65, z: 2.6, tx: -0.72, ty: 1.62, tz: -1.3, roll: 0, fov: 38 });
 camTo(tLate, { z: 2.3 }, tStop - tLate, 'none');
 tl.to(twin, { lag: 1.0, duration: Math.max(0.5, tLater - tLate), ease: 'power1.inOut' }, tLate);
-const lagHud = panelMesh(room, { w: 0.55, h: 0.18, x: -0.45, y: 2.75, z: WALL_Z + 0.05, ppu: 700, boost: 1.9, key: t => Math.round(twin.lag * 10), draw: (c, t, P) => {
+const lagHud = panelMesh(room, { w: 0.55, h: 0.18, x: -0.85, y: 2.72, z: WALL_Z + 0.05, ppu: 700, boost: 1.9, key: t => Math.round(twin.lag * 10), draw: (c, t, P) => {
   c.font = '900 92px "Inter Display"'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 10; c.strokeStyle = 'rgba(0,0,0,.8)';
   const s = `+${twin.lag.toFixed(1)}s`; c.strokeText(s, P.cw / 2, P.ch / 2); c.shadowColor = C.red; c.shadowBlur = 16; c.fillStyle = '#FF3B47'; c.fillText(s, P.cw / 2, P.ch / 2);
 } });
@@ -254,4 +254,12 @@ camTo(tCta, { z: 6.0 }, DUR - tCta, 'power1.out');
   music(tCta, 0.5); music(DUR - 0.8, 0.5); music(DUR, 0);
 }
 tl.set(EAT, { you: 1, sib: 1, dad: 1, mom: 0 }, tBack);
+// cutlery clinks: one per forkful, while each person is eating
+{
+  const windows = { you: [[0.3, tOut], [tBack + 0.3, tCta]], sib: [[0.3, tOut], [tBack + 0.3, tCta]], dad: [[0.3, tOut], [tBack + 0.3, tCta]], mom: [[0.3, tMomUp - 0.3]] };
+  for (const [name, wins] of Object.entries(windows)) {
+    const [per, ph] = params[name];
+    for (const [a, b] of wins) for (let k = Math.ceil((a + ph) / per); k * per - ph < b; k++) { const tt = k * per - ph + 0.02; if (tt > a && tt < b) sfx('clink', tt, name === 'you' ? 0.3 : 0.18, { pitch: 1 + (name.length % 3) * 0.08 }); }
+  }
+}
 tl.set({}, {}, DUR);

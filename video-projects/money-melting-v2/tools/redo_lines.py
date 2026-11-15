@@ -7,7 +7,9 @@ import sys
 import numpy as np
 import soundfile as sf
 
-sys.argv, ids = [sys.argv[0]] + [a for a in sys.argv[1:] if a.startswith("--") or a.isdigit()], [a for a in sys.argv[1:] if not a.startswith("--") and not a.isdigit()]
+import re as _re
+ids = [a for a in sys.argv[1:] if _re.fullmatch(r"s\d+\.\d+", a)]
+sys.argv = [sys.argv[0]] + [a for a in sys.argv[1:] if a not in ids]
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 import importlib.util  # noqa: E402
 

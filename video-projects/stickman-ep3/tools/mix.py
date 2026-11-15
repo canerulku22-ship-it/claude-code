@@ -330,16 +330,25 @@ def sfx_blowout():
     return norm(bp(noise(d), 300, 2500) * np.exp(-t / 0.12) * np.minimum(1, t / 0.02))
 
 
+
+def sfx_clink(pitch=1.0):
+    d = 0.35
+    t = t_axis(d)
+    f = 3100 * pitch
+    x = np.sin(2 * np.pi * f * t) * np.exp(-t / 0.05) + 0.5 * np.sin(2 * np.pi * f * 1.52 * t) * np.exp(-t / 0.03) + 0.3 * np.sin(2 * np.pi * f * 0.51 * t) * np.exp(-t / 0.08)
+    return norm(x)
+
+
 LIB = {
     "boom": sfx_boom, "hit": sfx_hit, "tick": sfx_tick, "clock": sfx_clock, "pop": sfx_pop, "ding": sfx_ding,
     "shimmer": sfx_shimmer, "whoosh": sfx_whoosh, "swoosh": sfx_swoosh, "riser": sfx_riser, "down": sfx_down,
     "glitch": sfx_glitch, "click": sfx_click, "type": sfx_type, "thunk": sfx_thunk,
     "buzz": sfx_buzz, "stinger": sfx_stinger, "creak": sfx_creak, "slam": sfx_slam, "knock": sfx_knock,
-    "whisper": sfx_whisper, "flicker": sfx_flicker, "cloth": sfx_cloth, "birds": sfx_birds, "step": sfx_step, "rumble": sfx_rumble, "blowout": sfx_blowout,
+    "whisper": sfx_whisper, "flicker": sfx_flicker, "cloth": sfx_cloth, "birds": sfx_birds, "step": sfx_step, "rumble": sfx_rumble, "blowout": sfx_blowout, "clink": sfx_clink,
 }
 SFX_GAIN = {"tick": 0.5, "type": 0.35, "click": 0.6, "boom": 0.8, "riser": 0.5, "whoosh": 0.45, "swoosh": 0.4, "shimmer": 0.35,
             "pop": 0.45, "down": 0.4, "buzz": 0.55, "stinger": 0.85, "creak": 0.6, "slam": 0.95, "knock": 0.8, "whisper": 0.45,
-            "flicker": 0.4, "cloth": 0.5, "birds": 0.35, "step": 0.45, "rumble": 0.6, "blowout": 0.5, "hit": 0.7, "thunk": 0.7, "clock": 0.65}
+            "flicker": 0.4, "cloth": 0.5, "birds": 0.35, "step": 0.45, "rumble": 0.6, "blowout": 0.5, "clink": 0.35, "hit": 0.7, "thunk": 0.7, "clock": 0.65}
 
 
 def build_music(dur, cues):
@@ -403,7 +412,7 @@ def main():
             fn = LIB[name]
             if name in ("riser", "down") and c.get("dur"):
                 cache[key] = fn(max(0.2, c["dur"]))
-            elif name == "pop" and c.get("pitch"):
+            elif name in ("pop", "clink") and c.get("pitch"):
                 cache[key] = fn(c["pitch"])
             elif name in ("creak", "rumble") and c.get("dur"):
                 cache[key] = fn(max(0.3, c["dur"]))
