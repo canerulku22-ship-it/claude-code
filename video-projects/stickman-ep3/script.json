@@ -1,0 +1,41 @@
+{
+  "_notes": ["Episode 3: original rule 'If your shadow stops copying you at dinner'. cap: *bright*, !red!, {TEXT:N}."],
+  "segments": [
+    {"id": "s01", "name": "hook", "lines": [
+      {"tts": "If you're ever eating dinner with your family,", "cap": "If you're ever eating dinner with your family,", "pause": 0.15},
+      {"tts": "and your shadow on the wall stops copying you,", "cap": "and your !shadow! on the wall stops !copying! !you,!", "pause": 0.35},
+      {"tts": "keep eating.", "cap": "*keep* *eating.*", "pause": 0.5}]},
+    {"id": "s02", "name": "dontlook", "lines": [
+      {"tts": "Don't look at it.", "cap": "!Don't! !look! !at! !it.!", "pause": 0.3},
+      {"tts": "It knows when you're looking.", "cap": "It knows when you're *looking.*", "pause": 0.6}]},
+    {"id": "s03", "name": "late", "lines": [
+      {"tts": "At first, it'll be a little late.", "cap": "At first, it'll be a little *late.*", "pause": 0.3},
+      {"tts": "You lift your fork.", "cap": "You lift your fork.", "pause": 0.3},
+      {"tts": "It lifts its fork one second later.", "cap": "It lifts its fork !one! !second! !later.!", "pause": 0.7}]},
+    {"id": "s04", "name": "watch", "lines": [
+      {"tts": "Then it stops eating.", "cap": "Then it stops *eating.*", "pause": 0.4},
+      {"tts": "And just watches you.", "cap": "And just !watches! !you.!", "pause": 0.9}]},
+    {"id": "s05", "name": "chair", "lines": [
+      {"tts": "Don't tell anyone.", "cap": "Don't tell *anyone.*", "pause": 0.25},
+      {"tts": "And never leave the table.", "cap": "And !never! !leave! !the! !table.!", "pause": 0.3},
+      {"tts": "It's waiting for an empty chair.", "cap": "It's waiting for an !empty! !chair.!", "pause": 0.6}]},
+    {"id": "s06", "name": "dessert", "lines": [
+      {"tts": "When your mom gets up for dessert,", "cap": "When your mom gets up for *dessert,*", "pause": 0.3},
+      {"tts": "the lights will go out.", "cap": "the lights will go !out.!", "pause": 0.9}]},
+    {"id": "s07", "name": "hold", "lines": [
+      {"tts": "Hold on to your chair.", "cap": "Hold on to your *chair.*", "pause": 0.3},
+      {"tts": "Don't let go.", "cap": "!Don't! !let! !go.!", "pause": 1.4}]},
+    {"id": "s08", "name": "back", "lines": [
+      {"tts": "When the lights come back, your mom will be back in her seat,", "cap": "When the lights come back, your mom will be back in her *seat,*", "pause": 0.4},
+      {"tts": "smiling.", "cap": "!smiling.!", "pause": 0.9}]},
+    {"id": "s09", "name": "wall", "lines": [
+      {"tts": "Now look at the wall.", "cap": "Now look at the *wall.*", "pause": 0.5},
+      {"tts": "Her shadow is still standing in the kitchen,", "cap": "Her !shadow! is still standing in the *kitchen,*", "pause": 0.3},
+      {"tts": "trying to get out.", "cap": "trying to !get! !out.!", "pause": 1.1}]},
+    {"id": "s10", "name": "cake", "lines": [
+      {"tts": "Don't eat the cake.", "cap": "!Don't! !eat! !the! !cake.!", "pause": 1.8}]},
+    {"id": "s11", "name": "cta", "lines": [
+      {"tts": "Would you have stayed at the table? Tell me in the comments.", "cap": "Would you have *stayed* at the table? Tell me in the *comments.*", "pause": 0.2},
+      {"tts": "And follow for more rules.", "cap": "And *follow* for more rules.", "pause": 1.8}]}
+  ]
+}
