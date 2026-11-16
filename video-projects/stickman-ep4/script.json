@@ -1,0 +1,177 @@
+{
+ "_notes": [
+  "Episode 4: original rule 'If you ever fall asleep on the last bus home'. Ghost-glow characters. cap: *bright*, !red!, {TEXT:N}."
+ ],
+ "segments": [
+  {
+   "id": "s01",
+   "name": "hook",
+   "lines": [
+    {
+     "tts": "If you ever fall asleep on the last bus home,",
+     "cap": "If you ever fall asleep on the *last* *bus* *home,*",
+     "pause": 0.15
+    },
+    {
+     "tts": "and wake up when it's completely silent,",
+     "cap": "and wake up when it's completely !silent,!",
+     "pause": 0.5
+    }
+   ]
+  },
+  {
+   "id": "s02",
+   "name": "passengers",
+   "lines": [
+    {
+     "tts": "don't look at the other passengers.",
+     "cap": "!don't! !look! at the other passengers.",
+     "pause": 0.3
+    },
+    {
+     "tts": "They'll all be facing forward.",
+     "cap": "They'll all be facing *forward.*",
+     "pause": 0.2
+    },
+    {
+     "tts": "Perfectly still.",
+     "cap": "Perfectly *still.*",
+     "pause": 0.9
+    }
+   ]
+  },
+  {
+   "id": "s03",
+   "name": "driver",
+   "lines": [
+    {
+     "tts": "And don't talk to the driver.",
+     "cap": "And !don't! talk to the *driver.*",
+     "pause": 0.3
+    },
+    {
+     "tts": "He never turns around.",
+     "cap": "He !never! turns around.",
+     "pause": 0.6
+    }
+   ]
+  },
+  {
+   "id": "s04",
+   "name": "count",
+   "lines": [
+    {
+     "tts": "Just count the stops.",
+     "cap": "Just *count* the stops.",
+     "pause": 0.4
+    },
+    {
+     "tts": "One.",
+     "cap": "*One.*",
+     "pause": 0.6
+    },
+    {
+     "tts": "Two.",
+     "cap": "*Two.*",
+     "pause": 0.6
+    },
+    {
+     "tts": "Three.",
+     "cap": "*Three.*",
+     "pause": 0.8
+    }
+   ]
+  },
+  {
+   "id": "s05",
+   "name": "stand",
+   "lines": [
+    {
+     "tts": "At the fourth stop, they'll all stand up at the same time.",
+     "cap": "At the !fourth! stop, they'll all stand up at the !same! !time.!",
+     "pause": 0.4
+    },
+    {
+     "tts": "Stay in your seat.",
+     "cap": "*Stay* in your *seat.*",
+     "pause": 0.7
+    }
+   ]
+  },
+  {
+   "id": "s06",
+   "name": "walk",
+   "lines": [
+    {
+     "tts": "They'll walk past you, one by one,",
+     "cap": "They'll walk past you, one by one,",
+     "pause": 0.3
+    },
+    {
+     "tts": "and step off into the dark.",
+     "cap": "and step off into the !dark.!",
+     "pause": 1.3
+    }
+   ]
+  },
+  {
+   "id": "s07",
+   "name": "whisper",
+   "lines": [
+    {
+     "tts": "If one of them stops and whispers your name,",
+     "cap": "If one of them stops and !whispers! your !name,!",
+     "pause": 0.4
+    },
+    {
+     "tts": "don't look up.",
+     "cap": "!don't! !look! !up.!",
+     "pause": 1.5
+    }
+   ]
+  },
+  {
+   "id": "s08",
+   "name": "hands",
+   "lines": [
+    {
+     "tts": "When the doors close, look at your hands.",
+     "cap": "When the doors close, look at your *hands.*",
+     "pause": 1.0
+    }
+   ]
+  },
+  {
+   "id": "s09",
+   "name": "twist",
+   "lines": [
+    {
+     "tts": "If they're glowing like theirs,",
+     "cap": "If they're !glowing! like theirs,",
+     "pause": 0.5
+    },
+    {
+     "tts": "you were never going home.",
+     "cap": "you were !never! !going! !home.!",
+     "pause": 1.8
+    }
+   ]
+  },
+  {
+   "id": "s10",
+   "name": "cta",
+   "lines": [
+    {
+     "tts": "Would you have stayed on the bus? Tell me in the comments.",
+     "cap": "Would you have *stayed* on the bus? Tell me in the *comments.*",
+     "pause": 0.2
+    },
+    {
+     "tts": "And follow for more rules.",
+     "cap": "And *follow* for more rules.",
+     "pause": 1.8
+    }
+   ]
+  }
+ ]
+}
