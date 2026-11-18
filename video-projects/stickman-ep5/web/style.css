@@ -1,0 +1,14 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+#stage { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; overflow: hidden; }
+#gl, #gl canvas { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+#captions { position: absolute; left: 60px; width: 960px; top: 1350px; transform: translateY(-50%); text-align: center;
+  font-family: 'Inter Display', 'Inter', sans-serif; font-weight: 800; font-size: 66px; line-height: 1.12; letter-spacing: 0.01em; text-transform: uppercase; }
+#captions .cw { display: inline-block; margin: 0 .14em; color: #fff; will-change: transform, opacity;
+  text-shadow: 0 3px 0 rgba(0,0,0,.7), 0 0 22px rgba(0,0,0,.95); }
+#captions .cw.hl  { color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.7), 0 0 26px rgba(255,255,255,.45); }
+#captions .cw.bad { color: #FF3B47; text-shadow: 0 3px 0 rgba(0,0,0,.7), 0 0 26px rgba(255,59,71,.6); }
+#captions .cw.good { color: #fff; }
+#progress { position: absolute; left: 0; top: 0; width: 1080px; height: 7px; background: rgba(255,255,255,.07); }
+#bar { height: 100%; width: 0; background: linear-gradient(90deg, #ffffff, #FF3B47); box-shadow: 0 0 12px rgba(255,59,71,.7); }
+#hud { position: absolute; inset: 0; pointer-events: none; }
