@@ -269,12 +269,12 @@ tl.set(door, { open: 0, jolt: 0 }, tCta);
 tl.to(door, { open: 1, duration: 1.2, ease: 'power2.inOut' }, tCta + 0.35); sfx('ding', tCta + 0.2, 0.7); sfx('hiss', tCta + 0.35, 0.25);
 tl.to(door, { open: 0, duration: 1.4, ease: 'power2.inOut' }, DUR - 1.7);
 camSet(tCta, { x: 0.0, y: 1.4, z: 5.2, tx: 0.0, ty: 1.55, tz: 0.8, roll: 0, fov: 40 });
-camTo(tCta, { z: 4.6 }, DUR - tCta, 'power1.out');
+camTo(tCta, { z: 4.95 }, DUR - tCta, 'power1.out');
 {
   const tF = w('s10', 'follow');
-  const q1 = panelMesh(scene, { w: 0.95, h: 0.1, x: 0, y: 2.23, z: 2.6, ppu: 1700, draw: (c, t, P) => text(c, 'WOULD YOU HAVE STEPPED OUT?', P.cw / 2, P.ch / 2, { size: 84, weight: 900, color: '#fff', font: 'Inter Display', spacing: 3, glow: 12 }) });
-  const q2 = panelMesh(scene, { w: 0.66, h: 0.06, x: 0, y: 2.12, z: 2.6, ppu: 1700, draw: (c, t, P) => text(c, 'COMMENT  YES  OR  NO', P.cw / 2, P.ch / 2, { size: 58, weight: 800, color: C.red, spacing: 12, glow: 12 }) });
-  const fb = panelMesh(scene, { w: 0.5, h: 0.09, x: 0, y: 0.66, z: 2.9, ppu: 1700, key: t => (t > tF + 0.4 ? 'on' : 'off'), draw: (c, t, P) => {
+  const q1 = panelMesh(scene, { w: 0.95, h: 0.1, x: 0, y: 2.15, z: 2.6, ppu: 1700, draw: (c, t, P) => text(c, 'WOULD YOU HAVE STEPPED OUT?', P.cw / 2, P.ch / 2, { size: 84, weight: 900, color: '#fff', font: 'Inter Display', spacing: 3, glow: 12 }) });
+  const q2 = panelMesh(scene, { w: 0.66, h: 0.06, x: 0, y: 2.05, z: 2.6, ppu: 1700, draw: (c, t, P) => text(c, 'COMMENT  YES  OR  NO', P.cw / 2, P.ch / 2, { size: 58, weight: 800, color: C.red, spacing: 12, glow: 12 }) });
+  const fb = panelMesh(scene, { w: 0.5, h: 0.09, x: 0, y: 0.86, z: 2.9, ppu: 1700, key: t => (t > tF + 0.4 ? 'on' : 'off'), draw: (c, t, P) => {
     const on = t > tF + 0.4; c.save(); c.beginPath(); c.roundRect(8, 8, P.cw - 16, P.ch - 16, (P.ch - 16) / 2); c.fillStyle = on ? 'rgba(255,255,255,.06)' : '#ffffff'; c.fill(); if (on) { c.strokeStyle = '#fff'; c.lineWidth = 5; c.stroke(); } c.restore();
     text(c, on ? '✓  FOLLOWING' : '+  FOLLOW FOR MORE RULES', P.cw / 2, P.ch / 2 + 3, { size: on ? 70 : 56, weight: 900, color: on ? '#fff' : '#08080a', spacing: 3 });
   } });
