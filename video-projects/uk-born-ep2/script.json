@@ -1,0 +1,36 @@
+{
+ "_notes": [
+  "UK 'Where will you be born?' part 2: the pin lands on Slough. Facts are real (Betjeman's 1937 poem 'Slough'; The Office set at Wernham Hogg, Slough; Mars bar first made in Slough in 1932; William Herschel, who discovered Uranus, lived in Slough). Windsor is about two miles from Slough. The banter is opinion.",
+  "cap: *bright*, !red!, #swear# (masked in captions, bleeped in the bleeped mix), {TEXT:N} replaces N spoken words."
+ ],
+ "segments": [
+  {"id": "s01", "name": "hook", "lines": [
+   {"tts": "Part two. Where in the UK are you being born?", "cap": "Part two. Where in the UK are you being *born?*", "pause": 0.15},
+   {"tts": "Spin it.", "cap": "*Spin* *it.*", "pause": 0.3}]},
+  {"id": "s02", "name": "spin", "lines": [
+   {"tts": "Manchester? Bring a brolly. Forever.", "cap": "*Manchester?* Bring a brolly. *Forever.*", "pause": 0.3},
+   {"tts": "Brighton? The seagulls will nick your chips.", "cap": "*Brighton?* The seagulls will *nick* your *chips.*", "pause": 0.3},
+   {"tts": "The Highlands? The midges will eat you alive.", "cap": "The *Highlands?* The midges will *eat* *you* *alive.*", "pause": 0.3},
+   {"tts": "Windsor? Ooh, royalty!", "cap": "*Windsor?* Ooh, *royalty!*", "pause": 0.35},
+   {"tts": "Nah. Two miles up the road.", "cap": "!Nah.! Two miles up the road.", "pause": 0.5}]},
+  {"id": "s03", "name": "land", "lines": [
+   {"tts": "Slough.", "cap": "!Slough.!", "pause": 0.35},
+   {"tts": "You poor bastard.", "cap": "You poor #bastard.#", "pause": 0.45}]},
+  {"id": "s04", "name": "fact1", "lines": [
+   {"tts": "Fact one. A famous poet wrote a whole poem begging for Slough to get bombed.", "cap": "*Fact* *one.* A famous poet wrote a whole poem begging for Slough to get !bombed.!", "pause": 0.2},
+   {"tts": "Come, friendly bombs, and fall on Slough. John Betjeman, nineteen thirty-seven.", "cap": "*Come,* *friendly* *bombs,* *and* *fall* *on* *Slough.* John Betjeman, {1937.:2}", "pause": 0.2},
+   {"tts": "And honestly? Fair.", "cap": "And honestly? *Fair.*", "pause": 0.4}]},
+  {"id": "s05", "name": "fact2", "lines": [
+   {"tts": "Fact two. The Office was set in Slough.", "cap": "*Fact* *two.* The Office was set in *Slough.*", "pause": 0.15},
+   {"tts": "The most soul-destroying sitcom ever made, and they didn't even need to build a set.", "cap": "The most *soul-destroying* sitcom ever made, and they didn't even need to build a *set.*", "pause": 0.4}]},
+  {"id": "s06", "name": "fact3", "lines": [
+   {"tts": "Fact three. The Mars bar was first made in Slough, in nineteen thirty-two.", "cap": "*Fact* *three.* The *Mars* *bar* was first made in Slough, in {1932.:2}", "pause": 0.15},
+   {"tts": "The only sweet thing to ever come out of the place.", "cap": "The only *sweet* thing to ever come out of the *place.*", "pause": 0.4}]},
+  {"id": "s07", "name": "fact4", "lines": [
+   {"tts": "Fact four. The bloke who discovered Uranus lived in Slough.", "cap": "*Fact* *four.* The bloke who discovered *Uranus* lived in *Slough.*", "pause": 0.2},
+   {"tts": "Uranus. In Slough. Makes perfect fucking sense.", "cap": "*Uranus.* In *Slough.* Makes perfect #fucking# *sense.*", "pause": 0.45}]},
+  {"id": "s08", "name": "cta", "lines": [
+   {"tts": "Born in Slough. Unlucky, mate.", "cap": "Born in Slough. *Unlucky,* *mate.*", "pause": 0.3},
+   {"tts": "Comment your town, and I'll roast it next. Follow for part three.", "cap": "*Comment* your *town,* and I'll *roast* it *next.* *Follow* for part three.", "pause": 1.4}]}
+ ]
+}
