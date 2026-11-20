@@ -1,0 +1,173 @@
+{
+ "_notes": [
+  "UK 'Where will you be born?' part 1: the pin lands on Scunthorpe. Facts are real (AOL 1996 filter; 'Industrial Garden Town'; April 2025 Saturday recall of Parliament for British Steel; Keegan and Botham at Scunthorpe United); the banter is opinion.",
+  "cap: *bright*, !red!, #swear# (masked in captions, bleeped in the bleeped mix), {TEXT:N} replaces N spoken words."
+ ],
+ "segments": [
+  {
+   "id": "s01",
+   "name": "hook",
+   "lines": [
+    {
+     "tts": "Where in the UK are you gonna be born?",
+     "cap": "Where in the UK are you gonna be *born?*",
+     "pause": 0.25
+    },
+    {
+     "tts": "Let's find out.",
+     "cap": "Let's find *out.*",
+     "pause": 0.5
+    }
+   ]
+  },
+  {
+   "id": "s02",
+   "name": "spin",
+   "lines": [
+    {
+     "tts": "London?",
+     "cap": "*London?*",
+     "pause": 0.25
+    },
+    {
+     "tts": "Nah mate, you can't afford it.",
+     "cap": "Nah mate, you can't *afford* it.",
+     "pause": 0.45
+    },
+    {
+     "tts": "Cornwall?",
+     "cap": "*Cornwall?*",
+     "pause": 0.25
+    },
+    {
+     "tts": "Too many bloody tourists.",
+     "cap": "Too many bloody *tourists.*",
+     "pause": 0.45
+    },
+    {
+     "tts": "Edinburgh?",
+     "cap": "*Edinburgh?*",
+     "pause": 0.25,
+     "say": "Edinbruh?"
+    },
+    {
+     "tts": "Way too posh for you.",
+     "cap": "Way too *posh* for you.",
+     "pause": 0.45
+    },
+    {
+     "tts": "And you're getting born in...",
+     "cap": "And you're getting born in...",
+     "pause": 1.3
+    }
+   ]
+  },
+  {
+   "id": "s03",
+   "name": "land",
+   "lines": [
+    {
+     "tts": "Scunthorpe.",
+     "cap": "!Scunthorpe.!",
+     "pause": 0.6
+    },
+    {
+     "tts": "Oh, for fuck's sake.",
+     "cap": "Oh, for #fuck's# sake.",
+     "pause": 0.7
+    }
+   ]
+  },
+  {
+   "id": "s04",
+   "name": "fact1",
+   "lines": [
+    {
+     "tts": "Fact one. Your hometown has a swear word in its name.",
+     "cap": "*Fact* *one.* Your hometown has a !swear! !word! in its name.",
+     "pause": 0.3
+    },
+    {
+     "tts": "In nineteen ninety-six, AOL wouldn't let anyone from Scunthorpe sign up, because the filter thought the whole bloody town was swearing at it.",
+     "cap": "In {1996,:2} AOL wouldn't let anyone from Scunthorpe sign up, because the filter thought the whole bloody town was !swearing! at it.",
+     "pause": 0.3
+    },
+    {
+     "tts": "It's literally called the Scunthorpe problem.",
+     "cap": "It's literally called the *Scunthorpe* *problem.*",
+     "pause": 0.6
+    }
+   ]
+  },
+  {
+   "id": "s05",
+   "name": "fact2",
+   "lines": [
+    {
+     "tts": "Fact two. Its official nickname is the Industrial Garden Town.",
+     "cap": "*Fact* *two.* Its official nickname is the *Industrial* *Garden* *Town.*",
+     "pause": 0.3
+    },
+    {
+     "tts": "That's like calling your wheelie bin a fucking water feature.",
+     "cap": "That's like calling your wheelie bin a #fucking# *water* *feature.*",
+     "pause": 0.6,
+     "say": "That's like calling your wheely-bin a fucking water feature."
+    }
+   ]
+  },
+  {
+   "id": "s06",
+   "name": "fact3",
+   "lines": [
+    {
+     "tts": "Fact three. When the steelworks nearly shut in twenty twenty-five, Parliament got dragged in on a Saturday to save it.",
+     "cap": "*Fact* *three.* When the steelworks nearly shut in {2025,:2} Parliament got dragged in on a *Saturday* to save it.",
+     "pause": 0.3
+    },
+    {
+     "tts": "Westminster gave up its weekend for Scunthorpe. That's the most love you'll ever get.",
+     "cap": "Westminster gave up its *weekend* for Scunthorpe. That's the most love you'll *ever* *get.*",
+     "pause": 0.6
+    }
+   ]
+  },
+  {
+   "id": "s07",
+   "name": "fact4",
+   "lines": [
+    {
+     "tts": "Fact four. Kevin Keegan and Ian Botham both played for Scunthorpe United.",
+     "cap": "*Fact* *four.* Kevin Keegan and Ian Botham both played for Scunthorpe United.",
+     "pause": 0.3
+    },
+    {
+     "tts": "Then they both left. Smart lads.",
+     "cap": "Then they both *left.* *Smart* *lads.*",
+     "pause": 0.7
+    }
+   ]
+  },
+  {
+   "id": "s08",
+   "name": "cta",
+   "lines": [
+    {
+     "tts": "So that's you. Born in Scunthorpe. Tough shit, mate.",
+     "cap": "So that's you. Born in Scunthorpe. Tough #shit,# mate.",
+     "pause": 0.5
+    },
+    {
+     "tts": "Where did yours land? Drop your town in the comments, and I'll roast it next.",
+     "cap": "Where did *yours* land? Drop your *town* in the comments, and I'll *roast* it *next.*",
+     "pause": 0.2
+    },
+    {
+     "tts": "Follow for part two.",
+     "cap": "*Follow* for part two.",
+     "pause": 1.6
+    }
+   ]
+  }
+ ]
+}
