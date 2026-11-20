@@ -1,0 +1,52 @@
+{
+ "_notes": [
+  "UK life-story 'Where will you be born this time?' — Birmingham. Every spoken sentence contains 'bloody'. #swear# words are bleeped in the final mix and masked in captions.",
+  "Facts: ~1 in 200 of the world's births are in the UK (ONS/NRS/NISRA vs UN); ~15,000 births a year in Birmingham (ONS, approx.); more miles of canal than Venice (Canal & River Trust); Spaghetti Junction opened 1972; Cadbury in Birmingham since 1824, Cadbury World in Bournville; Peaky Blinders set in Birmingham; ~100 million cups of tea a day in the UK (UK Tea & Infusions Association); the balti is supposedly a Birmingham invention; 'cob' = bread roll; the Brummie accent keeps topping 'least attractive' polls; Black Sabbath formed in Birmingham in 1968; UK life expectancy ~80 (ONS); 'tara-a-bit' = goodbye."
+ ],
+ "segments": [
+  {"id": "s01", "name": "intro", "lines": [
+   {"tts": "Where will you be bloody born this time?", "cap": "Where will you be bloody *born* this *time?*", "pause": 0.3}]},
+  {"id": "s02", "name": "place", "lines": [
+   {"tts": "The bloody United Kingdom, the city of Birmingham.", "cap": "The bloody *United* *Kingdom,* the city of *Birmingham.*", "pause": 0.3},
+   {"tts": "Roughly a bloody one in two hundred chance.", "cap": "Roughly a bloody {1-in-200:4} *chance.*", "pause": 0.25},
+   {"tts": "About fifteen thousand bloody babies are born here every year.", "cap": "About {15,000:2} bloody *babies* are born here every year.", "pause": 0.25},
+   {"tts": "Your name is Gary, but everyone calls you bloody Gaz.", "cap": "Your name is *Gary,* but everyone calls you bloody *Gaz.*", "pause": 0.4}]},
+  {"id": "s03", "name": "canals", "lines": [
+   {"tts": "Birmingham has more miles of canal than bloody Venice.", "cap": "Birmingham has *more* *miles* *of* *canal* than bloody *Venice.*", "pause": 0.2},
+   {"tts": "But instead of gondolas, it's mostly bloody shopping trolleys.", "cap": "But instead of gondolas, it's mostly bloody *shopping* *trolleys.*", "pause": 0.3},
+   {"tts": "It calls itself the second city, and Manchester gets bloody furious about it.", "cap": "It calls itself the *second* *city,* and Manchester gets bloody *furious* about it.", "pause": 0.35}]},
+  {"id": "s04", "name": "spaghetti", "lines": [
+   {"tts": "Your dad's been stuck on bloody Spaghetti Junction since nineteen seventy-two.", "cap": "Your dad's been stuck on bloody *Spaghetti* *Junction* since {1972.:2}", "pause": 0.2},
+   {"tts": "Shift your bloody car, you fucking muppet!", "cap": "*Shift* your bloody car, you #fucking# *muppet!*", "pause": 0.4}]},
+  {"id": "s05", "name": "age5", "lines": [
+   {"tts": "At five, Gaz goes on a bloody school trip to Cadbury World.", "cap": "At *five,* Gaz goes on a bloody school trip to *Cadbury* *World.*", "pause": 0.2},
+   {"tts": "Cadbury's been making chocolate here since bloody eighteen twenty-four.", "cap": "Cadbury's been making chocolate here since bloody {1824.:2}", "pause": 0.2},
+   {"tts": "He eats so much, he throws up on the bloody coach.", "cap": "He eats so much, he *throws* *up* on the bloody *coach.*", "pause": 0.2},
+   {"tts": "Oh, for fuck's sake, bloody Gary!", "cap": "Oh, for #fuck's# sake, bloody *Gary!*", "pause": 0.4}]},
+  {"id": "s06", "name": "age16", "lines": [
+   {"tts": "At sixteen, he buys a flat cap, because Peaky Blinders was set in bloody Birmingham.", "cap": "At *sixteen,* he buys a *flat* *cap,* because Peaky Blinders was set in bloody Birmingham.", "pause": 0.2},
+   {"tts": "He thinks he's Tommy Shelby, but he's just bloody Gaz.", "cap": "He thinks he's *Tommy* *Shelby,* but he's just bloody *Gaz.*", "pause": 0.4}]},
+  {"id": "s07", "name": "tea", "lines": [
+   {"tts": "Britain drinks about a hundred million bloody cups of tea a day.", "cap": "Britain drinks about {100-million:3} bloody cups of *tea* a *day.*", "pause": 0.2},
+   {"tts": "And dinner's a balti, which was supposedly invented in bloody Birmingham.", "cap": "And dinner's a *balti,* which was supposedly *invented* in bloody *Birmingham.*", "pause": 0.4}]},
+  {"id": "s08", "name": "age22", "lines": [
+   {"tts": "At twenty-two, Gaz moves to bloody London.", "cap": "At *twenty-two,* Gaz moves to bloody *London.*", "pause": 0.2},
+   {"tts": "He asks for a cob, and nobody in London knows what a bloody cob is.", "cap": "He asks for a *cob,* and nobody in London knows what a bloody *cob* is.", "pause": 0.15},
+   {"tts": "Bloody fucking Londoners.", "cap": "Bloody #fucking# *Londoners.*", "pause": 0.3},
+   {"tts": "His accent keeps getting voted one of the least bloody attractive in Britain.", "cap": "His *accent* keeps getting voted one of the *least* bloody *attractive* in Britain.", "pause": 0.3},
+   {"tts": "Someone says, you're from bloody Birmingham, aren't you?", "cap": "Someone says, \"You're from bloody *Birmingham,* aren't you?\"", "pause": 0.2},
+   {"tts": "How the fuck did you bloody know?", "cap": "\"How the #fuck# did you bloody *know?\"*", "pause": 0.4}]},
+  {"id": "s09", "name": "age30", "lines": [
+   {"tts": "At thirty, he comes home and marries Sharon, who everyone calls bloody Shaz.", "cap": "At *thirty,* he comes home and marries *Sharon,* who everyone calls bloody *Shaz.*", "pause": 0.2},
+   {"tts": "There's a balti, a DJ playing Black Sabbath, and about forty bloody cousins.", "cap": "There's a *balti,* a DJ playing *Black* *Sabbath,* and about *forty* bloody *cousins.*", "pause": 0.2},
+   {"tts": "Because heavy metal was born in bloody Birmingham too.", "cap": "Because *heavy* *metal* was born in bloody *Birmingham* *too.*", "pause": 0.4}]},
+  {"id": "s10", "name": "old", "lines": [
+   {"tts": "People in the UK live about eighty bloody years.", "cap": "People in the UK live about *eighty* bloody *years.*", "pause": 0.25},
+   {"tts": "Gaz grows old in bloody Birmingham.", "cap": "Gaz grows *old* in bloody Birmingham.", "pause": 0.2},
+   {"tts": "Still stuck on bloody Spaghetti Junction.", "cap": "Still stuck on bloody *Spaghetti* *Junction.*", "pause": 0.15},
+   {"tts": "Still saying bloody tara-a-bit.", "say": "Still saying bloody tarra-a-bit.", "cap": "Still saying bloody *tara-a-bit.*", "pause": 0.15},
+   {"tts": "Still eating bloody balti.", "cap": "Still eating bloody *balti.*", "pause": 0.5}]},
+  {"id": "s11", "name": "outro", "lines": [
+   {"tts": "Where will you be bloody born next time?", "cap": "Where will you be bloody *born* *next* *time?*", "pause": 1.4}]}
+ ]
+}

@@ -1,0 +1,1 @@
+{"name":"uk-life-birmingham","private":true,"version":"1.0.0","dependencies":{"@fontsource/lilita-one":"^5.0.13","@fontsource/nunito":"^5.0.18","@fontsource/patrick-hand":"^5.0.13","d3-geo":"^3.1.1","gsap":"^3.13.0","topojson-client":"^3.1.0","world-atlas":"^2.0.2"}}
