@@ -2,9 +2,10 @@
 // cartoon style, every element popping in on its word.
 import { c, W, H, PI, PAL, tl, DUR, S, L, w, we, sfx, music, clamp01, lerp, ss, pop, popOut, backOut, elastic, mulberry32, scene, overlay, rr, fs, circle, ellipse, txt, withT, title, hand, card, bubble } from './core.js';
 import { person, room, outdoor, cloudPuff, unionFlag, brumSkyline, londonSkyline, canal, narrowboat, gondola, trolley, car, coach, mug, balti, choc, suitcase, guitar, bolt, bench, bunting, junction } from './art.js';
-import { globe, space, pin } from './globe.js';
+import { pin } from './globe.js';
+import { ukMap, townDots, hopPin, projFor, TOWNS } from './ukmap.js';
 
-const BRUM = [-1.89, 52.48];
+const BRUM = TOWNS.Birmingham;
 const ln = (s, i) => L(s, i).start;
 const next = (s, i) => { const l = L(s, i); return l.start; };
 const SK = PAL.skin;
@@ -18,35 +19,30 @@ const MUM = { skin: SK[0], hair: 'long', hairColor: '#7a4528', shirt: '#e76f51',
 const DAD = { skin: SK[0], hair: 'short', hairColor: '#3b2a20', tache: '#3b2a20', shirt: '#2a9d8f', pattern: 'stripes', shirt2: '#1d6f66', pants: '#3b3b48', ph: 2.1 };
 const NAN = { old: true, skin: SK[0], hair: 'curly', hairColor: '#dcdcdc', glasses: true, shirt: '#9b5de5', pattern: 'dots', pants: '#5e548e', ph: 1.7 };
 
-// ================================================================ 1. GLOBE: spin, zoom to Birmingham, clouds
+// ================================================================ 1. UK MAP: the pin bounces round the UK, lands on Birmingham, zoom, clouds
 const tPlace = ln('s02', 0), tTicket = ln('s02', 1), tBrumWord = w('s02', 'birmingham');
-const ease3 = k => 1 - Math.pow(1 - clamp01(k), 3);
-function globeState(t) {
-  const ks = ease3((t - 0.2) / (tPlace + 0.2));
-  const lon = lerp(-160, BRUM[0], ks) , lat = lerp(8, BRUM[1], ks);
-  const kz = clamp01((t - tPlace - 0.25) / (tBrumWord - tPlace + 0.15)), z = Math.pow(kz, 2.2);
-  const r = 340 * Math.pow(26000 / 340, z), cy = lerp(930, 960, z);
-  return { lon, lat, r, cy, kz };
-}
+const HOPS = ['Glasgow', 'Cardiff', 'Newcastle', 'London', 'Belfast', 'Norwich', 'Manchester'];
+const tFirst = 0.75, tLand = tBrumWord - 0.02, step = (tLand - tFirst) / HOPS.length;
+const STOPS = HOPS.map((n, i) => [n, tFirst + i * step]).concat([['Birmingham', tLand]]);
 scene(0, tTicket, (t) => {
-  space(t);
-  const g = globeState(t);
-  globe({ cx: W / 2, cy: g.cy, r: g.r, lon: g.lon, lat: g.lat, ukGlow: ss(tPlace - 0.1, tPlace + 0.4, t) * (1 - ss(tBrumWord - 0.5, tBrumWord, t)) });
-  // the pin rides the centre of the disc
-  const pk = pop(t, 0.35, 0.45);
-  pin(W / 2, g.cy - 8 + Math.sin(t * 5) * 4 * (1 - g.kz), 1.25 * pk);
-  // labels
-  const kUK = ss(tPlace, tPlace + 0.3, t) * (1 - ss(tBrumWord - 0.2, tBrumWord, t));
-  if (kUK > 0) hand('United Kingdom', W / 2, g.cy - 210, kUK, 78, '#ffffff', -0.02);
-  const kB = pop(t, tBrumWord - 0.05);
-  if (kB > 0) { circle(W / 2, g.cy - 8, 18 * kB, PAL.orange, PAL.ink, 6); hand('Birmingham', W / 2, g.cy - 230, kB, 92, PAL.orange, -0.03); }
-  // header (fades as we dive)
-  const kh = 1 - ss(tPlace, tPlace + 0.4, t);
-  if (kh > 0.01) { c.globalAlpha = kh; txt('Where will you be born', W / 2, 300, { font: 'Patrick Hand', weight: 400, size: 86, color: '#ffffff' }); txt('this time?', W / 2, 395, { font: 'Patrick Hand', weight: 400, size: 86, color: PAL.orange }); c.globalAlpha = 1; }
+  const kz = ss(tLand + 0.25, tTicket - 0.35, t), zoom = Math.pow(7.5, kz);
+  const intro = backOut(clamp01(t / 0.45));
+  c.save(); c.translate(W / 2, 1100); c.scale(0.9 + 0.1 * intro, 0.9 + 0.1 * intro); c.translate(-W / 2, -1100);
+  const p = ukMap({ zoom, focus: BRUM, to: [W / 2, 1000], kz, glow: ss(w('s02', 'united') - 0.1, w('s02', 'united') + 0.2, t) * (1 - ss(tLand - 0.2, tLand + 0.2, t)), labels: 1 - kz, t });
+  const visited = STOPS.filter(([, tt]) => t >= tt).map(([n]) => n);
+  townDots(p, { major: 1 - kz, show: visited, size: 1 + kz * 0.6 });
+  const st = hopPin(p, STOPS, t, 1.15 + kz * 0.5);
+  c.restore();
+  // header (out as we dive)
+  const kh = 1 - ss(tLand + 0.1, tLand + 0.5, t);
+  if (kh > 0.01) { c.globalAlpha = kh; rr(120, 90, 840, 230, 40); fs('rgba(29,42,77,.82)', null, 0); txt('Where will you be born', W / 2, 160, { font: 'Patrick Hand', weight: 400, size: 82, color: '#ffffff' }); txt('this time?', W / 2, 250, { font: 'Patrick Hand', weight: 400, size: 86, color: PAL.orange }); c.globalAlpha = 1; }
+  const kB = pop(t, tLand);
+  if (kB > 0) hand('Birmingham', W / 2, lerp(560, 620, kz), kB * (1 + 0.15 * kz), 100, PAL.orange, -0.03);
+  const kU = pop(t, w('s02', 'united') - 0.05) * (1 - ss(tLand - 0.2, tLand, t));
+  if (kU > 0) hand('United Kingdom', W / 2, 1730, kU, 90, '#ffffff', -0.02);
 }, { zoom: 0 });
-sfx('whoosh', 0.25, 0.4); sfx('tick', 0.5, 0.3);
-for (let i = 0; i < 14; i++) sfx('tick', 0.5 + (tPlace - 0.6) * (1 - Math.pow(1 - i / 14, 2)), 0.22);
-sfx('ding', tPlace - 0.05, 0.5); sfx('whoosh', tPlace + 0.3, 0.5); sfx('pop', tBrumWord, 0.5);
+STOPS.forEach(([, tt], i) => sfx(i === STOPS.length - 1 ? 'ding' : 'boing', tt, i === STOPS.length - 1 ? 0.6 : 0.4, { pitch: 1 + (i % 4) * 0.1 }));
+sfx('whoosh', 0.3, 0.4); sfx('whoosh', tLand + 0.25, 0.5);
 // cloud wipe into the city
 const tWipe = tTicket;
 overlay(t => {
@@ -124,11 +120,11 @@ scene(tTrolley, tSecond, (t) => {
 });
 sfx('splash', tTrolley + 0.4, 0.8); sfx('pop', w('s03', 'trolleys') - 0.05, 0.5);
 scene(tSecond, S('s04'), (t) => {
-  space(t); c.fillStyle = '#2f6db0'; c.fillRect(0, 0, W, H);
-  const p = globe({ cx: W / 2, cy: 900, r: 5200, lon: -2.1, lat: 53.0 });
-  const [bx, by] = p(BRUM), [mx, my] = p([-2.24, 53.48]);
-  pin(bx, by, 0.9 * pop(t, tSecond + 0.1)); hand('Birmingham', bx, by + 70, pop(t, tSecond + 0.15), 60, '#ffffff');
-  pin(mx, my, 0.9 * pop(t, w('s03', 'manchester') - 0.05), '#6cabdd'); hand('Manchester', mx, my - 150, pop(t, w('s03', 'manchester')), 60, '#ffffff');
+  const p = ukMap({ zoom: 2.6, focus: [-2.1, 53.0], to: [W / 2, 1000], kz: 1, labels: 1, t });
+  const [bx, by] = p(BRUM), [mx, my] = p(TOWNS.Manchester);
+  circle(bx, by, 12, '#fff', PAL.ink, 4); circle(mx, my, 12, '#fff', PAL.ink, 4);
+  pin(bx, by, 1.0 * pop(t, tSecond + 0.1)); hand('Birmingham', bx, by + 70, pop(t, tSecond + 0.15), 60, '#ffffff');
+  pin(mx, my, 1.0 * pop(t, w('s03', 'manchester') - 0.05), '#6cabdd'); hand('Manchester', mx, my - 160, pop(t, w('s03', 'manchester')), 60, '#ffffff');
   title('second city', W / 2, 250, pop(t, w('s03', 'second') - 0.05), 110);
   const ka = pop(t, w('s03', 'furious') - 0.1);
   if (ka > 0) { person(780, 1700, 0.95 * ka, { skin: SK[1], hair: 'short', hairColor: '#222', shirt: '#6cabdd', pants: '#2b2b48', eyes: 'angry', mouth: 'shout', la: 2.7, ra: 2.7 + Math.sin(t * 12) * 0.2, ph: 0.5 }, t); for (let i = 0; i < 3; i++) { const ph = (t * 1.5 + i / 3) % 1; c.globalAlpha = 1 - ph; cloudPuff(780 + (i - 1) * 60, 1260 - ph * 160, 0.4 + ph * 0.3, '#ffffff'); c.globalAlpha = 1; } }
@@ -286,7 +282,7 @@ scene(tWed, tMetal, (t) => {
   const kc = clamp01((t - w('s09', 'forty') + 0.1) / 0.8), nC = Math.floor(kc * 22), R = mulberry32(12);
   for (let i = 0; i < nC; i++) { const x = 60 + (i % 11) * 96 + (Math.floor(i / 11) % 2) * 40, y = 1260 - Math.floor(i / 11) * 70; person(x, y, 0.42, { skin: SK[i % 5], hair: ['short', 'long', 'curly', 'spiky', 'bun'][i % 5], hairColor: ['#3b2a20', '#c9772e', '#1d1d1d', '#e8c35a'][i % 4], shirt: ['#e63946', '#2f6fb5', '#2a9d8f', '#ffd23f', '#9b5de5'][i % 5], pants: '#3b4a6b', la: 2.6, ra: 2.6, ph: i }, t); }
   const kd = pop(t, w('s09', 'dj') - 0.05);
-  if (kd > 0) { withT(900, 1520, kd, 0, () => { rr(-130, -160, 260, 160, 12); fs('#2b2b2b', PAL.ink, 6); circle(-60, -150, 34, '#555', PAL.ink, 5); circle(60, -150, 34, '#555', PAL.ink, 5); }); guitar(900, 1250, 0.8 * kd, -0.5 + Math.sin(t * 6) * 0.08); bolt(1000, 1160, 0.6 * kd); }
+  if (kd > 0) { withT(900, 1520, kd, 0, () => { rr(-130, -160, 260, 160, 12); fs('#2b2b2b', PAL.ink, 6); circle(-60, -150, 34, '#555', PAL.ink, 5); circle(60, -150, 34, '#555', PAL.ink, 5); }); guitar(975, 1150, 0.42 * kd, -0.5 + Math.sin(t * 6) * 0.08); bolt(1010, 960, 0.5 * kd); }
   const kb = pop(t, w('s09', 'balti') - 0.05); if (kb > 0) balti(170, 1560, 0.55 * kb, t);
   person(380, 1700, 1.1, Object.assign({}, GAZ, { shirt: '#2b2d42', pattern: 'suit', tie: '#e63946', pants: '#2b2d42', mouth: 'grin', la: 2.7, ra: 0.5, wave: 'l' }), t);
   person(700, 1700, 1.05, Object.assign({}, SHAZ, { veil: true, mouth: 'grin', la: 0.5, ra: 2.7, wave: 'r' }), t);
@@ -341,17 +337,21 @@ scene(tStillB, S('s11'), (t) => {
 });
 sfx('sizzle', tStillB, 0.4);
 
-// ================================================================ 12. LOOP: "Where will you be born next time?"
+// ================================================================ 12. LOOP: "Where will you be born next time?" — the pin bounces again
 const tEnd = S('s11');
+const LOOP = ['Glasgow', 'Plymouth', 'Aberdeen', 'Cardiff', 'Belfast', 'London', 'Newcastle', 'Norwich', 'Manchester'];
+const LSTOPS = LOOP.map((n, i) => [n, tEnd + 0.55 + i * 0.62]);
 scene(tEnd, DUR + 1, (t) => {
-  space(t);
-  globe({ cx: W / 2, cy: 960, r: 340, lon: BRUM[0] - (t - tEnd) * 70, lat: lerp(BRUM[1], 10, ss(tEnd, tEnd + 1.5, t)) });
-  pin(W / 2, 950 + Math.sin(t * 5) * 4, 1.25);
-  txt('Where will you be born', W / 2, 300, { font: 'Patrick Hand', weight: 400, size: 86, color: '#ffffff' }); txt('next time?', W / 2, 395, { font: 'Patrick Hand', weight: 400, size: 86, color: PAL.orange });
-  c.globalAlpha = 0.8;
-  ['Sources: ONS, NRS, NISRA, UN; Canal & River Trust;', 'UK Tea & Infusions Association; ONS life tables.'].forEach((s, i) => txt(s, W / 2, 1640 + i * 40, { font: 'Patrick Hand', weight: 400, size: 32, color: '#c9d3ea' }));
+  const p = ukMap({ t });
+  townDots(p, { major: 1 });
+  hopPin(p, LSTOPS, t, 1.15);
+  rr(120, 90, 840, 230, 40); fs('rgba(29,42,77,.82)', null, 0);
+  txt('Where will you be born', W / 2, 160, { font: 'Patrick Hand', weight: 400, size: 82, color: '#ffffff' }); txt('next time?', W / 2, 250, { font: 'Patrick Hand', weight: 400, size: 86, color: PAL.orange });
+  c.globalAlpha = 0.85; rr(120, 1700, 840, 110, 20); fs('rgba(29,42,77,.75)', null, 0);
+  ['Sources: ONS, NRS, NISRA, UN; Canal & River Trust;', 'UK Tea & Infusions Association; ONS life tables.'].forEach((q, i) => txt(q, W / 2, 1735 + i * 40, { font: 'Patrick Hand', weight: 400, size: 32, color: '#ffffff' }));
   c.globalAlpha = 1;
 }, { zoom: 0 });
+LSTOPS.forEach(([, tt], i) => { if (tt < DUR) sfx('boing', tt, 0.35, { pitch: 1 + (i % 4) * 0.1 }); });
 sfx('whoosh', tEnd, 0.5);
 
 // cut whooshes between scenes

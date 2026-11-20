@@ -113,11 +113,12 @@ const CHUNKS = [];
 for (const l of TM.lines) {
   let cur = [];
   const flush = () => { if (cur.length) { CHUNKS.push({ words: cur }); cur = []; } };
-  for (const cp of l.caps) {
+  l.caps.forEach((cp, i) => {
     cur.push(cp);
-    const len = cur.map(x => x.text).join(' ').length;
-    if (/[.?!]["”]?$/.test(cp.text) || (/[,:]$/.test(cp.text) && len >= 26) || len >= 44) flush();
-  }
+    const len = cur.map(x => x.text).join(' ').length, left = l.caps.length - 1 - i;
+    const restLen = l.caps.slice(i + 1).map(x => x.text).join(' ').length;
+    if (/[.?!]["”]?$/.test(cp.text) || (left > 2 && restLen > 14 && ((/[,:]$/.test(cp.text) && len >= 26) || len >= 44))) flush();
+  });
   flush();
 }
 for (const ch of CHUNKS) ch.s = ch.words[0].s - 0.08;
