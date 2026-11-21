@@ -38,7 +38,7 @@ export function projFor({ zoom = 1, focus = BRUM, to = [W / 2, 900], kz = 0 } = 
 const WAVES = (() => { const R = mulberry32(6); return Array.from({ length: 40 }, () => [R() * W, R() * H]); })();
 export function ukMap({ zoom = 1, focus = BRUM, to = [W / 2, 900], kz = 0, glow = 0, labels = 1, t = 0, hide = [] } = {}) {
   const p = projFor({ zoom, focus, to, kz }), path = geoPath(p, c);
-  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#7cc0ea'); g.addColorStop(1, '#4a93d0'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#7cc0ea'); g.addColorStop(1, '#4a93d0'); c.fillStyle = g; c.fillRect(-400, -400, W + 800, H + 800);
   c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 5; c.lineCap = 'round';
   for (const [x, y] of WAVES) { const dx = Math.sin(t * 0.8 + x) * 6; c.beginPath(); c.arc(x + dx, y, 14, PI * 1.15, PI * 1.85); c.stroke(); c.beginPath(); c.arc(x + dx + 26, y, 14, PI * 1.15, PI * 1.85); c.stroke(); }
   c.lineJoin = 'round';
@@ -85,3 +85,7 @@ export function hopPin(p, stops, t, s = 1) {
   if (land >= 0 && land < 0.45) { const k = land / 0.45; c.strokeStyle = `rgba(255,255,255,${1 - k})`; c.lineWidth = 6; c.beginPath(); c.ellipse(x, y, 20 + 70 * k, 8 + 28 * k, 0, 0, PI * 2); c.stroke(); }
   return { x, y, h, land };
 }
+
+// UK outline as the current path (for clipping), and its screen bounds
+export function ukPath(p) { const path = geoPath(p, c); c.beginPath(); path(UKF); }
+export function ukBounds(p) { return geoPath(p).bounds(UKF); }

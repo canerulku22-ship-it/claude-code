@@ -112,20 +112,37 @@ export function unionFlag(x, y, w_, h, pole = false) {
   c.restore(); c.strokeStyle = PAL.ink; c.lineWidth = 5; c.strokeRect(x, y, w_, h);
 }
 // Birmingham skyline: Selfridges "blob", the Rotunda, the BT Tower, the Library's rings, plus terraces
-export function brumSkyline(base = 1150, t = 0) {
+export function brumSkyline(base = 1150, t = 0, rise = () => 1) {
   const ink = PAL.ink;
+  const up = (i, fn) => { const k = rise(i); if (k <= 0.001) return; c.save(); c.translate(0, (1 - k) * 700); fn(); c.restore(); };
   // BT tower
-  rr(150, base - 620, 56, 620, 8); fs('#d9d4cb', ink, 6); for (let i = 0; i < 4; i++) { rr(136, base - 560 + i * 34, 84, 22, 6); fs('#bfb8ad', ink, 5); }
+  up(0, () => { rr(150, base - 620, 56, 620, 8); fs('#d9d4cb', ink, 6); for (let i = 0; i < 4; i++) { rr(136, base - 560 + i * 34, 84, 22, 6); fs('#bfb8ad', ink, 5); } circle(178, base - 640, 10, Math.sin(t * 6) > 0 ? '#ff5a5f' : '#7a2a30', ink, 4); });
   // Rotunda
-  rr(260, base - 470, 160, 470, 30); fs('#e8e1d4', ink, 6); c.fillStyle = '#9fc4d6'; for (let i = 0; i < 12; i++) c.fillRect(272, base - 450 + i * 36, 136, 14);
+  up(1, () => { rr(260, base - 470, 160, 470, 30); fs('#e8e1d4', ink, 6); for (let i = 0; i < 12; i++) { c.fillStyle = Math.sin(t * 3 + i * 1.7) > 0.6 ? '#ffe08a' : '#9fc4d6'; c.fillRect(272, base - 450 + i * 36, 136, 14); } });
   // Library of Birmingham (boxes with gold rings)
-  rr(470, base - 380, 200, 380, 6); fs('#f2d27a', ink, 6); c.strokeStyle = '#b8902e'; c.lineWidth = 6; for (let i = 0; i < 5; i++) for (let j = 0; j < 7; j++) { c.beginPath(); c.arc(492 + j * 27, base - 350 + i * 70, 11, 0, PI * 2); c.stroke(); }
-  // Selfridges blob with discs
-  c.beginPath(); c.moveTo(720, base); c.bezierCurveTo(690, base - 240, 760, base - 330, 860, base - 320); c.bezierCurveTo(980, base - 310, 1010, base - 180, 990, base); c.closePath(); fs('#2e6fa8', ink, 6);
-  c.save(); c.clip(); c.fillStyle = '#d7e4ef'; for (let i = 0; i < 9; i++) for (let j = 0; j < 7; j++) { c.beginPath(); c.arc(720 + j * 44 + (i % 2) * 22, base - 300 + i * 36, 12, 0, PI * 2); c.fill(); } c.restore();
-  c.beginPath(); c.moveTo(720, base); c.bezierCurveTo(690, base - 240, 760, base - 330, 860, base - 320); c.bezierCurveTo(980, base - 310, 1010, base - 180, 990, base); c.closePath(); fs(null, ink, 6);
+  up(2, () => { rr(470, base - 380, 200, 380, 6); fs('#f2d27a', ink, 6); c.strokeStyle = '#b8902e'; c.lineWidth = 6; for (let i = 0; i < 5; i++) for (let j = 0; j < 7; j++) { c.beginPath(); c.arc(492 + j * 27, base - 350 + i * 70, 11, 0, PI * 2); c.stroke(); } });
+  // Selfridges blob with discs (they twinkle)
+  up(3, () => {
+    c.beginPath(); c.moveTo(720, base); c.bezierCurveTo(690, base - 240, 760, base - 330, 860, base - 320); c.bezierCurveTo(980, base - 310, 1010, base - 180, 990, base); c.closePath(); fs('#2e6fa8', ink, 6);
+    c.save(); c.clip(); for (let i = 0; i < 9; i++) for (let j = 0; j < 7; j++) { c.fillStyle = Math.sin(t * 4 + i * 0.9 + j * 1.3) > 0.85 ? '#ffffff' : '#d7e4ef'; c.beginPath(); c.arc(720 + j * 44 + (i % 2) * 22, base - 300 + i * 36, 12, 0, PI * 2); c.fill(); } c.restore();
+    c.beginPath(); c.moveTo(720, base); c.bezierCurveTo(690, base - 240, 760, base - 330, 860, base - 320); c.bezierCurveTo(980, base - 310, 1010, base - 180, 990, base); c.closePath(); fs(null, ink, 6);
+  });
   // red-brick terraces in front
-  for (let i = 0; i < 6; i++) { const x = -20 + i * 190; rr(x, base - 150, 190, 150, 0); fs(PAL.brick, ink, 6); c.beginPath(); c.moveTo(x - 6, base - 150); c.lineTo(x + 95, base - 215); c.lineTo(x + 196, base - 150); c.closePath(); fs('#5b4a45', ink, 6); rr(x + 30, base - 120, 46, 50, 4); fs('#cfe8f1', ink, 5); rr(x + 115, base - 95, 44, 95, 4); fs('#2f6fb5', ink, 5); }
+  for (let i = 0; i < 6; i++) up(4 + i, () => { const x = -20 + i * 190; rr(x, base - 150, 190, 150, 0); fs(PAL.brick, ink, 6); c.beginPath(); c.moveTo(x - 6, base - 150); c.lineTo(x + 95, base - 215); c.lineTo(x + 196, base - 150); c.closePath(); fs('#5b4a45', ink, 6); rr(x + 30, base - 120, 46, 50, 4); fs('#cfe8f1', ink, 5); rr(x + 115, base - 95, 44, 95, 4); fs('#2f6fb5', ink, 5); });
+}
+// little sailing boat, bobbing
+export function sailboat(x, y, s, t = 0, col = '#ffffff') {
+  withT(x, y + Math.sin(t * 2.2 + x) * 6, s, Math.sin(t * 1.8 + x) * 0.06, () => {
+    c.beginPath(); c.moveTo(-70, 0); c.lineTo(70, 0); c.lineTo(50, 30); c.lineTo(-50, 30); c.closePath(); fs('#b5523b', PAL.ink, 5);
+    c.beginPath(); c.moveTo(0, -4); c.lineTo(0, -120); c.lineTo(60, -14); c.closePath(); fs(col, PAL.ink, 5);
+    c.beginPath(); c.moveTo(-6, -10); c.lineTo(-6, -100); c.lineTo(-52, -14); c.closePath(); fs('#ffd23f', PAL.ink, 5);
+  });
+}
+// a cartoon gull: two flapping arcs
+export function gull(x, y, s, t = 0) {
+  const f = Math.sin(t * 9 + x * 0.01) * 0.5;
+  c.save(); c.translate(x, y); c.scale(s, s); c.strokeStyle = PAL.ink; c.lineWidth = 7; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(-40, -10 * f); c.quadraticCurveTo(-20, -24 - 18 * f, 0, 0); c.quadraticCurveTo(20, -24 - 18 * f, 40, -10 * f); c.stroke(); c.restore();
 }
 export function londonSkyline(base = 1150) {
   const ink = PAL.ink;
