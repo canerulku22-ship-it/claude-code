@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Born in Miami</title>
+<style>
+@font-face { font-family: 'Lilita One'; src: url('/node_modules/@fontsource/lilita-one/files/lilita-one-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Patrick Hand'; src: url('/node_modules/@fontsource/patrick-hand/files/patrick-hand-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Pacifico'; src: url('/node_modules/@fontsource/pacifico/files/pacifico-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Monoton'; src: url('/node_modules/@fontsource/monoton/files/monoton-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Nunito'; font-weight: 800; src: url('/node_modules/@fontsource/nunito/files/nunito-latin-800-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Nunito'; font-weight: 900; src: url('/node_modules/@fontsource/nunito/files/nunito-latin-900-normal.woff2') format('woff2'); }
+html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+canvas { display: block; }
+</style>
+<script type="importmap">{"imports":{"d3-geo":"/node_modules/d3-geo/src/index.js","d3-array":"/node_modules/d3-array/dist/d3-array.mjs","topojson-client":"/node_modules/topojson-client/src/index.js"}}</script>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="/node_modules/gsap/dist/gsap.min.js"></script>
+<script src="timing.js"></script>
+<script type="module" src="main.js"></script>
+</body>
+</html>

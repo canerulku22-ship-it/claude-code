@@ -1,0 +1,49 @@
+{
+ "_notes": [
+  "Life-story 'Where will you be born this time?' — Miami, 80s neon style. Every spoken sentence contains 'bloody'. #swear# words are bleeped in the main mix and masked in captions.",
+  "Facts: ~224k Florida births/yr vs ~132M world births (≈1 in 600); Julia Tuttle founded Miami (the only major US city founded by a woman); Miami Beach has the world's largest collection of Art Deco architecture; 'sunny day' king-tide flooding through storm drains; cold-stunned iguanas fall from trees; cafecito from a ventanita; Hurricane Andrew 1992; stone crab season Oct 15 – May 1; Cuban sandwiches; Pitbull ('Mr. 305') is from Miami; US life expectancy ~78 (CDC, 2023)."
+ ],
+ "segments": [
+  {"id": "s01", "name": "intro", "lines": [
+   {"tts": "Where will you be bloody born this time?", "cap": "Where will you be bloody *born* this *time?*", "pause": 0.3}]},
+  {"id": "s02", "name": "place", "lines": [
+   {"tts": "The bloody United States, the city of Miami.", "cap": "The bloody *United* *States,* the city of *Miami.*", "pause": 0.3},
+   {"tts": "Roughly a bloody one in six hundred chance of being born in Florida.", "cap": "Roughly a bloody {1-in-600:4} chance of being born in *Florida.*", "pause": 0.25},
+   {"tts": "About two hundred and twenty thousand bloody babies are born in Florida every year.", "cap": "About {220,000:5} bloody *babies* are born in Florida every year.", "pause": 0.25},
+   {"tts": "Your name is Mateo, but everyone calls you bloody Teo.", "cap": "Your name is *Mateo,* but everyone calls you bloody *Teo.*", "pause": 0.4}]},
+  {"id": "s03", "name": "city", "lines": [
+   {"tts": "Miami's the only major American city founded by a bloody woman, Julia Tuttle.", "cap": "Miami's the only major American city founded by a bloody *woman,* *Julia* *Tuttle.*", "pause": 0.2},
+   {"tts": "It's got the biggest bloody collection of Art Deco buildings on the planet.", "cap": "It's got the *biggest* bloody collection of *Art* *Deco* buildings on the planet.", "pause": 0.2},
+   {"tts": "And the streets flood on sunny days, because the sea comes up through the bloody drains.", "cap": "And the streets *flood* on *sunny* *days,* because the sea comes up through the bloody *drains.*", "pause": 0.35}]},
+  {"id": "s04", "name": "iguanas", "lines": [
+   {"tts": "When it finally gets cold, the iguanas freeze and fall out of the bloody trees.", "cap": "When it finally gets *cold,* the iguanas *freeze* and *fall* out of the bloody *trees.*", "pause": 0.2},
+   {"tts": "It's literally raining bloody lizards, what the fuck, Miami?", "cap": "It's literally raining bloody *lizards,* what the #fuck,# *Miami?*", "pause": 0.4}]},
+  {"id": "s05", "name": "age5", "lines": [
+   {"tts": "At five, Teo has his first cafecito from a bloody coffee window.", "cap": "At *five,* Teo has his first *cafecito* from a bloody coffee window.", "pause": 0.2},
+   {"tts": "It's basically rocket fuel, and he doesn't sleep for a bloody week.", "cap": "It's basically *rocket* *fuel,* and he doesn't sleep for a bloody *week.*", "pause": 0.4}]},
+  {"id": "s06", "name": "age16", "lines": [
+   {"tts": "At sixteen, a hurricane's coming, and the whole bloody family argues about leaving.", "cap": "At *sixteen,* a *hurricane's* coming, and the whole bloody family argues about leaving.", "pause": 0.2},
+   {"tts": "Nan refuses, because she survived bloody Andrew in ninety-two.", "cap": "Nan *refuses,* because she survived bloody *Andrew* in *'92.*", "pause": 0.2},
+   {"tts": "Get in the bloody car, Nan, for fuck's sake!", "cap": "Get in the bloody *car,* Nan, for #fuck's# *sake!*", "pause": 0.4}]},
+  {"id": "s07", "name": "food", "lines": [
+   {"tts": "Dinner's stone crab, but only from October to May, because that's the bloody season.", "cap": "Dinner's *stone* *crab,* but only from *October* to *May,* because that's the bloody season.", "pause": 0.2},
+   {"tts": "And the Cuban sandwiches are the size of your bloody arm.", "cap": "And the *Cuban* *sandwiches* are the size of your bloody *arm.*", "pause": 0.4}]},
+  {"id": "s08", "name": "age22", "lines": [
+   {"tts": "At twenty-two, Teo moves to bloody New York.", "cap": "At *twenty-two,* Teo moves to bloody *New* *York.*", "pause": 0.2},
+   {"tts": "He's freezing his arse off in bloody flip-flops.", "cap": "He's *freezing* his #arse# off in bloody *flip-flops.*", "pause": 0.3},
+   {"tts": "Someone says, you're from bloody Miami, aren't you?", "cap": "Someone says, \"You're from bloody *Miami,* aren't you?\"", "pause": 0.2},
+   {"tts": "How the fuck did you bloody know?", "cap": "\"How the #fuck# did you bloody *know?\"*", "pause": 0.4}]},
+  {"id": "s09", "name": "age30", "lines": [
+   {"tts": "At thirty, he comes home and marries Valentina, who everyone calls bloody Vale.", "cap": "At *thirty,* he comes home and marries *Valentina,* who everyone calls bloody *Vale.*", "pause": 0.2},
+   {"tts": "There's salsa, a DJ playing Pitbull, and about sixty bloody cousins.", "cap": "There's *salsa,* a DJ playing *Pitbull,* and about *sixty* bloody *cousins.*", "pause": 0.2},
+   {"tts": "Because Mister Three-Oh-Five is from bloody Miami too.", "cap": "Because {Mr.305:2} is from bloody *Miami* *too.*", "pause": 0.4}]},
+  {"id": "s10", "name": "old", "lines": [
+   {"tts": "Americans live about seventy-eight bloody years.", "cap": "Americans live about *seventy-eight* bloody *years.*", "pause": 0.25},
+   {"tts": "Teo grows old in bloody Miami.", "cap": "Teo grows *old* in bloody Miami.", "pause": 0.2},
+   {"tts": "Still bloody sweating.", "cap": "Still bloody *sweating.*", "pause": 0.15},
+   {"tts": "Still drinking bloody cafecito.", "cap": "Still drinking bloody *cafecito.*", "pause": 0.15},
+   {"tts": "Still dodging bloody iguanas.", "cap": "Still dodging bloody *iguanas.*", "pause": 0.5}]},
+  {"id": "s11", "name": "outro", "lines": [
+   {"tts": "Where will you be bloody born next time?", "cap": "Where will you be bloody *born* *next* *time?*", "pause": 1.4}]}
+ ]
+}
