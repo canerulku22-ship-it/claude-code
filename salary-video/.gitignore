@@ -1,3 +1,4 @@
 scenes/
 still_*.png
 *.mp4
+__pycache__/
