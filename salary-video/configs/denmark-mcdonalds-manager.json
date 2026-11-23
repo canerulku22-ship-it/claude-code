@@ -1,0 +1,49 @@
+{
+  "_notes": [
+    "Monthly estimates, 2026 rates. The script ignores this key.",
+    "Pay: 40,000 kr gross. Danish median for restaurant managers is 40,911 kr (DST via tiderne.dk); Goodjob puts an experienced McDonald's restaurant manager at 40-50k kr.",
+    "Tax: Copenhagen municipal 23.39%, bottom tax 12.01% and 8% AM-bidrag; personal allowance 54,100 kr, employment deduction 12.75% (max 63,300 kr), job deduction 3,100 kr. No church tax; below the middle-tax threshold.",
+    "Pension: assumed 4% employee share plus 99 kr ATP. A-kasse 500 kr (Ma-kasse lists 562 kr for 2026); it is tax-deductible.",
+    "UK student loan: Plan 2, 9% of gross above £29,385. Denmark's 2026-27 overseas threshold is not yet checked against the gov.uk table.",
+    "Copenhagen costs: 1-bed rent 12,000 kr (sources say 9,000-13,100), groceries 3,500, heating/power/water 900, monthly pass 460, phone and internet 300, going out 1,500.",
+    "UK: £37,000 McDonald's Business Manager base (Glassdoor UK average, Nov 2026), 2026/27 tax and NI, Plan 2, 5% auto-enrolment. UK costs outside London: rent £1,050, council tax £110, energy and water £150, groceries £300, transport £90, phone £50, going out £150.",
+    "Exchange rate: £1 = 8.96 kr (Xe, 5 Nov 2026)."
+  ],
+  "episode": "McDonald's manager",
+  "country": "Denmark",
+  "region": "Copenhagen",
+  "home_country": "UK",
+  "hook_lines": ["How much would you earn", "working as a", "McDonald's manager in"],
+  "hook_country": "DENMARK",
+  "hook_question": "...and what would you keep?",
+  "wage_line": "McDonald's restaurant manager · full-time · Copenhagen",
+  "symbol": "kr",
+  "symbol_after": true,
+  "home_symbol": "£",
+  "rate_to_home": 0.11157,
+  "gross": 40000,
+  "ded_label": "TAX & DEDUCTIONS",
+  "deductions": [
+    ["Income tax", 9508],
+    ["Labour market tax (8%)", 3064],
+    ["Unemployment insurance", 500],
+    ["UK student loan (Plan 2)", 1625],
+    ["Pension (4%) + ATP", 1699]
+  ],
+  "bills_label": "COST OF LIVING",
+  "bills": [
+    ["Rent (1-bed flat)", 12000],
+    ["Groceries", 3500],
+    ["Heating, power & water", 900],
+    ["Transport pass", 460],
+    ["Phone & internet", 300],
+    ["Going out", 1500]
+  ],
+  "bar_label": "LEFT FROM YOUR PAY",
+  "pct_line": "That's {pct}% of your pay",
+  "compare": {"title": "Same job, per month", "gross": 3083, "take_home": 2354, "left": 454},
+  "question": "Would you move\nto Denmark?",
+  "cta": "Comment the next job + country",
+  "next_label": "NEXT EPISODE = YOU DECIDE",
+  "footnote": "Estimates at 2026 rates. Copenhagen, no church tax. £1 = 8.96 kr.\nUK: £37k salary, 2026/27 tax, typical costs outside London."
+}

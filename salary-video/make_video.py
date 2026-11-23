@@ -60,6 +60,14 @@ def text(d, xy, s, f, fill, anchor="la"):
     ImageDraw.Draw(m).text((xy[0] - x0, xy[1] - y0), s, font=f, fill=a, anchor=anchor)
     d.target.paste(fill[:3], (x0, y0, x1, y1), m)
 
+def lines(d, cx, cy, s, weight, size, max_w, fill):
+    """Centre a block of newline-separated lines on (cx, cy); returns the line count."""
+    rows = s.split("\n")
+    f = min((fit(d, r, weight, size, max_w) for r in rows), key=lambda f: f.size)
+    for i, r in enumerate(rows):
+        text(d, (cx, cy + (i - (len(rows) - 1) / 2) * f.size * 1.12), r, f, fill, "mm")
+    return len(rows)
+
 
 class Video:
     def __init__(self, c):
@@ -76,6 +84,9 @@ class Video:
         self.take_home = c["gross"] - self.ded_total
         self.bill_total = sum(v for _, v in self.bills)
         self.left = self.take_home - self.bill_total
+        self.cmp = c.get("compare")
+        if self.cmp is None and c.get("compare_value") is not None:
+            self.cmp = {"title": c.get("compare_title", "Take-home pay"), "take_home": c["compare_value"]}
         # Timeline (seconds), sized to the number of lines
         self.t_tax = 11.0
         self.ded_times = [self.t_tax + 0.3 + i * 2.2 for i in range(len(self.ded))]
@@ -83,7 +94,8 @@ class Video:
         self.t_bills = self.t_take + 4.0
         self.bill_times = [self.t_bills + 0.3 + i * 2.5 for i in range(len(self.bills))]
         self.t_left = self.t_bills + 0.3 + len(self.bills) * 2.5 + 1.2
-        self.t_q = self.t_left + 9.0
+        n_cmp = sum(k in self.cmp for k in ("gross", "take_home", "left")) if self.cmp else 0
+        self.t_q = self.t_left + 9.0 + max(0, n_cmp - 1)  # a second more per extra comparison row
         self.t_end = self.t_q + 5.0
         self.scenes = [("hook", 0.0, 4.0), ("pay", 4.0, self.t_tax), ("tax", self.t_tax, self.t_take),
                        ("takehome", self.t_take, self.t_bills), ("bills", self.t_bills, self.t_left),
@@ -141,9 +153,14 @@ class Video:
         text(d, (48 + (1 - e) * 30, y + 44), name, fit(d, name, "Medium", size, name_w), rgba(INK, e), "ls")
         text(d, (self.cw - 48, y + 46), val, vf, rgba(RED, e), "rs")
 
-    def dashed(self, d, y, p):
+    def dashed(self, d, y, p, label=None):
         if p <= 0: return
-        x, x1 = 48, 48 + (self.cw - 96) * ease_out(p)
+        x = 48
+        if label:
+            f = font("Bold", 24)
+            text(d, (x, y), label, f, rgba(MUTED, p), "lm")
+            x += d.textlength(label, font=f) + 20
+        x1 = x + (self.cw - 48 - x) * ease_out(p)
         while x < x1:
             d.line([(x, y), (min(x + 14, x1), y)], fill=(190, 190, 195), width=3)
             x += 24
@@ -160,7 +177,7 @@ class Video:
         gs = self.money(c["gross"] * ease_out(prog(t, 5.6, 1.4)))
         text(d, (R, 196), gs, fit(d, self.money(c["gross"]), "Black", 72, 480), rgba(GREEN, a), "rs")
         text(d, (R, 250), f'about {self.home(c["gross"])} a month', font("Medium", 30), rgba(MUTED, prog(t, 7.1, 0.5)), "rs")
-        self.dashed(d, 290, prog(t, 7.5, 0.6))
+        self.dashed(d, 290, prog(t, 7.5, 0.6), c.get("ded_label", "TAX & DEDUCTIONS"))
         for i, ((n, v), st) in enumerate(zip(self.ded, self.ded_times)):
             self.row(d, self.y_ded + i * self.row_h, n, -v, t, st)
         yt, a = self.y_take, prog(t, self.t_take + 0.2, 0.4)
@@ -170,7 +187,7 @@ class Video:
             text(d, (48, yt + 62), "Take-home", font("ExtraBold", 46), rgba(INK, a), "ls")
             text(d, (R, yt + 60), self.money(self.take_home), fit(d, self.money(self.take_home), "Black", 64, 440), rgba(INK, a), "rs")
             text(d, (R, yt + 99), f"about {self.home(self.take_home)}", font("Medium", 28), rgba(MUTED, a), "rs")
-        self.dashed(d, yt + 132, prog(t, self.t_bills, 0.5))
+        self.dashed(d, yt + 132, prog(t, self.t_bills, 0.5), c.get("bills_label", "COST OF LIVING"))
         for i, ((n, v), st) in enumerate(zip(self.bills, self.bill_times)):
             self.row(d, self.y_bills + i * self.row_h, n, -v, t, st)
         return im
@@ -181,7 +198,7 @@ class Video:
         y0 = self.cy + self.ch + 40
         frac = clamp(lv / self.c["gross"])
         col = self.color_for(frac)
-        text(d, (self.cx, y0 + 34), "LEFT FROM MY PAY", font("Bold", 30), rgba(WHITE, a * 0.75), "ls")
+        text(d, (self.cx, y0 + 34), self.c.get("bar_label", "LEFT FROM MY PAY"), font("Bold", 30), rgba(WHITE, a * 0.75), "ls")
         text(d, (self.cx + self.cw, y0 + 40), self.money(lv), font("Black", 52), rgba(col, a), "rs")
         d.rounded_rectangle([self.cx, y0 + 64, self.cx + self.cw, y0 + 94], 15, fill=rgba(WHITE, a * 0.15))
         if frac > 0.01:
@@ -189,7 +206,25 @@ class Video:
 
     def footnote(self, d, a):
         fn = self.c["footnote"]
-        text(d, (W / 2, 1600), fn, fit(d, fn, "Medium", 26, 900), rgba(WHITE, a * 0.6), "mm")
+        lines(d, W / 2, 1600, fn, "Medium", 26, 900, rgba(WHITE, a * 0.6))
+
+    def compare_box(self, d, a):
+        """Table of monthly figures, here vs home; the better value in each row is green."""
+        c, cmp = self.c, self.cmp
+        names = {"gross": "Gross pay", "take_home": "Take-home", "left": "Left after bills"}
+        mine = {"gross": c["gross"], "take_home": self.take_home, "left": self.left}
+        rows = [(names[k], mine[k] * self.rate, cmp[k]) for k in names if k in cmp]
+        y0, X1, X2 = 1120, 730, 930  # right edges of the two money columns
+        d.rounded_rectangle([110, y0, 970, y0 + 180 + len(rows) * 74], 32, fill=rgba(WHITE, 0.08 * a))
+        text(d, (W / 2, y0 + 52), cmp.get("title", "Per month"), font("Bold", 34), rgba(WHITE, a * 0.7), "mm")
+        for x, name, col in ((X1, c["country"], YELLOW), (X2, c["home_country"], WHITE)):
+            text(d, (x, y0 + 120), name.upper(), fit(d, name.upper(), "Bold", 28, 190), rgba(col, a), "rm")
+        for i, (name, here, home) in enumerate(rows):
+            y = y0 + 196 + i * 74
+            text(d, (150, y), name, fit(d, name, "SemiBold", 38, 320), rgba(WHITE, a * 0.85), "lm")
+            for x, v, other in ((X1, here, home), (X2, home, here)):
+                s = self.money(v, self.hsym, c.get("home_symbol_after", False))
+                text(d, (x, y), s, fit(d, s, "ExtraBold", 50, 186), rgba(GREEN if v > other else WHITE, a), "rm")
 
     def frame(self, t):
         im = self.bg.copy()
@@ -205,7 +240,8 @@ class Video:
             if s > 0:
                 f = fit(d, c["hook_country"], "Black", 210, 900)
                 text(d, (W / 2, 1000), c["hook_country"], font("Black", f.size * s), rgba(YELLOW, out), "mm")
-            text(d, (W / 2, 1230), "What would I keep?", font("Bold", 64), rgba(WHITE, ease_out(prog(t, 2.4, 0.4)) * out), "mm")
+            hq = c.get("hook_question", "What would I keep?")
+            text(d, (W / 2, 1230), hq, fit(d, hq, "Bold", 64, 940), rgba(WHITE, ease_out(prog(t, 2.4, 0.4)) * out), "mm")
 
         if 4.0 <= t < self.t_left + 0.8:
             p = ease_out(prog(t, 4.0, 0.8))
@@ -232,24 +268,19 @@ class Video:
             text(d, (W / 2, 720), self.money(cnt), font("Black", f.size * s), rgba(self.color_for(self.left / c["gross"]), a), "mm")
             text(d, (W / 2, 900), f"about {self.home(self.left)} a month", font("ExtraBold", 66), rgba(WHITE, prog(t, tl + 3.4, 0.5) * out), "mm")
             pct = round(self.left / c["gross"] * 100)
-            text(d, (W / 2, 1010), f"That's {pct}% of my pay", font("SemiBold", 52), rgba(WHITE, prog(t, tl + 4.4, 0.5) * out * 0.85), "mm")
+            text(d, (W / 2, 1010), c.get("pct_line", "That's {pct}% of my pay").format(pct=pct), font("SemiBold", 52), rgba(WHITE, prog(t, tl + 4.4, 0.5) * out * 0.85), "mm")
             a4 = prog(t, tl + 5.6, 0.5) * out
-            if a4 > 0 and c.get("compare_value") is not None:
-                d.rounded_rectangle([110, 1150, 970, 1380], 32, fill=rgba(WHITE, 0.08 * a4))
-                text(d, (W / 2, 1212), c.get("compare_title", "Take-home pay"), font("Bold", 34), rgba(WHITE, a4 * 0.7), "mm")
-                left_s = f'{c["country"]} {self.home(self.take_home)}'
-                right_s = f'{c["home_country"]} {self.money(c["compare_value"], self.hsym, c.get("home_symbol_after", False))}'
-                text(d, (300, 1300), left_s, fit(d, left_s, "ExtraBold", 54, 340), rgba(YELLOW, a4), "mm")
-                text(d, (540, 1300), "vs", font("Medium", 40), rgba(WHITE, a4 * 0.6), "mm")
-                text(d, (780, 1300), right_s, fit(d, right_s, "ExtraBold", 54, 340), rgba(WHITE, a4), "mm")
+            if a4 > 0 and self.cmp:
+                self.compare_box(d, a4)
             self.footnote(d, a)
 
         if t >= self.t_q:
             tq = self.t_q
             p = ease_out(prog(t, tq + 0.1, 0.5))
-            text(d, (W / 2, 760 + (1 - p) * 40), c.get("question", "Would you move?"), fit(d, c.get("question", "Would you move?"), "Black", 100, 940), rgba(WHITE, p), "mm")
+            n = lines(d, W / 2, 760 + (1 - p) * 40, c.get("question", "Would you move?"), "Black", 100, 940, rgba(WHITE, p))
+            dy = (n - 1) * 56
             cta = c.get("cta", "Comment the next country")
-            text(d, (W / 2, 920), cta, fit(d, cta, "Bold", 58, 940), rgba(YELLOW, ease_out(prog(t, tq + 0.9, 0.5))), "mm")
+            text(d, (W / 2, 920 + dy), cta, fit(d, cta, "Bold", 58, 940), rgba(YELLOW, ease_out(prog(t, tq + 0.9, 0.5))), "mm")
             p3 = prog(t, tq + 1.7, 0.5)
             s = 0.6 + 0.4 * ease_back(p3) if p3 > 0 else 0
             if s > 0:
@@ -258,8 +289,8 @@ class Video:
                 f = font("Black", f.size * s)
                 w = d.textlength(label, font=f)
                 hh = f.size * 0.85
-                d.rounded_rectangle([W / 2 - w / 2 - 34, 1060 - hh, W / 2 + w / 2 + 34, 1060 + hh], hh, fill=rgba(YELLOW, 1))
-                text(d, (W / 2, 1060), label, f, rgba(INK, 1), "mm")
+                d.rounded_rectangle([W / 2 - w / 2 - 34, 1060 + dy - hh, W / 2 + w / 2 + 34, 1060 + dy + hh], hh, fill=rgba(YELLOW, 1))
+                text(d, (W / 2, 1060 + dy), label, f, rgba(INK, 1), "mm")
         return im
 
 
