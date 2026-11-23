@@ -6,14 +6,34 @@
     "Pension: assumed 4% employee share plus 99 kr ATP. A-kasse 500 kr (Ma-kasse lists 562 kr for 2026); it is tax-deductible.",
     "UK student loan: Plan 2, 9% of gross above £29,385. Denmark's 2026-27 overseas threshold is not yet checked against the gov.uk table.",
     "Copenhagen costs: 1-bed rent 12,000 kr (sources say 9,000-13,100), groceries 3,500, heating/power/water 900, monthly pass 460, phone and internet 300, going out 1,500.",
-    "UK: £37,000 McDonald's Business Manager base (Glassdoor UK average, Nov 2026), 2026/27 tax and NI, Plan 2, 5% auto-enrolment. UK costs outside London: rent £1,050, council tax £110, energy and water £150, groceries £300, transport £90, phone £50, going out £150.",
+    "Student loans, Denmark: SU grant 7,426 kr/month before tax in 2026 for students living away from home (lovguiden.dk) = £829; tuition free for Danish/EU students; average SU debt 57,000-68,000 kr for 2020-21 graduates (Statistics Denmark) = £6,400-7,600.",
+    "Student loans, UK: England fee cap £9,790 for 2026/27 (gov.uk); maintenance support is a loan; average balance entering repayment £47,730 in 2025-26 (Student Loans Company). Your repayment on this job: Plan 2 on £37,000 in the UK = £57/month; on 40,000 kr in Denmark = £181/month.",
     "Exchange rate: £1 = 8.96 kr (Xe, 5 Nov 2026)."
   ],
+  "voice": {
+    "engine": "flite",
+    "voice": "slt",
+    "speed": 1.22
+  },
   "episode": "McDonald's manager",
   "country": "Denmark",
   "region": "Copenhagen",
   "home_country": "UK",
-  "hook_lines": ["How much would you earn", "working as a", "McDonald's manager in"],
+  "flag": "DK",
+  "home_flag": "GB",
+  "map_point": [
+    9.9,
+    56.1
+  ],
+  "globe_lines": [
+    "What does a McDonald's manager",
+    "take home in..."
+  ],
+  "hook_lines": [
+    "How much would you earn",
+    "working as a",
+    "McDonald's manager in"
+  ],
   "hook_country": "DENMARK",
   "hook_question": "...and what would you keep?",
   "wage_line": "McDonald's restaurant manager · full-time · Copenhagen",
@@ -24,26 +44,114 @@
   "gross": 40000,
   "ded_label": "TAX & DEDUCTIONS",
   "deductions": [
-    ["Income tax", 9508],
-    ["Labour market tax (8%)", 3064],
-    ["Unemployment insurance", 500],
-    ["UK student loan (Plan 2)", 1625],
-    ["Pension (4%) + ATP", 1699]
+    [
+      "Income tax",
+      9508,
+      "Income tax, nine and a half thousand."
+    ],
+    [
+      "Labour market tax (8%)",
+      3064,
+      "Labour market tax, three thousand."
+    ],
+    [
+      "Unemployment insurance",
+      500,
+      "Unemployment insurance, five hundred."
+    ],
+    [
+      "UK student loan (Plan 2)",
+      1625,
+      "Your UK student loan follows you. Sixteen hundred."
+    ],
+    [
+      "Pension (4%) + ATP",
+      1699,
+      "Pension, seventeen hundred."
+    ]
   ],
   "bills_label": "COST OF LIVING",
   "bills": [
-    ["Rent (1-bed flat)", 12000],
-    ["Groceries", 3500],
-    ["Heating, power & water", 900],
-    ["Transport pass", 460],
-    ["Phone & internet", 300],
-    ["Going out", 1500]
+    [
+      "Rent (1-bed flat)",
+      12000,
+      "Now living costs. Rent, twelve thousand."
+    ],
+    [
+      "Groceries",
+      3500,
+      "Groceries, three and a half thousand."
+    ],
+    [
+      "Heating, power & water",
+      900,
+      "Heating, power and water, nine hundred."
+    ],
+    [
+      "Transport pass",
+      460,
+      "Travel pass, four sixty."
+    ],
+    [
+      "Phone & internet",
+      300,
+      "Phone and internet, three hundred."
+    ],
+    [
+      "Going out",
+      1500,
+      "Going out, fifteen hundred."
+    ]
   ],
   "bar_label": "LEFT FROM YOUR PAY",
   "pct_line": "That's {pct}% of your pay",
-  "compare": {"title": "Same job, per month", "gross": 3083, "take_home": 2354, "left": 454},
+  "loans": {
+    "title": "STUDENT LOANS",
+    "subtitle": "Denmark vs the UK",
+    "say": "Now here's the twist. Student loans.",
+    "rows": [
+      {
+        "label": "Uni tuition fees",
+        "here": "FREE",
+        "home": "£9,790/yr",
+        "better": "here",
+        "say": "Uni in Denmark is free. In the UK, it's nine thousand seven hundred and ninety pounds a year."
+      },
+      {
+        "label": "Paid while studying",
+        "here": "£829/mo grant",
+        "home": "Loans only",
+        "better": "here",
+        "say": "Danish students are paid about eight hundred pounds a month to study. UK students get loans."
+      },
+      {
+        "label": "Average debt after uni",
+        "here": "≈ £7,000",
+        "home": "£47,730",
+        "better": "here",
+        "say": "Danish grads owe about seven thousand pounds. UK grads, nearly forty eight thousand."
+      },
+      {
+        "label": "Your UK loan on this job",
+        "here": "£181/mo",
+        "home": "£57/mo",
+        "better": "home",
+        "say": "But your UK loan costs more over there. A hundred and eighty one pounds a month, not fifty seven."
+      }
+    ],
+    "footnote": "DK: SU grant 7,426 kr/mo before tax (2026); free tuition for Danish/EU students; avg SU debt, Statistics Denmark.\nUK: 2026/27 fee cap; SLC average balance entering repayment 2025-26; Plan 2 at 9% over £29,385."
+  },
+  "vo": {
+    "globe": "What does a McDonald's manager take home in",
+    "globe_country": "Denmark?",
+    "hook": "Let's break down the tax, the bills, and what you keep.",
+    "pay": "A McDonald's manager in Copenhagen earns about forty thousand kroner a month. Around four and a half thousand pounds.",
+    "take_home": "That leaves twenty three thousand six hundred. About two thousand six hundred pounds.",
+    "left": "So what's left? Just under five thousand kroner. About five hundred and fifty pounds a month.",
+    "question": "So, would you move to Denmark? Comment the next job and country."
+  },
   "question": "Would you move\nto Denmark?",
   "cta": "Comment the next job + country",
   "next_label": "NEXT EPISODE = YOU DECIDE",
-  "footnote": "Estimates at 2026 rates. Copenhagen, no church tax. £1 = 8.96 kr.\nUK: £37k salary, 2026/27 tax, typical costs outside London."
+  "footnote": "Estimates at 2026 rates. Copenhagen, no church tax. £1 = 8.96 kr.\nUK student loan: Plan 2, 9% of pay over £29,385."
 }

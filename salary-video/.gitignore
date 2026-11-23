@@ -1,4 +1,7 @@
 scenes/
+build/
 still_*.png
 *.mp4
 __pycache__/
+.cache/
+models/
